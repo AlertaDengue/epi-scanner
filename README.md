@@ -31,7 +31,14 @@ $ docker-compose down
 
 $ poetry install
 $ poetry shell
-
+```
+Start the wave server:
+```bash
+$ cd .venv/
+$ ./waved
+```
+Then on another terminal, start the app,
+```bash
 $ wave run app.py
 ```
 
