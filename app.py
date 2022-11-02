@@ -1,17 +1,22 @@
 import time
+import os
+from typing import List
 
 import pandas as pd
 import psutil
-from h2o_wave import ui, data, Q, app, on, main
+from h2o_wave import ui, data, Q, app, main, copy_expando
 from loguru import logger
+from viz import load_map, plot_state_map
 
 DATA_TABLE = None
-UF = None
+BRMAP = None
 
 
-@app('/', mode='unicast')
-async def serve(q: Q):
-    create_layout(q)
+async def initialize_app(q: Q):
+    """
+    Set up UI elements
+    """
+    global BRMAP
     q.page['title'] = ui.header_card(
         box=ui.box('header'),
         title='Real-time Epidemic Scanner',
@@ -19,16 +24,46 @@ async def serve(q: Q):
         # image='/assets/info-dengue-logo.png',
         icon='health'
     )
+    await q.page.save()
+    BRMAP = load_map()
     add_stats_cards(q)
+    await q.page.save()
+    UF = q.client.uf
+    if len(BRMAP):
+        fig = await plot_state_map(q, BRMAP, UF)
+    q.page['plot'] = ui.frame_card(box='content', title=f'Map of {UF}', content=f'![plot]({fig})')
     add_sidebar(q)
     q.page['footer'] = ui.footer_card(box='footer', caption='(c) 2022 Infodengue. All rights reserved.')
-    while True:
-        # logger.info(q.args.state)
-        logger.info(q.args.state)
-        await load_table(q)
 
-        await update_stats(q)
-        # await q.page.save()
+
+@app('/', mode='multicast')
+async def serve(q: Q):
+    copy_expando(q.args, q.client)
+    create_layout(q)
+    await initialize_app(q)
+    await q.page.save()
+    q.client.cities = {}
+    q.client.loaded = ''
+    q.client.uf = 'SC'
+    while True:
+        if q.args.state:
+            await update_UF(q)
+        if q.args.city:
+            await update_city(q)
+        # logger.info(f'UF: {UF}, state: {q.args.state}, city:{q.client.city}')
+        await load_table(q)
+        # await update_stats(q)
+        await q.page.save()
+
+
+async def update_UF(q: Q):
+    logger.info(f'UF: {UF}, state: {q.args.state}, city:{q.client.city}')
+    q.client.uf = q.args.state
+
+
+async def update_city(q: Q):
+    logger.info(f'UF: {q.client.uf}, state: {q.args.state}, city:{q.client.city}')
+    q.client.city = q.args.city
 
 
 def create_layout(q):
@@ -59,21 +94,25 @@ def create_layout(q):
     ])
 
 
+def df_to_table_rows(df: pd.DataFrame) -> List[ui.TableRow]:
+    return [ui.table_row(name=str(r[0]), cells=[str(r[0]), r[1]]) for r in df.itertuples(index=False)]
 
 
 async def load_table(q: Q):
-    if q.args.state is not None:
-        global DATA_TABLE
-        global UF
-        uf = q.args.state
-        if (DATA_TABLE is None) or uf != UF:
-            DATA_TABLE = pd.read_parquet(f"{uf}_dengue.parquet")
-            choices = [ui.choice(str(gc), str(gc)) for gc in set(DATA_TABLE.municipio_geocodigo)]
-            q.page['form'].items.append(
-                ui.dropdown(name='city', label='Select city', required=True,
-                            choices=choices, trigger=True)
-                )
-            UF = uf
+    global DATA_TABLE
+    UF = q.client.uf
+    if DATA_TABLE is None and os.path.exists(f"{UF}_dengue.parquet"):
+        logger.info("loading data...")
+        DATA_TABLE = pd.read_parquet(f"{UF}_dengue.parquet")
+        q.client.loaded = True
+        for gc in DATA_TABLE.municipio_geocodigo.unique():
+            q.client.cities[gc] = BRMAP[BRMAP.code_muni.astype(int) == int(gc)].name_muni.values[0]
+        choices = [ui.choice(str(gc), q.client.cities[gc]) for gc in DATA_TABLE.municipio_geocodigo.unique()]
+        # q.page['form'].items[1].dropdown.enabled = True
+        q.page['form'].items[1].dropdown.choices = choices
+        q.page['form'].items[1].dropdown.visible = True
+        q.page['form'].items[1].dropdown.value = int(gc)
+
     await q.page.save()
 
 
@@ -101,6 +140,8 @@ def add_sidebar(q):
     q.page['form'] = ui.form_card(box='sidebar', items=[
         ui.dropdown(name='state', label='Select state', value='RS', required=True,
                     choices=state_choices, trigger=True),
+        ui.dropdown(name='city', label='Select city', required=True,
+                    choices=[], trigger=True, visible=False)
     ])
 
 

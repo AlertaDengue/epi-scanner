@@ -13,6 +13,8 @@ psutil = "^5.9.2"
 loguru = "^0.6.0"
 lmfit = "^1.0.3"
 pyarrow = "^10.0.0"
+geopandas = "^0.12.1"
+matplotlib = "^3.6.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "*"
