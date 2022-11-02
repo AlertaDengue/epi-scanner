@@ -1,13 +1,14 @@
 import pandas as pd
+from h2o_wave import Q
 import geopandas as gpd
 import uuid
 import os
 import matplotlib.pyplot as plt
 
 
-def load_map():
-    brmap = gpd.read_file('muni_br.gpkg', driver='GPKG')
-    return brmap
+async def load_map(q: Q):
+    brmap = gpd.read_file('data/muni_br.gpkg', driver='GPKG')
+    q.client.brmap = brmap
 
 
 async def plot_state_map(q, brmap: gpd.GeoDataFrame, uf: str = 'SC', column=None):

@@ -9,14 +9,12 @@ from loguru import logger
 from viz import load_map, plot_state_map
 
 DATA_TABLE = None
-BRMAP = None
 
 
 async def initialize_app(q: Q):
     """
     Set up UI elements
     """
-    global BRMAP
     q.page['title'] = ui.header_card(
         box=ui.box('header'),
         title='Real-time Epidemic Scanner',
@@ -25,13 +23,13 @@ async def initialize_app(q: Q):
         icon='health'
     )
     await q.page.save()
-    BRMAP = load_map()
-    add_stats_cards(q)
+    await load_map(q)
+    # add_stats_cards(q)
     await q.page.save()
-    UF = q.client.uf
-    if len(BRMAP):
-        fig = await plot_state_map(q, BRMAP, UF)
-    q.page['plot'] = ui.frame_card(box='content', title=f'Map of {UF}', content=f'![plot]({fig})')
+    UF = q.client.uf = 'SC'
+
+    fig = await plot_state_map(q, q.client.brmap, UF)
+    q.page['plot'] = ui.markdown_card(box='content', title=f'Map of {UF}', content=f'![plot]({fig})')
     add_sidebar(q)
     q.page['footer'] = ui.footer_card(box='footer', caption='(c) 2022 Infodengue. All rights reserved.')
 
@@ -57,7 +55,7 @@ async def serve(q: Q):
 
 
 async def update_UF(q: Q):
-    logger.info(f'UF: {UF}, state: {q.args.state}, city:{q.client.city}')
+    logger.info(f'UF: {q.client.uf}, state: {q.args.state}, city:{q.client.city}')
     q.client.uf = q.args.state
 
 
@@ -101,12 +99,12 @@ def df_to_table_rows(df: pd.DataFrame) -> List[ui.TableRow]:
 async def load_table(q: Q):
     global DATA_TABLE
     UF = q.client.uf
-    if DATA_TABLE is None and os.path.exists(f"{UF}_dengue.parquet"):
+    if DATA_TABLE is None and os.path.exists(f"data/{UF}_dengue.parquet"):
         logger.info("loading data...")
-        DATA_TABLE = pd.read_parquet(f"{UF}_dengue.parquet")
+        DATA_TABLE = pd.read_parquet(f"data/{UF}_dengue.parquet")
         q.client.loaded = True
         for gc in DATA_TABLE.municipio_geocodigo.unique():
-            q.client.cities[gc] = BRMAP[BRMAP.code_muni.astype(int) == int(gc)].name_muni.values[0]
+            q.client.cities[gc] = q.client.brmap[q.client.brmap.code_muni.astype(int) == int(gc)].name_muni.values[0]
         choices = [ui.choice(str(gc), q.client.cities[gc]) for gc in DATA_TABLE.municipio_geocodigo.unique()]
         # q.page['form'].items[1].dropdown.enabled = True
         q.page['form'].items[1].dropdown.choices = choices
