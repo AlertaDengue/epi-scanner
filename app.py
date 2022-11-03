@@ -111,7 +111,7 @@ async def on_update_city(q: Q):
 
 
 def create_layout(q):
-    q.page['meta'] = ui.meta_card(box='', layouts=[
+    q.page['meta'] = ui.meta_card(box='', theme='default', layouts=[
         ui.layout(
             breakpoint='xl',
             width='1200px',
