@@ -34,14 +34,16 @@ async def initialize_app(q: Q):
     q.page['footer'] = ui.footer_card(box='footer', caption='(c) 2022 Infodengue. All rights reserved.')
 
 
-@app('/scanner', mode='multicast')
+@app('/', mode='multicast')
 async def serve(q: Q):
     copy_expando(q.args, q.client)
     create_layout(q)
-    await initialize_app(q)
+    if not q.client.initialized:
+        await initialize_app(q)
+        q.client.initialized = True
     await q.page.save()
     q.client.cities = {}
-    q.client.loaded = ''
+    q.client.loaded = False
     q.client.uf = 'SC'
     q.client.weeks = False
     while True:
@@ -50,25 +52,27 @@ async def serve(q: Q):
         if q.args.city:
             await update_city(q)
         # logger.info(f'UF: {q.args}, state: {q.args.state}, city:{q.client.city}')
-        await load_table(q)
+        if not q.client.loaded:
+            await load_table(q)
         if (not q.client.weeks) and (q.client.data_table is not None):
             await t_weeks(q)
             fig = await plot_state_map(q, q.client.weeks_map, q.client.uf, column='transmissao')
-            q.page['plotweeks'] = ui.markdown_card(box='content',
-                                                   title=f'Number of weeks of $R_t>1$ in the last 10 years',
-                                                   content=f'![plot]({fig})')
-
+            q.page['plot'] = ui.markdown_card(box='content',
+                                              title=f'Number of weeks of Rt > 1 over the last 10 years',
+                                              content=f'![plot]({fig})')
         await q.page.save()
 
 
 async def update_UF(q: Q):
     logger.info(f'UF: {q.client.uf}, state: {q.args.state}, city:{q.args.city}')
     q.client.uf = q.args.state
+    await q.page.save()
 
 
 async def update_city(q: Q):
     logger.info(f'UF: {q.client.uf}, state: {q.args.state}, city:{q.client.city}')
     q.client.city = q.args.city
+    await q.page.save()
 
 
 def create_layout(q):

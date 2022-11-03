@@ -20,6 +20,8 @@ async def t_weeks(q: Q):
     weeks = q.client.data_table.groupby(by='municipio_geocodigo').sum(numeric_only=True)[['transmissao']]
     wmap = q.client.statemap.merge(weeks, left_on='code_muni', right_index=True)
     q.client.weeks_map = wmap
+    q.client.weeks = True
+    await q.page.save()
 
 
 async def plot_state_map(q, themap: gpd.GeoDataFrame, uf: str = 'SC', column=None):
