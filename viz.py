@@ -17,6 +17,9 @@ async def update_state_map(q: Q):
 
 
 async def t_weeks(q: Q):
+    """
+    Merge weeks table with map
+    """
     weeks = q.client.data_table.groupby(by='municipio_geocodigo').sum(numeric_only=True)[['transmissao']]
     wmap = q.client.statemap.merge(weeks, left_on='code_muni', right_index=True)
     q.client.weeks_map = wmap
@@ -36,3 +39,23 @@ async def plot_state_map(q, themap: gpd.GeoDataFrame, uf: str = 'SC', column=Non
     # Clean up
     os.remove(image_filename)
     return image_path
+
+
+async def top_n_cities(q: Q, n: int):
+    wmap = q.client.weeks_map
+    df = wmap.sort_values('transmissao', ascending=False)[['name_muni', 'transmissao']].head(n)
+    return make_markdown_table(fields=df.columns.tolist(),
+                               rows=df.values.tolist()
+                               )
+
+
+def make_markdown_row(values):
+    return f"| {' | '.join([str(x) for x in values])} |"
+
+
+def make_markdown_table(fields, rows):
+    return '\n'.join([
+        make_markdown_row(fields),
+        make_markdown_row('-' * len(fields)),
+        '\n'.join([make_markdown_row(row) for row in rows]),
+    ])
