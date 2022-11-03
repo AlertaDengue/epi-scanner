@@ -6,7 +6,8 @@ import pandas as pd
 import psutil
 from h2o_wave import ui, data, Q, app, main, copy_expando
 from loguru import logger
-from viz import load_map, plot_state_map, t_weeks, update_state_map, top_n_cities
+from viz import (load_map, plot_state_map, t_weeks,
+                 update_state_map, top_n_cities, plot_series)
 
 DATA_TABLE = None
 STATES = {'SC': 'Santa Catarina',
@@ -105,6 +106,7 @@ async def on_update_city(q: Q):
     # print(q.client.cities)
     q.page['analysis_header'].content = f"## {q.client.cities[int(q.client.city)]}"
     create_analysis_form(q)
+    await update_analysis(q)
     await q.page.save()
 
 
@@ -165,7 +167,11 @@ async def load_table(q: Q):
 
 
 async def update_analysis(q):
-    pass
+    img = await plot_series(q, int(q.client.city), q.client.start_date, q.client.end_date)
+    q.page['ts_plot'] = ui.markdown_card(box='analysis',
+                                         title=f'Weekly Cases',
+                                         content=f'![plot]({img})')
+    q.page.save()
 
 
 def add_sidebar(q):
