@@ -3,6 +3,9 @@ from h2o_wave import Q
 import geopandas as gpd
 import uuid
 import os
+import plotly.express as px
+from plotly.subplots import make_subplots
+from plotly import io as pio
 import matplotlib.pyplot as plt
 
 
@@ -70,6 +73,17 @@ def make_markdown_table(fields, rows):
 
 
 async def plot_series(q: Q, gc: int, start_date: str, end_date: str):
+    """
+    Plot timeseries between two dates of city
+    Args:
+        q:
+        gc: geocode of the city
+        start_date:
+        end_date:
+
+    Returns:
+    image path
+    """
     df = q.client.data_table
     dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
     dfcity.sort_index(inplace=True)
@@ -86,3 +100,20 @@ async def plot_series(q: Q, gc: int, start_date: str, end_date: str):
     # Clean up
     os.remove(image_filename)
     return image_path
+
+
+async def plot_series_px(q: Q, gc: int, start_date: str, end_date: str):
+    df = q.client.data_table
+    dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
+    dfcity.sort_index(inplace=True)
+    dfcity['casos_cum'] = dfcity.casos.cumsum()
+    spl = make_subplots(rows=2, cols=1)
+    fig = px.bar(dfcity.casos)
+    fig2 = px.bar(dfcity.casos_cum)
+    spl.add_trace(fig.data[0], row=1, col=1)
+    spl.add_trace(fig2.data[0], row=2, col=1)
+
+    html = pio.to_html(spl, validate=False, include_plotlyjs='cdn')
+
+    q.page['ts_plot_px'].content = html
+    await q.page.save()
