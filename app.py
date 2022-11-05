@@ -124,6 +124,16 @@ async def on_update_city(q: Q):
     await q.page.save()
 
 
+async def update_pars(q: Q):
+    table = "| Year | Beta | Gamma | R0 | Peak |\n| ---- | ---- | ----- | -- | ---- |\n"
+    print(q.client.scanner.results[int(q.client.city)])
+    for res in q.client.scanner.results[int(q.client.city)]:
+        print(table)
+        table += f"| {res['year']} | {res['sir_pars']['beta']:.2f} | {res['sir_pars']['gamma']:.2f} | {res['sir_pars']['R0']:.2f} | {int(res['sir_pars']['tc'])} |\n"
+    q.page['sir_pars'].items[0].text.content = table
+    await q.page.save()
+
+
 def scan_state(q: Q):
     for gc in q.client.cities:
         q.client.scanner.scan(gc, False)
@@ -196,6 +206,7 @@ async def update_analysis(q):
     q.page['ts_plot_px'] = ui.frame_card(box='analysis', title='Weekly Cases', content='')
     await plot_series_px(q, int(q.client.city), q.client.start_date, q.client.end_date)
     await q.page.save()
+    await update_pars(q)
 
 
 def dump_results(q):
@@ -236,3 +247,9 @@ def create_analysis_form(q):
         ui.date_picker(name='start_date', label='Start Date', value='2020-01-01'),
         ui.date_picker(name='end_date', label='End Date ', value='2022-11-3'),
     ])
+    q.page['sir_pars'] = ui.form_card(box='analysis',
+                                      title=f'SIR Parameters for Epidemics in {q.client.cities[int(q.client.city)]}',
+                                      items=[
+                                          ui.text(name="sirp_table", content='')
+                                      ]
+                                      )

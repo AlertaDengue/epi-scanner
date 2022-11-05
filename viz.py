@@ -61,7 +61,7 @@ def make_markdown_table(fields, rows):
     Create markdown table
     Args:
         fields: list of column names
-        rows: List of rows i markdown format
+        rows: List of rows in Markdown format
 
     Returns: Markdown table
     """
