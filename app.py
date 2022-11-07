@@ -44,7 +44,7 @@ async def initialize_app(q: Q):
     UF = q.client.uf = 'SC'
     await update_state_map(q)
     fig = await plot_state_map(q, q.client.statemap, UF)
-    q.page['state_header'] = ui.markdown_card(box='pre', title='Epi Report', content=f'## {STATES[q.client.uf]}')
+    q.page['state_header'] = ui.markdown_card(box='pre', title='Epi Report', content=f'')
     # q.page['message'] = ui.form_card(box='content',
     #                                  items=[
     #                                      ui.message_bar(type='info', text=''),
@@ -68,7 +68,6 @@ async def serve(q: Q):
     # while True:
     if q.args.state:
         await on_update_UF(q)
-        q.page['state_header'].content = f"## {STATES[q.client.uf]}"
         await q.page.save()
     if q.args.city:
         q.page['non-existent'].items = []
@@ -100,6 +99,7 @@ async def on_update_UF(q: Q):
     # if uf != q.client.uf:
     q.client.uf = q.args.state
     await load_table(q)
+    q.page['state_header'].content = f"## {STATES[q.client.uf]}"
     await q.page.save()
     await update_state_map(q)
     q.client.weeks = False
@@ -233,7 +233,7 @@ def add_sidebar(q):
         ui.choice('RS', 'Rio Grande do Sul')
     ]
     q.page['form'] = ui.form_card(box='sidebar', items=[
-        ui.dropdown(name='state', label='Select state', value='SC', required=True,
+        ui.dropdown(name='state', label='Select state', required=True,
                     choices=state_choices, trigger=True),
         ui.dropdown(name='city', label='Select city', required=True,
                     choices=[], trigger=True, visible=False)
