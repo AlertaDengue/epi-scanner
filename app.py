@@ -126,9 +126,7 @@ async def on_update_city(q: Q):
 
 async def update_pars(q: Q):
     table = "| Year | Beta | Gamma | R0 | Peak |\n| ---- | ---- | ----- | -- | ---- |\n"
-    print(q.client.scanner.results[int(q.client.city)])
     for res in q.client.scanner.results[int(q.client.city)]:
-        print(table)
         table += f"| {res['year']} | {res['sir_pars']['beta']:.2f} | {res['sir_pars']['gamma']:.2f} | {res['sir_pars']['R0']:.2f} | {int(res['sir_pars']['tc'])} |\n"
     q.page['sir_pars'].items[0].text.content = table
     await q.page.save()

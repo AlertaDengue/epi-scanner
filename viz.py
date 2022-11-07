@@ -3,6 +3,7 @@ from h2o_wave import Q
 import geopandas as gpd
 import uuid
 import os
+import io
 import plotly.express as px
 from plotly.subplots import make_subplots
 from plotly import io as pio
@@ -112,8 +113,10 @@ async def plot_series_px(q: Q, gc: int, start_date: str, end_date: str):
     fig2 = px.bar(dfcity.casos_cum)
     spl.add_trace(fig.data[0], row=1, col=1)
     spl.add_trace(fig2.data[0], row=2, col=1)
-
-    html = pio.to_html(spl, validate=False, include_plotlyjs='cdn')
-
+    buffer = io.StringIO()
+    spl.write_html(buffer)
+    html = buffer.getvalue()
+    # html = pio.to_html(spl, validate=False, include_plotlyjs='cdn')
+    # print(html)
     q.page['ts_plot_px'].content = html
     await q.page.save()
