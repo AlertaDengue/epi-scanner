@@ -41,16 +41,16 @@ async def initialize_app(q: Q):
     await load_map(q)
 
     await q.page.save()
-    UF = q.client.uf = 'SC'
-    await update_state_map(q)
-    fig = await plot_state_map(q, q.client.statemap, UF)
+    # UF = q.client.uf = 'SC'
+    # await update_state_map(q)
+    # fig = await plot_state_map(q, q.client.statemap, UF)
     q.page['state_header'] = ui.markdown_card(box='pre', title='Epi Report', content=f'')
     # q.page['message'] = ui.form_card(box='content',
     #                                  items=[
     #                                      ui.message_bar(type='info', text=''),
     #                                      ui.message_bar(type='success', text=''),
     #                                  ])
-    q.page['plot'] = ui.markdown_card(box='content', title=f'Map of {UF}', content=f'![plot]({fig})')
+    # q.page['plot'] = ui.markdown_card(box='content', title=f'Map of {UF}', content=f'![plot]({fig})')
     add_sidebar(q)
     q.page['analysis_header'] = ui.markdown_card(box='analysis', title='City-level Analysis', content='')
     q.page['footer'] = ui.footer_card(box='footer',
