@@ -114,7 +114,7 @@ async def plot_series_px(q: Q, gc: int, start_date: str, end_date: str):
     spl.add_trace(fig.data[0], row=1, col=1)
     spl.add_trace(fig2.data[0], row=2, col=1)
     buffer = io.StringIO()
-    spl.write_html(buffer)
+    spl.write_html(buffer, include_plotlyjs='cdn', validate=False, full_html=False)
     html = buffer.getvalue()
     # html = pio.to_html(spl, validate=False, include_plotlyjs='cdn')
     # print(html)

@@ -73,6 +73,9 @@ async def serve(q: Q):
         q.page['non-existent'].items = []
         await on_update_city(q)
         await q.page.save()
+    if 'slice_year' in q.args:
+        await update_analysis(q)
+        await q.page.save()
 
 
 async def update_weeks(q):
@@ -120,6 +123,10 @@ async def on_update_city(q: Q):
     # print(q.client.cities)
     q.page['analysis_header'].content = f"## {q.client.cities[int(q.client.city)]}"
     create_analysis_form(q)
+    years = [ui.choice(name=str(c['year']), label=str(c['year'])) for c in q.client.scanner.curves[int(q.client.city)]]
+    q.page['years'].items[0].dropdown.choices = years
+    # q.page['epi_year'].choices = years
+    # print(years, q.page['years'].items[0].dropdown.choices)
     await update_analysis(q)
     await q.page.save()
 
@@ -196,13 +203,18 @@ async def load_table(q: Q):
 
 
 async def update_analysis(q):
-    img = await plot_series(q, int(q.client.city), q.client.start_date, q.client.end_date)
+    if q.client.epi_year is None:
+        syear = 2010
+        eyear = 2022
+    else:
+        syear = eyear = q.client.epi_year
+    img = await plot_series(q, int(q.client.city), f'{syear}-01-01', f'{eyear}-12-31')
     q.page['ts_plot'] = ui.markdown_card(box='analysis',
                                          title=f'Weekly Cases',
                                          content=f'![plot]({img})')
     await q.page.save()
     q.page['ts_plot_px'] = ui.frame_card(box='analysis', title='Weekly Cases', content='')
-    await plot_series_px(q, int(q.client.city), q.client.start_date, q.client.end_date)
+    await plot_series_px(q, int(q.client.city), f'{syear}-01-01', f'{eyear}-12-31')
     await q.page.save()
     await update_pars(q)
 
@@ -241,9 +253,9 @@ def add_sidebar(q):
 
 
 def create_analysis_form(q):
-    q.page['dates'] = ui.form_card(box='analysis', title='Parameters', items=[
-        ui.date_picker(name='start_date', label='Start Date', value='2020-01-01'),
-        ui.date_picker(name='end_date', label='End Date ', value='2022-11-3'),
+    q.page['years'] = ui.form_card(box='analysis', title='Parameters', items=[
+        ui.dropdown(name='epi_year', label='Select Year', required=True),
+        ui.button(name='slice_year', label="Update")
     ])
     q.page['sir_pars'] = ui.form_card(box='analysis',
                                       title=f'SIR Parameters for Epidemics in {q.client.cities[int(q.client.city)]}',
