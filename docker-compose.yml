@@ -6,5 +6,5 @@ services:
     ports:
       - "10101:10101"
     volumes:
-       # Mounting this file allows updates to the webpage without restarting the container
-      - ./:/app/
+       # Mounting this file allows updates to the data files without restarting the container
+      - ./data:/data/

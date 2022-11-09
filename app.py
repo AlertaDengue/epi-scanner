@@ -29,6 +29,7 @@ async def initialize_app(q: Q):
         box=ui.box('header'),
         title='Real-time Epidemic Scanner',
         subtitle='Real-time epidemiology',
+        color='primary',
         image='https://info.dengue.mat.br/static/img/info-dengue-logo-multicidades.png',
         # icon='health'
     )
@@ -54,7 +55,7 @@ async def initialize_app(q: Q):
     add_sidebar(q)
     q.page['analysis_header'] = ui.markdown_card(box='analysis', title='City-level Analysis', content='')
     q.page['footer'] = ui.footer_card(box='footer',
-                                      caption='(c) 2022 Infodengue. All rights reserved.\Powered by [EpiGraphHub](https://epigraphhub.org/)')
+                                      caption='(c) 2022 [Infodengue](https://info.dengue.mat.br). All rights reserved.\nPowered by [EpiGraphHub](https://epigraphhub.org/)')
 
 
 @app('/', mode='multicast')

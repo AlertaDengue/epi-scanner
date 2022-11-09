@@ -1,7 +1,6 @@
-# Wave-docker-template
-Template repository to create a dockerized H2O Wave application from scratch.
+# Dengue Epi-Scanner App
+H2O Wave application that uses up-to-date dengue incidence data from Infodengue, to analyze Dengue's expansion wave in the south of Brazil.
 
-If you want to create a Wave application, select this repo as a templated when creating your app's repository.
 
 ### Run with docker-compose :
 
@@ -53,18 +52,17 @@ $ docker build -t wave-app:latest .
 $ docker build --cache-from wave-app:latest -t wave-app:latest .
 
 # To run as docker container with default streamlit port
-$ docker run -p 8501:8501 wave-app:latest
+$ docker run -p 10101:10101 wave-app:latest
 ```
 
-You can open the app at http://localhost:10101/monitor
+You can open the app at http://localhost:10101/
 
-
-### Further developing your application
-We recommend developing the app using the virtualenv instructions above. This way you can add dependencies like this:
+#### Running with Docker-compose
+Using docker compose makes it a little easier to build and run the app.
 
 ```bash
-# Adding pandas as a dependency
-$ poetry add pandas
+$ docker-compose up --build 
 ```
 
-Then poetry will update your pyproject.toml so that no change to the Dockerfile is necessary.
+
+
