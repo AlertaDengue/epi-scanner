@@ -143,6 +143,7 @@ async def update_pars(q: Q):
 def scan_state(q: Q):
     for gc in q.client.cities:
         q.client.scanner.scan(gc, False)
+    q.client.scanner.to_csv(f'data/curves_{q.client.uf}')
     q.page['meta'].notification = 'Finished scanning!'
 
 
