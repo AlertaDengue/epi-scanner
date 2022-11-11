@@ -34,7 +34,11 @@ async def t_weeks(q: Q):
 async def plot_state_map(q, themap: gpd.GeoDataFrame, uf: str = 'SC', column=None):
     ax = themap.plot(column=column, legend=True,
                      scheme='natural_breaks',
-                     legend_kwds={'loc': 'lower left'})
+                     legend_kwds={'loc': 'lower center',
+                                  'ncols': 5,
+                                  'fontsize': 'x-small'
+                                  }  # {'bbox_to_anchor': (1.15, 1)}
+                     )
     ax.set_axis_off()
     image_filename = f'{str(uuid.uuid4())}.png'
     plt.savefig(image_filename)
@@ -47,8 +51,9 @@ async def plot_state_map(q, themap: gpd.GeoDataFrame, uf: str = 'SC', column=Non
 
 async def top_n_cities(q: Q, n: int):
     wmap = q.client.weeks_map
+    wmap['transmissao'] = wmap.transmissao.astype(int)
     df = wmap.sort_values('transmissao', ascending=False)[['name_muni', 'transmissao']].head(n)
-    return make_markdown_table(fields=['Names', 'Weeks'],
+    return make_markdown_table(fields=['Names', 'Epi Weeks'],
                                rows=df.values.tolist()
                                )
 

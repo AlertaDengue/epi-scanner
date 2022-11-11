@@ -90,6 +90,7 @@ async def update_weeks(q):
                                           content=f'![plot]({fig})')
         ttext = await top_n_cities(q, 10)
         q.page['wtable'] = ui.form_card(box='week_zone',
+                                        title='Top 10 cities',
                                         items=[
                                             ui.text(ttext)
                                         ]
