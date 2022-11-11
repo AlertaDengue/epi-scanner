@@ -111,7 +111,10 @@ async def on_update_UF(q: Q):
     q.client.scanner = EpiScanner(45, q.client.data_table)
     q.page['meta'].notification = 'Scanning state for epidemics...'
     await q.page.save()
-    await q.run(scan_state, q)
+    if os.path.exists(f'data/curves_{q.client.uf}.csv.gz'):
+        q.client.parameters = pd.read_csv(f'data/curves_{q.client.uf}.csv.gz')
+    else:
+        await q.run(scan_state, q)
     dump_results(q)
     await q.page.save()
 
@@ -124,7 +127,8 @@ async def on_update_city(q: Q):
     # print(q.client.cities)
     q.page['analysis_header'].content = f"## {q.client.cities[int(q.client.city)]}"
     create_analysis_form(q)
-    years = [ui.choice(name=str(c['year']), label=str(c['year'])) for c in q.client.scanner.curves[int(q.client.city)]]
+    years = [ui.choice(name=str(y), label=str(y)) for y in
+             q.client.parameters[q.client.parameters.geocode == int(q.client.city)].year]
     q.page['years'].items[0].dropdown.choices = years
     # q.page['epi_year'].choices = years
     # print(years, q.page['years'].items[0].dropdown.choices)
@@ -133,9 +137,9 @@ async def on_update_city(q: Q):
 
 
 async def update_pars(q: Q):
-    table = "| Year | Beta | Gamma | R0 | Peak |\n| ---- | ---- | ----- | -- | ---- |\n"
-    for res in q.client.scanner.results[int(q.client.city)]:
-        table += f"| {res['year']} | {res['sir_pars']['beta']:.2f} | {res['sir_pars']['gamma']:.2f} | {res['sir_pars']['R0']:.2f} | {int(res['sir_pars']['tc'])} |\n"
+    table = "| Year | Beta | Gamma | R0 | Peak Week |\n| ---- | ---- | ----- | -- | ---- |\n"
+    for i, res in q.client.parameters[q.client.parameters.geocode == int(q.client.city)].iterrows():
+        table += f"| {res['year']} | {res['beta']:.2f} | {res['gamma']:.2f} | {res['R0']:.2f} | {int(res['peak_week'])} |\n"
     q.page['sir_pars'].items[0].text.content = table
     await q.page.save()
 
@@ -144,6 +148,7 @@ def scan_state(q: Q):
     for gc in q.client.cities:
         q.client.scanner.scan(gc, False)
     q.client.scanner.to_csv(f'data/curves_{q.client.uf}')
+    q.client.parameters = pd.read_csv(f'data/curves_{q.client.uf}.csv.gz')
     q.page['meta'].notification = 'Finished scanning!'
 
 
@@ -222,19 +227,26 @@ async def update_analysis(q):
 
 
 def dump_results(q):
-    results = '''
+    results = ''
+    cities = q.client.parameters.groupby('geocode')
+    report = {}
+    for gc, citydf in cities:
+        if len(citydf) < 1:
+            continue
+        report[q.client.cities[gc]] = f'{len(citydf)} epidemic years: {list(sorted(citydf.year))}\n'
+    for n, linha in sorted(report.items()):
+        results += f'**{n}** :{linha}\n'
 
-    '''
-    for k, l in q.client.scanner.curves.items():
-        years = sorted([str(c['year']) for c in l])
-        Name = q.client.cities[k]
-        if len(l) > 1:
-            results += f"""
-**{Name}** ({k}): 
-There were {len(l)} epidemics: 
-{','.join(years)}
-
-"""
+    #     for k, l in q.client.scanner.curves.items():
+    #         years = sorted([str(c['year']) for c in l])
+    #         Name = q.client.cities[k]
+    #         if len(l) >= 1:
+    #             results += f"""
+    # **{Name}** ({k}):
+    # There were {len(l)} epidemics:
+    # {','.join(years)}
+    #
+    # """
     q.page['results'].content = results
 
 
