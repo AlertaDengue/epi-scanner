@@ -3,7 +3,7 @@
 H2O Wave application that uses up-to-date dengue incidence data from Infodengue, to analyze Dengue's expansion wave in
 the south of Brazil.
 
-[![watch the video](https://img.youtube.com/vi/LQmMhVWVJUs/hqdefault.jpg)]](https://youtu.be/LQmMhVWVJUs)
+[![watch the video](https://img.youtube.com/vi/LQmMhVWVJUs/hqdefault.jpg)](https://youtu.be/LQmMhVWVJUs)
 
 ### Run with docker-compose :
 
