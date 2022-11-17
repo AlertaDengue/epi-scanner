@@ -5,19 +5,10 @@ the south of Brazil.
 
 [![watch the video](https://img.youtube.com/vi/LQmMhVWVJUs/hqdefault.jpg)](https://youtu.be/LQmMhVWVJUs)
 
-### Run with docker-compose :
+### Run with miniconda environment:
 
 **Pre-requisites**
-
-* Docker installed and running
-* docker-compose installed
-* [Miniforge](https://github.com/conda-forge/miniforge)) installed
-
-### Run with miniconda:
-
-**Pre-requisites**
-
- ([Download
+* [Miniforge](https://github.com/conda-forge/miniforge) installed
 
  ```bash
  # Installing dependencies and activating the conda environment
@@ -32,9 +23,16 @@ $ cd app/
 $ wave run app.py
 ```
 
-### Run with docker:
+### Run with Docker:
+
+**Pre-requisites**
 
 * Docker installed and running
+* docker-compose installed
+* [Miniforge](https://github.com/conda-forge/miniforge) installed
+
+
+#### Run with Dockerfile:
 
 ```bash
 # First build
@@ -44,9 +42,7 @@ docker build -f docker/Dockerfile -t wave-app:latest $(for i in `cat .env`; do o
 $ docker run -it --env-file .env wave-app:latest bash -c "wave run app.py"
 ```
 
-You can open the app at http://localhost:10101/
-
-#### Running with Docker-compose
+#### Running with docker-compose
 
 Using docker compose makes it a little easier to build and run the app.
 
@@ -60,3 +56,5 @@ $ docker-compose -f docker/docker-compose.yml --env-file .env up --build
 # When finished
 $ docker-compose -f docker/docker-compose.yml --env-file .env down
 ```
+
+*You can open the app at http://localhost:10101/*
