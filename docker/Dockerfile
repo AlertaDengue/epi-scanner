@@ -19,8 +19,8 @@ RUN addgroup --gid ${HOST_GID} epiuser \
   && echo "epiuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/epiuser \
   && chmod 0440 /etc/sudoers.d/epiuser \
   && export ENV_NAME="$ENV_NAME" \
-  && mkdir -p /opt/conda /opt/services/logs /opt/services/episcanner \
-  && chmod -R a+rwx /opt/conda /opt/services/episcanner/ /tmp \
+  && mkdir -p /opt/conda /opt/services/logs /opt/services/epi_scanner \
+  && chmod -R a+rwx /opt/conda /opt/services/epi_scanner/ /tmp \
   && chown epiuser:epiuser /opt/services/ /tmp \
   && echo 'source /opt/conda/bin/activate "$ENV_NAME" && exec "$@"' > /activate.sh \
   && echo 'source activate "$ENV_NAME"' >  /home/epiuser/.bashrc \
@@ -36,7 +36,7 @@ COPY --chown=epiuser:epiuser pyproject.toml poetry.lock  /opt/services/
 COPY --chown=epiuser:epiuser conda/dev.yaml /tmp/environment.yaml
 COPY --chown=epiuser:epiuser docker/scripts/poetry-install.sh /tmp/poetry-install.sh
 
-COPY --chown=epiuser:epiuser ./app /opt/services/episcanner
+COPY --chown=epiuser:epiuser ./epi_scanner /opt/services/epi_scanner
 
 # Change shell to bash
 SHELL ["/bin/bash", "-c"]
@@ -51,6 +51,6 @@ RUN mamba env create -n episcanner --file /tmp/environment.yaml --force \
   && find /opt/conda/ -type f,l -name '*.js.map' -delete \
   && rm -rf /opt/conda/pkgs
 
-WORKDIR /opt/services/episcanner
+WORKDIR /opt/services/epi_scanner
 
 ENTRYPOINT ["bash", "/activate.sh"]

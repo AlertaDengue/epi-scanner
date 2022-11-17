@@ -19,7 +19,7 @@ $ poetry install
 
 ```bash
 # Then in the terminal, start the app.
-$ cd app/
+$ cd epi_scanner/
 $ wave run app.py
 ```
 
@@ -36,10 +36,12 @@ $ wave run app.py
 
 ```bash
 # First build
-docker build -f docker/Dockerfile -t wave-app:latest $(for i in `cat .env`; do out+="--build-arg $i " ; done; echo $out;out="") .
+$ make build-dockerfile
 
 # To run as docker container with default streamlit port
-$ docker run -it --env-file .env wave-app:latest bash -c "wave run app.py"
+$ make run-dockerfile
+
+# To kill use ctrl+c
 ```
 
 #### Running with docker-compose
@@ -48,13 +50,14 @@ Using docker compose makes it a little easier to build and run the app.
 
 
 ```bash
-$ docker-compose -f docker/docker-compose.yml --env-file .env up
+# Build image
+$ make docker-build
 
-# When dependencies change and you need to force a rebuild
-$ docker-compose -f docker/docker-compose.yml --env-file .env up --build
+# Start container
+$ make docker-start
 
-# When finished
-$ docker-compose -f docker/docker-compose.yml --env-file .env down
+# Stop and remove network and all containers
+$ make docker-stop
 ```
 
 *You can open the app at http://localhost:10101/*
