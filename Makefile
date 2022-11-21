@@ -6,6 +6,7 @@ include .env
 ENV:=$(ENV)
 HOST_UID:=$(HOST_UID)
 HOST_GID:=$(HOST_GID)
+SERVICE:=
 SERVICES:=
 
 DOCKER=docker-compose \
