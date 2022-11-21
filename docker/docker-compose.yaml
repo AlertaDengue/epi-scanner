@@ -13,6 +13,19 @@ services:
     entrypoint: [ "wave", "run", "app.py" ]
     ports:
       - "10101:10101"
+    networks:
+      - infodengue
     # volumes:
     #    # Mounting this file allows updates to the data files without restarting the container
     #   - ./app:/opt/services/episcanner
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:10101"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+networks:
+  infodengue:
+      driver: bridge
