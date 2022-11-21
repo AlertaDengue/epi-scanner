@@ -37,6 +37,14 @@ docker-logs-follow:
 docker-stop:
 	$(DOCKER) down -v --remove-orphans
 
+.PHONY: docker-wait
+docker-wait:
+	ENV=${ENV} timeout 90 ./docker/scripts/healthcheck.sh ${SERVICE}
+
+.PHONY: docker-wait-all
+docker-wait-all:
+	$(MAKE) docker-wait ENV=${ENV} SERVICE="wave-app"
+
 
 # -----------
 
