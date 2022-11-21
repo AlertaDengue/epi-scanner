@@ -51,6 +51,6 @@ RUN mamba env create -n episcanner --file /tmp/environment.yaml --force \
   && find /opt/conda/ -type f,l -name '*.js.map' -delete \
   && rm -rf /opt/conda/pkgs
 
-WORKDIR /opt/services/epi_scanner
+WORKDIR /opt/services/
 
 ENTRYPOINT ["bash", "/activate.sh"]
