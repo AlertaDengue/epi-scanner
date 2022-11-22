@@ -65,19 +65,19 @@ async def get_mpl_img(q):
 
 
 def get_year_map(year: int, themap: gpd.GeoDataFrame, pars: pd.DataFrame):
-    wmap_pars = themap.merge(pars[pars.year == year], left_on='code_muni', right_on='geocode')
-    return wmap_pars
+    map_pars = themap.merge(pars[pars.year == year], left_on='code_muni', right_on='geocode')
+    return map_pars
 
 
 async def plot_pars_map(q, themap: gpd.GeoDataFrame, year: int, state: str, column='R0'):
-    map_pars = get_year_map(year)
+    map_pars = get_year_map(year, q.client.weeks_map, q.client.parameters)
     ax = themap.plot(alpha=0.3)
     if len(map_pars) == 0:
         pass
     else:
         map_pars.plot(ax=ax, column=column, legend=True,
                       scheme='User_Defined',
-                      classification_kwds=dict(bins=[1, 1.5, 2, 2.3, 2.7]),
+                      classification_kwds=dict(bins=[1.5, 2, 2.3, 2.7]),
                       legend_kwds={'loc': 'lower center',
                                    'ncols': 5})
     ax.set_title(f'{state} {year}')
@@ -92,6 +92,15 @@ async def top_n_cities(q: Q, n: int):
     df = wmap.sort_values('transmissao', ascending=False)[['name_muni', 'transmissao']].head(n)
     return make_markdown_table(fields=['Names', 'Epi Weeks'],
                                rows=df.values.tolist()
+                               )
+
+
+async def top_n_R0(q: Q, year: int, n: int):
+    pars = q.client.parameters
+    table = pars[pars.year == year].sort_values('R0', ascending=False)[['geocode', 'R0']].head(n)
+    table['name'] = [q.client.cities[gc] for gc in table.geocode]
+    return make_markdown_table(fields=['Names', 'R0'],
+                               rows=table[['name', 'R0']].round(decimals=2).values.tolist()
                                )
 
 
