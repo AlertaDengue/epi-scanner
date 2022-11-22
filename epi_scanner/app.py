@@ -1,13 +1,22 @@
-import time
+"""
+This app analyzes dengue incidence across space and time in the south of Brasil.
+
+To facilitate customization, we list below key information about the code.
+To avoid reloading data from disk the app maintains the following cached objects under `q.client`:
+
+- q.client.brmap: Map of Brasil. GeoDataFrame.
+- q.client.statemap: map of the currently selected state. GeoDataFrame.
+- q.client.weeks_map: map of the state merged with the total number of transmission weeks. GeoDataFrame.
+- q.client.cities: dictionary of city names by geocode.
+-
+"""
 import os
 from typing import List
-
 import pandas as pd
-import psutil
 from h2o_wave import ui, data, Q, app, main, copy_expando
 from loguru import logger
 from epi_scanner.viz import (load_map, plot_state_map, t_weeks,
-                 update_state_map, top_n_cities, plot_series, plot_series_px)
+                             update_state_map, top_n_cities, plot_series, plot_series_px)
 from epi_scanner.model.scanner import EpiScanner
 import warnings
 

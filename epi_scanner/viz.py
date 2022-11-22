@@ -43,12 +43,46 @@ async def plot_state_map(q, themap: gpd.GeoDataFrame, uf: str = 'SC', column=Non
                                   }  # {'bbox_to_anchor': (1.15, 1)}
                      )
     ax.set_axis_off()
+    image_path = await get_mpl_img(q)
+    return image_path
+
+
+async def get_mpl_img(q):
+    """
+    saves current matplotlib figures to a temporary file and uploads it to the site.
+    Args:
+        q: App
+
+    Returns: path in the site.
+    """
     image_filename = f'{str(uuid.uuid4())}.png'
     plt.savefig(image_filename)
     # Upload
     image_path, = await q.site.upload([image_filename])
     # Clean up
     os.remove(image_filename)
+    return image_path
+
+
+def get_year_map(year: int, themap: gpd.GeoDataFrame, pars: pd.DataFrame):
+    wmap_pars = themap.merge(pars[pars.year == year], left_on='code_muni', right_on='geocode')
+    return wmap_pars
+
+
+async def plot_pars_map(q, themap: gpd.GeoDataFrame, year: int, state: str, column='R0'):
+    map_pars = get_year_map(year)
+    ax = themap.plot(alpha=0.3)
+    if len(map_pars) == 0:
+        pass
+    else:
+        map_pars.plot(ax=ax, column=column, legend=True,
+                      scheme='User_Defined',
+                      classification_kwds=dict(bins=[1, 1.5, 2, 2.3, 2.7]),
+                      legend_kwds={'loc': 'lower center',
+                                   'ncols': 5})
+    ax.set_title(f'{state} {year}')
+    ax.set_axis_off()
+    image_path = await get_mpl_img(q)
     return image_path
 
 
@@ -102,12 +136,7 @@ async def plot_series(q: Q, gc: int, start_date: str, end_date: str):
     ax1.legend()
     dfcity.casos_cum.plot.area(ax=ax2, label='Cumulative cases', grid=True, alpha=0.4)
     ax2.legend()
-    image_filename = f'{str(uuid.uuid4())}.png'
-    plt.savefig(image_filename)
-    # Upload
-    image_path, = await q.site.upload([image_filename])
-    # Clean up
-    os.remove(image_filename)
+    image_path = await get_mpl_img(q)
     return image_path
 
 
