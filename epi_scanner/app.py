@@ -73,7 +73,7 @@ async def initialize_app(q: Q):
 
 @app('/', mode='multicast')
 async def serve(q: Q):
-    copy_expando(q.args, q.client)
+    copy_expando(q.args, q.client)  # Maintain updated copies of q.args in q.client
     if not q.client.initialized:
         await initialize_app(q)
         q.client.initialized = True
@@ -86,6 +86,9 @@ async def serve(q: Q):
     if q.args.city:
         q.page['non-existent'].items = []
         await on_update_city(q)
+        await q.page.save()
+    if q.args.r0year:
+        await update_r0map(q)
         await q.page.save()
     if 'slice_year' in q.args:
         await update_analysis(q)
@@ -111,14 +114,20 @@ async def update_weeks(q: Q):
 
 
 async def update_r0map(q: Q):
-    fig2 = await plot_pars_map(q, q.client.weeks_map, 2022, STATES[q.client.uf])
+    """
+    Updates R0 map and table
+    """
+    year = 2022 if q.client.r0year is None else q.client.r0year
+    fig2 = await plot_pars_map(q, q.client.weeks_map, year, STATES[q.client.uf])
     await q.page.save()
     q.page['R0map'] = ui.markdown_card(box='R0_zone',
                                        title=f'RO by City', content=f'![r0plot]({fig2})')
-    ttext = await top_n_R0(q, 2022, 10)
+    ttext = await top_n_R0(q, year, 10)
     q.page['R0table'] = ui.form_card(box='R0_zone',
                                      title='Top 10 R0s',
                                      items=[
+                                         ui.slider(name='r0year', label='Year', min=2010, max=2022, step=1, value=year,
+                                                   trigger=True),
                                          ui.text(ttext)
                                      ]
                                      )
