@@ -6,9 +6,9 @@ import pandas as pd
 import psutil
 from h2o_wave import ui, data, Q, app, main, copy_expando
 from loguru import logger
-from viz import (load_map, plot_state_map, t_weeks,
+from epi_scanner.viz import (load_map, plot_state_map, t_weeks,
                  update_state_map, top_n_cities, plot_series, plot_series_px)
-from model.scanner import EpiScanner
+from epi_scanner.model.scanner import EpiScanner
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -112,8 +112,8 @@ async def on_update_UF(q: Q):
     q.client.scanner = EpiScanner(45, q.client.data_table)
     q.page['meta'].notification = 'Scanning state for epidemics...'
     await q.page.save()
-    if os.path.exists(f'data/curves_{q.client.uf}.csv.gz'):
-        q.client.parameters = pd.read_csv(f'data/curves_{q.client.uf}.csv.gz')
+    if os.path.exists(f'epi_scanner/data/curves_{q.client.uf}.csv.gz'):
+        q.client.parameters = pd.read_csv(f'epi_scanner/data/curves_{q.client.uf}.csv.gz')
     else:
         await q.run(scan_state, q)
     dump_results(q)
@@ -148,8 +148,8 @@ async def update_pars(q: Q):
 def scan_state(q: Q):
     for gc in q.client.cities:
         q.client.scanner.scan(gc, False)
-    q.client.scanner.to_csv(f'data/curves_{q.client.uf}')
-    q.client.parameters = pd.read_csv(f'data/curves_{q.client.uf}.csv.gz')
+    q.client.scanner.to_csv(f'epi_scanner/data/curves_{q.client.uf}')
+    q.client.parameters = pd.read_csv(f'epi_scanner/data/curves_{q.client.uf}.csv.gz')
     q.page['meta'].notification = 'Finished scanning!'
 
 
@@ -193,9 +193,9 @@ def df_to_table_rows(df: pd.DataFrame) -> List[ui.TableRow]:
 async def load_table(q: Q):
     global DATA_TABLE
     UF = q.client.uf
-    if os.path.exists(f"data/{UF}_dengue.parquet"):
+    if os.path.exists(f"epi_scanner/data/{UF}_dengue.parquet"):
         logger.info("loading data...")
-        DATA_TABLE = pd.read_parquet(f"data/{UF}_dengue.parquet")
+        DATA_TABLE = pd.read_parquet(f"epi_scanner/data/{UF}_dengue.parquet")
         q.client.data_table = DATA_TABLE
         q.client.loaded = True
         for gc in DATA_TABLE.municipio_geocodigo.unique():

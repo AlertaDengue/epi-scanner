@@ -8,10 +8,13 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 from plotly import io as pio
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 
 async def load_map(q: Q):
-    brmap = gpd.read_file('data/muni_br.gpkg', driver='GPKG')
+    file_gpkg = Path('epi_scanner/data/muni_br.gpkg')
+
+    brmap = gpd.read_file(file_gpkg, driver='GPKG')
     q.client.brmap = brmap
 
 
