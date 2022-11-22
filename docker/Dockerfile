@@ -10,7 +10,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get -qq update --yes \
   && apt-get -qq install --yes --no-install-recommends \
   build-essential \
-  ca-certificates sudo \
+  ca-certificates sudo curl\
   && rm -rf /var/lib/apt/lists/*
 
 # Create epiuser user

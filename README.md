@@ -18,9 +18,8 @@ $ poetry install
 ```
 
 ```bash
-# Then in the terminal, start the app.
-$ cd epi_scanner/
-$ wave run app.py
+# Then in the terminal, start the app
+$ wave run --no-reload --no-autostart epi_scanner/app.py
 ```
 
 ### Run with Docker:

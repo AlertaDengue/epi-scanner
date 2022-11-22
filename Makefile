@@ -9,18 +9,21 @@ HOST_GID:=$(HOST_GID)
 SERVICE:=
 SERVICES:=
 
-DOCKER=docker-compose \
-	--env-file .env \
-	--project-name infodengue-$(ENV) \
-	--file docker/docker-compose.yaml
-
 
 # PREPARE ENVIRONMENT
 .PHONY:prepare-env
 prepare-env:
 	envsubst < env.tpl > .env
 
+# -----------
+
 # DOCKER
+DOCKER=docker-compose \
+	--env-file .env \
+	--project-name infodengue-$(ENV) \
+	--file docker/docker-compose.yaml
+
+
 .PHONY:docker-build
 docker-build:
 	$(DOCKER) build ${SERVICES}
@@ -46,7 +49,6 @@ docker-wait:
 docker-wait-all:
 	$(MAKE) docker-wait ENV=${ENV} SERVICE="wave-app"
 
-
 # -----------
 
 # Run with Dockerfile
@@ -64,8 +66,9 @@ build-dockerfile:
 .PHONY:run-dockerfile
 run-dockerfile:
 	@echo "Running docker build..."
-	docker run -it --env-file .env $(IMAGETAG) bash -c "wave run app.py"
+	docker run -it --env-file .env $(IMAGETAG) bash -c "wave run epi_scanner/app.py"
 
+# -----------
 
 # Python
 .PHONY: clean

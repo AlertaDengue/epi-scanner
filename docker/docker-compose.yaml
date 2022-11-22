@@ -1,24 +1,21 @@
+version: '3.4'
 
-version: "3.4"
 services:
   wave-app:
     build:
       context: ".."
-      dockerfile: "docker/Dockerfile"
+      dockerfile: docker/Dockerfile
       args:
         HOST_UID: ${HOST_UID}
         HOST_GID: ${HOST_GID}
-    env_file:
-      - ../.env
     entrypoint: [ "wave", "run", "epi_scanner.app.py" ]
     ports:
-      - 10101:10101
+      - '10101:10101'
     # volumes:
     #    # Mounting this file allows updates to the data files without restarting the container
     #   - ./app:/opt/services/episcanner
-    restart: always
     healthcheck:
-      test: "curl -f localhost:10101"
+      test: ["CMD", "curl", "-f", "http://localhost:10101"]
       interval: 20s
       timeout: 10s
       retries: 5

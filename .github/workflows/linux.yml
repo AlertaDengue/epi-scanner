@@ -52,4 +52,4 @@ jobs:
 
     - name: Docker waiting services
       run: |
-        make docker-wait-all
+        make docker-wait SERVICE=wave-app
