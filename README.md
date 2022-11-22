@@ -22,10 +22,14 @@ $ poetry install
 $ wave run --no-reload --no-autostart epi_scanner.app
 ```
 
-#### Running with docker-compose
+### Running with docker-compose
+
+**Pre-requisites**
+* Docker installed and running
+* docker-compose installed
+* [Miniforge](https://github.com/conda-forge/miniforge) installed
 
 Using docker compose makes it a little easier to build and run the app.
-
 
 ```bash
 # Build image
