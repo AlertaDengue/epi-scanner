@@ -5,7 +5,7 @@ the south of Brazil.
 
 [![watch the video](https://img.youtube.com/vi/LQmMhVWVJUs/hqdefault.jpg)](https://youtu.be/LQmMhVWVJUs)
 
-### Run with miniconda environment:
+### Run with miniforge environment:
 
 **Pre-requisites**
 * [Miniforge](https://github.com/conda-forge/miniforge) installed
@@ -19,28 +19,7 @@ $ poetry install
 
 ```bash
 # Then in the terminal, start the app
-$ wave run --no-reload --no-autostart epi_scanner/app.py
-```
-
-### Run with Docker:
-
-**Pre-requisites**
-
-* Docker installed and running
-* docker-compose installed
-* [Miniforge](https://github.com/conda-forge/miniforge) installed
-
-
-#### Run with Dockerfile:
-
-```bash
-# First build
-$ make build-dockerfile
-
-# To run as docker container with default streamlit port
-$ make run-dockerfile
-
-# To kill use ctrl+c
+$ wave run --no-reload --no-autostart epi_scanner.app
 ```
 
 #### Running with docker-compose

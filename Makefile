@@ -36,7 +36,6 @@ docker-start:
 docker-logs-follow:
 	$(DOCKER) logs --follow --tail 300 ${SERVICES}
 
-
 .PHONY:docker-stop
 docker-stop:
 	$(DOCKER) down -v --remove-orphans
@@ -48,25 +47,6 @@ docker-wait:
 .PHONY: docker-wait-all
 docker-wait-all:
 	$(MAKE) docker-wait ENV=${ENV} SERVICE="wave-app"
-
-# -----------
-
-# Run with Dockerfile
-
-# # this line will set the build args from env file
-DECONARGS:=$(shell echo "$$(for i in `cat .env`; do out+="--build-arg $$i " ; done; echo $$out;out="")")
-GEN_ARGS:=$(eval BARGS=$(DECONARGS))
-IMAGETAG:=wave-app:latest
-
-
-.PHONY:build-dockerfile
-build-dockerfile:
-	docker build -f docker/Dockerfile -t $(IMAGETAG) $(BARGS) .
-
-.PHONY:run-dockerfile
-run-dockerfile:
-	@echo "Running docker build..."
-	docker run -it --env-file .env $(IMAGETAG) bash -c "wave run epi_scanner/app.py"
 
 # -----------
 
