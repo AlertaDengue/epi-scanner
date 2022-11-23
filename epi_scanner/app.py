@@ -1,13 +1,28 @@
-import time
+"""
+This app analyzes dengue incidence across space and time in the south of Brasil.
+
+To facilitate customization, we list below key information about the code.
+To avoid reloading data from disk the app maintains the following cached objects under `q.client`:
+
+- q.client.brmap: Map of Brasil. GeoDataFrame.
+- q.client.statemap: map of the currently selected state. GeoDataFrame.
+- q.client.weeks_map: map of the state merged with the total number of transmission weeks. GeoDataFrame.
+- q.client.cities: dictionary of city names by geocode.
+- q.client.scanner: EpiScanner object
+- q.client.city: geocode of the currently selected city.
+- q.client.uf: two-letter code for the currently selected state.
+- q.client.parameters: SIR parameters for every city/year in current state.
+"""
 import os
 from typing import List
-
 import pandas as pd
-import psutil
 from h2o_wave import ui, data, Q, app, main, copy_expando
 from loguru import logger
 from epi_scanner.viz import (load_map, plot_state_map, t_weeks,
-                 update_state_map, top_n_cities, plot_series, plot_series_px)
+                             update_state_map, top_n_cities,
+                             plot_series, plot_series_px,
+                             plot_pars_map, top_n_R0,
+                             )
 from epi_scanner.model.scanner import EpiScanner
 import warnings
 
@@ -42,9 +57,7 @@ async def initialize_app(q: Q):
     await load_map(q)
 
     await q.page.save()
-    # UF = q.client.uf = 'SC'
-    # await update_state_map(q)
-    # fig = await plot_state_map(q, q.client.statemap, UF)
+
     q.page['state_header'] = ui.markdown_card(box='pre', title='Epi Report', content=f'')
     # q.page['message'] = ui.form_card(box='content',
     #                                  items=[
@@ -60,7 +73,7 @@ async def initialize_app(q: Q):
 
 @app('/', mode='multicast')
 async def serve(q: Q):
-    copy_expando(q.args, q.client)
+    copy_expando(q.args, q.client)  # Maintain updated copies of q.args in q.client
     if not q.client.initialized:
         await initialize_app(q)
         q.client.initialized = True
@@ -74,12 +87,15 @@ async def serve(q: Q):
         q.page['non-existent'].items = []
         await on_update_city(q)
         await q.page.save()
+    if q.args.r0year:
+        await update_r0map(q)
+        await q.page.save()
     if 'slice_year' in q.args:
         await update_analysis(q)
         await q.page.save()
 
 
-async def update_weeks(q):
+async def update_weeks(q: Q):
     if (not q.client.weeks) and (q.client.data_table is not None):
         await t_weeks(q)
         logger.info('plot weeks')
@@ -95,7 +111,27 @@ async def update_weeks(q):
                                             ui.text(ttext)
                                         ]
                                         )
-        await q.page.save()
+
+
+async def update_r0map(q: Q):
+    """
+    Updates R0 map and table
+    """
+    year = 2022 if q.client.r0year is None else q.client.r0year
+    fig2 = await plot_pars_map(q, q.client.weeks_map, year, STATES[q.client.uf])
+    await q.page.save()
+    q.page['R0map'] = ui.markdown_card(box='R0_zone',
+                                       title=f'RO by City', content=f'![r0plot]({fig2})')
+    ttext = await top_n_R0(q, year, 10)
+    q.page['R0table'] = ui.form_card(box='R0_zone',
+                                     title='Top 10 R0s',
+                                     items=[
+                                         ui.slider(name='r0year', label='Year', min=2010, max=2022, step=1, value=year,
+                                                   trigger=True),
+                                         ui.text(ttext)
+                                     ]
+                                     )
+    await q.page.save()
 
 
 async def on_update_UF(q: Q):
@@ -117,6 +153,7 @@ async def on_update_UF(q: Q):
     else:
         await q.run(scan_state, q)
     dump_results(q)
+    await update_r0map(q)
     await q.page.save()
 
 
@@ -154,6 +191,9 @@ def scan_state(q: Q):
 
 
 def create_layout(q):
+    """
+    Creates the main layout of the app
+    """
     q.page['meta'] = ui.meta_card(box='', theme='default', layouts=[
         ui.layout(
             breakpoint='xl',
@@ -176,6 +216,7 @@ def create_layout(q):
                                     zones=[
                                         ui.zone("pre"),
                                         ui.zone(name='week_zone', direction=ui.ZoneDirection.ROW),
+                                        ui.zone(name='R0_zone', direction=ui.ZoneDirection.ROW),
                                         ui.zone("analysis")
                                     ]
                                     ),
