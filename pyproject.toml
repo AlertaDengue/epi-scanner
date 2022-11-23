@@ -33,7 +33,38 @@ nox-poetry = "^1.0.1"
 autoflake8 = "^0.4.0"
 black = "^22.10.0"
 jupyterlab = "^3.5.0"
+pre-commit = "^2.20.0"
+isort = "^5.10.1"
+flake8 = "^5.0.4"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+
+[tool.black]
+# https://github.com/psf/black
+target-version = ["py39"]
+line-length = 79
+color = true
+
+exclude = '''
+/(
+    \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+    | env
+    | venv
+    | migrations/*
+)/
+'''
+
+[tool.isort]
+profile = "black"
+src_paths = ["isort", "test"]
