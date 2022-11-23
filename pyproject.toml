@@ -21,6 +21,9 @@ geopandas = "^0.12.1"
 matplotlib = "^3.6.2"
 mapclassify = "^2.4.3"
 plotly = "^5.11.0"
+SQLAlchemy = "^1.4.44"
+psycopg2 = "^2.9.5"
+python-dotenv = "^0.21.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "*"
@@ -29,6 +32,7 @@ nox = "^2022.8.7"
 nox-poetry = "^1.0.1"
 autoflake8 = "^0.4.0"
 black = "^22.10.0"
+jupyterlab = "^3.5.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
