@@ -44,7 +44,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 # https://github.com/psf/black
-target-version = ["py39"]
+target-version = ["py311"]
 line-length = 79
 color = true
 
