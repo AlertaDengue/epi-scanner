@@ -20,9 +20,10 @@ PSQL_HOST = os.getenv("PSQL_HOST")
 PSQL_PASSWORD = os.getenv("PSQL_PASSWORD")
 PSQL_PORT = os.getenv("PSQL_PORT")
 
-PSQL_URI = f"""
-    postgresql://{PSQL_USER}:{PSQL_PASSWORD}@{PSQL_HOST}:{PSQL_PORT}/{PSQL_DB}
-    """
+PSQL_URI = (
+    "postgresql://"
+    f"{PSQL_USER}:{PSQL_PASSWORD}@{PSQL_HOST}:{PSQL_PORT}/{PSQL_DB}"
+)
 
 
 def make_connection():
@@ -89,7 +90,7 @@ def get_alerta_table(
         "RS": "Rio Grande do Sul",
     }
 
-    # Give a state name by abbreviation code to query the Dengue_Global table
+    # Need the name of the state to query DengueGlobal table
     if state_abbv in states_dict:
         state_name = states_dict.get(state_abbv)
 
@@ -108,6 +109,7 @@ def get_alerta_table(
 
     else:
         query = f"""
+            SELECT *
             FROM "Municipio"."Historico_alerta{table_suffix}"
             WHERE municipio_geocodigo={municipio_geocodigo}
             ORDER BY "data_iniSE" DESC ;"""
@@ -123,7 +125,11 @@ def get_alerta_table(
     return df
 
 
-def data_to_parquet(state_abbv: str, disease: str = "dengue") -> Path:
+def data_to_parquet(
+    state_abbv: str,
+    municipio_geocodigo: Optional[str] = None,
+    disease: str = "dengue",
+) -> Path:
     """
     Create the parquet files for each disease state within the data directory.
 
@@ -138,26 +144,40 @@ def data_to_parquet(state_abbv: str, disease: str = "dengue") -> Path:
 
     CID10 = {"dengue": "A90", "chikungunya": "A92.0", "zika": "A928"}
 
+    print(municipio_geocodigo)
+
     if disease not in CID10.keys():
         raise Exception(
             f"The diseases available are: {[k for k in CID10.keys()]}"
         )
 
-    df = get_alerta_table(state_abbv=state_abbv, disease=disease)
+    df = get_alerta_table(
+        state_abbv=state_abbv,
+        municipio_geocodigo=municipio_geocodigo,
+        disease=disease,
+    )
 
     data_path = Path("epi_scanner/data")
     data_path.mkdir(parents=True, exist_ok=True)
 
-    return df.to_parquet(f"{data_path}/{state_abbv}_{disease}.parquet")
+    if municipio_geocodigo:
+        parquet_fname = (
+            f"{data_path}/{state_abbv}_{municipio_geocodigo}_{disease}.parquet"
+        )
+    else:
+        parquet_fname = f"{data_path}/{state_abbv}_{disease}.parquet"
+
+    return df.to_parquet(parquet_fname)
 
 
 # receive arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("state_abbv", help="state abbreviation codes")
+parser.add_argument("geocode", nargs="?", default=None)
 parser.add_argument("disease", help="disease name")
 
 args = parser.parse_args()
 
-data_to_parquet(args.state_abbv, args.disease)
+data_to_parquet(args.state_abbv, args.geocode, args.disease)
 
-print("The parquet file was created in the data directory!")
+print(f"{args.geocode} The parquet file was created in the data directory!")
