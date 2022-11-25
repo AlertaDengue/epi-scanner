@@ -127,7 +127,6 @@ def get_alerta_table(
 
 def data_to_parquet(
     state_abbv: str,
-    municipio_geocodigo: Optional[str] = None,
     disease: str = "dengue",
 ) -> Path:
     """
@@ -144,8 +143,6 @@ def data_to_parquet(
 
     CID10 = {"dengue": "A90", "chikungunya": "A92.0", "zika": "A928"}
 
-    print(municipio_geocodigo)
-
     if disease not in CID10.keys():
         raise Exception(
             f"The diseases available are: {[k for k in CID10.keys()]}"
@@ -153,19 +150,13 @@ def data_to_parquet(
 
     df = get_alerta_table(
         state_abbv=state_abbv,
-        municipio_geocodigo=municipio_geocodigo,
         disease=disease,
     )
 
     data_path = Path("epi_scanner/data")
     data_path.mkdir(parents=True, exist_ok=True)
 
-    if municipio_geocodigo:
-        parquet_fname = (
-            f"{data_path}/{state_abbv}_{municipio_geocodigo}_{disease}.parquet"
-        )
-    else:
-        parquet_fname = f"{data_path}/{state_abbv}_{disease}.parquet"
+    parquet_fname = f"{data_path}/{state_abbv}_{disease}.parquet"
 
     return df.to_parquet(parquet_fname)
 
@@ -173,11 +164,10 @@ def data_to_parquet(
 # receive arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("state_abbv", help="state abbreviation codes")
-parser.add_argument("geocode", nargs="?", default=None)
 parser.add_argument("disease", help="disease name")
 
 args = parser.parse_args()
 
-data_to_parquet(args.state_abbv, args.geocode, args.disease)
+data_to_parquet(args.state_abbv, args.disease)
 
-print(f"{args.geocode} The parquet file was created in the data directory!")
+print("The parquet file was created in the data directory!")
