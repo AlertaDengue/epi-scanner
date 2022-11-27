@@ -17,6 +17,14 @@ prepare-env:
 
 # -----------
 
+# LINTING CODE
+.PHONY: lint
+lint: ## formatting linter with poetry
+	pre-commit install
+	pre-commit run --all-files
+
+# -----------
+
 # DOCKER
 DOCKER=docker-compose \
 	--env-file .env \

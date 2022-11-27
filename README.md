@@ -43,3 +43,15 @@ $ make docker-stop
 ```
 
 *You can open the app at http://localhost:10101/*
+
+### To update data for states or municipalities
+
+```
+# Run:
+
+$ python scripts/create_data_parquet.py RJ 3304557 dengue
+> epi_scanner/data/RJ_3304557_dengue.parquet
+
+$ python scripts/create_data_parquet.py RJ dengue
+> epi_scanner/data/RJ_dengue.parquet
+```
