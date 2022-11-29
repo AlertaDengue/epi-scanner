@@ -76,21 +76,37 @@ def get_alerta_table(
     connection = make_connection()
 
     states_dict = {
-        "RJ": "Rio de Janeiro",
-        "ES": "Espírito Santo",
-        "PR": "Paraná",
+        "AC": "Acre",
+        "AL": "Alagoas",
+        "AM": "Amazonas",
+        "AP": "Amapá",
+        "BA": "Bahia",
         "CE": "Ceará",
+        "DF": "Distrito Federal",
+        "ES": "Espírito Santo",
+        "GO": "Goiás",
         "MA": "Maranhão",
         "MG": "Minas Gerais",
-        "SC": "Santa Catarina",
-        "PE": "Pernambuco",
+        "MS": "Mato Grosso do Sul",
+        "MT": "Mato Grosso",
+        "PA": "Pará",
         "PB": "Paraíba",
+        "PE": "Pernambuco",
+        "PI": "Piauí",
+        "PR": "Paraná",
+        "RJ": "Rio de Janeiro",
+        "RN": "Rio Grande do Norte",
+        "RO": "Rondônia",
+        "RR": "Roraima",
+        "RS": "Rio Grande do Sul",
+        "SC": "Santa Catarina",
         "SE": "Sergipe",
         "SP": "São Paulo",
-        "RS": "Rio Grande do Sul",
+        "TO": "Tocantins",
     }
 
     # Need the name of the state to query DengueGlobal table
+
     if state_abbv in states_dict:
         state_name = states_dict.get(state_abbv)
 

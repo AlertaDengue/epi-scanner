@@ -40,18 +40,33 @@ warnings.filterwarnings("ignore")
 
 DATA_TABLE = None
 STATES = {
+    "AC": "Acre",
+    "AL": "Alagoas",
+    "AM": "Amazonas",
+    "AP": "Amapá",
+    "BA": "Bahia",
     "CE": "Ceará",
+    "DF": "Distrito Federal",
     "ES": "Espírito Santo",
+    "GO": "Goiás",
     "MA": "Maranhão",
     "MG": "Minas Gerais",
+    "MS": "Mato Grosso do Sul",
+    "MT": "Mato Grosso",
+    "PA": "Pará",
     "PB": "Paraíba",
     "PE": "Pernambuco",
+    "PI": "Piauí",
     "PR": "Paraná",
     "RJ": "Rio de Janeiro",
+    "RN": "Rio Grande do Norte",
+    "RO": "Rondônia",
+    "RR": "Roraima",
     "RS": "Rio Grande do Sul",
     "SC": "Santa Catarina",
     "SE": "Sergipe",
     "SP": "São Paulo",
+    "TO": "Tocantins",
 }
 
 
@@ -230,7 +245,7 @@ async def on_update_city(q: Q):
         ui.choice(name=str(y), label=str(y))
         for y in q.client.parameters[
             q.client.parameters.geocode == int(q.client.city)
-            ].year
+        ].year
     ]
     q.page["years"].items[0].dropdown.choices = years
     # q.page['epi_year'].choices = years
@@ -336,7 +351,7 @@ async def load_table(q: Q):
         for gc in DATA_TABLE.municipio_geocodigo.unique():
             q.client.cities[int(gc)] = q.client.brmap[
                 q.client.brmap.code_muni.astype(int) == int(gc)
-                ].name_muni.values[0]
+            ].name_muni.values[0]
         choices = [
             ui.choice(str(gc), q.client.cities[gc])
             for gc in DATA_TABLE.municipio_geocodigo.unique()
@@ -400,18 +415,33 @@ def dump_results(q):
 
 def add_sidebar(q):
     state_choices = [
+        ui.choice("AC", "Acre"),
+        ui.choice("AL", "Alagoas"),
+        ui.choice("AM", "Amazonas"),
+        ui.choice("AP", "Amapá"),
+        ui.choice("BA", "Bahia"),
         ui.choice("CE", "Ceará"),
+        ui.choice("DF", "Distrito Federal"),
         ui.choice("ES", "Espírito Santo"),
+        ui.choice("GO", "Goiás"),
         ui.choice("MA", "Maranhão"),
         ui.choice("MG", "Minas Gerais"),
+        ui.choice("MS", "Mato Grosso do Sul"),
+        ui.choice("MT", "Mato Grosso"),
+        ui.choice("PA", "Pará"),
         ui.choice("PB", "Paraíba"),
         ui.choice("PE", "Pernambuco"),
+        ui.choice("PI", "Piauí"),
         ui.choice("PR", "Paraná"),
         ui.choice("RJ", "Rio de Janeiro"),
+        ui.choice("RN", "Rio Grande do Norte"),
+        ui.choice("RO", "Rondônia"),
+        ui.choice("RR", "Roraima"),
         ui.choice("RS", "Rio Grande do Sul"),
         ui.choice("SC", "Santa Catarina"),
         ui.choice("SE", "Sergipe"),
         ui.choice("SP", "São Paulo"),
+        ui.choice("TO", "Tocantins"),
     ]
     q.page["form"] = ui.form_card(
         box="sidebar",
