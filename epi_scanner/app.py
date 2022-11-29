@@ -230,7 +230,7 @@ async def on_update_city(q: Q):
         ui.choice(name=str(y), label=str(y))
         for y in q.client.parameters[
             q.client.parameters.geocode == int(q.client.city)
-        ].year
+            ].year
     ]
     q.page["years"].items[0].dropdown.choices = years
     # q.page['epi_year'].choices = years
@@ -249,8 +249,8 @@ async def update_pars(q: Q):
     ].iterrows():
         table += (
             f"| {res['year']} | {res['beta']:.2f} "
-            "| {res['gamma']:.2f} | {res['R0']:.2f} "
-            "| {int(res['peak_week'])} |\n"
+            f"| {res['gamma']:.2f} | {res['R0']:.2f} "
+            f"| {int(res['peak_week'])} |\n"
         )
     q.page["sir_pars"].items[0].text.content = table
     await q.page.save()
@@ -336,7 +336,7 @@ async def load_table(q: Q):
         for gc in DATA_TABLE.municipio_geocodigo.unique():
             q.client.cities[int(gc)] = q.client.brmap[
                 q.client.brmap.code_muni.astype(int) == int(gc)
-            ].name_muni.values[0]
+                ].name_muni.values[0]
         choices = [
             ui.choice(str(gc), q.client.cities[gc])
             for gc in DATA_TABLE.municipio_geocodigo.unique()
