@@ -12,7 +12,7 @@ the south of Brazil.
 
  ```bash
  # Installing dependencies and activating the conda environment
-$ mamba env create -f conda/dev.yaml
+$ mamba env create -f conda/env-base.yaml
 $ conda activate episcanner 
 $ poetry install
 ```
