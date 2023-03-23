@@ -4,7 +4,7 @@ services:
   wave-app:
     build:
       context: ".."
-      dockerfile: docker/Dockerfile
+      dockerfile: containers/Dockerfile
       args:
         HOST_UID: ${HOST_UID}
         HOST_GID: ${HOST_GID}
