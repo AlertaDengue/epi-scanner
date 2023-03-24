@@ -13,8 +13,8 @@ services:
     env_file:
       - ../.env
     environment:
-       - H2O_WAVE_BASE_URL=/
-       - H2O_WAVE_LISTEN=:10101
+       - H2O_WAVE_BASE_URL=/epi-scanner/
+      # - H2O_WAVE_LISTEN=:10101
       # - H2O_APP_ADDRESS=http://waveapp:8000
       # - H2O_WAVE_ADDRESS=http://waveapp:1011
     entrypoint: [ "wave", "run", "--no-reload", "--no-autostart", "epi_scanner.app" ]
@@ -24,8 +24,8 @@ services:
     #    # Mounting this file allows updates to the data files without restarting the container
     #   - ./epi_scanner:/opt/services/episcanner/
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:10101/waveapp/"]
-      interval: 60s
+      test: ["CMD", "curl", "-f", "http://localhost:10101/epi-scanner/"]
+      interval: 30s
       timeout: 10s
       retries: 5
       start_period: 10s
