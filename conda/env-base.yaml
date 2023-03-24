@@ -5,9 +5,6 @@ channels:
 dependencies:
   - docker-compose
   - make
-  - pip
   - poetry
-  - python 3.11.*
-  - psycopg2 2.9.3
-  - pip:
-    - h2o-wave
+  - python 3.10.*
+  - psycopg2

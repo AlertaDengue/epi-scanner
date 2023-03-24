@@ -4,26 +4,23 @@ version = "0.1.0"
 description = "Dashboard quickstart template"
 authors = ["Flávio Codeço Coelho <fccoelho@gmail.com>"]
 license = "MIT"
-
-packages = [
-    { include = "epi_scanner" },
-]
+packages = [{include='epi_scanner'}]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
 h2o-wave = "^0.23.1"
-pandas = "^1.5.1"
-psutil = "^5.9.4"
+pandas = "^1.5.0"
+psutil = "^5.9.2"
 loguru = "^0.6.0"
-lmfit = "^1.0.3"
-pyarrow = "^10.0.0"
-geopandas = "^0.12.1"
-matplotlib = "^3.6.2"
-mapclassify = "^2.4.3"
-plotly = "^5.11.0"
-SQLAlchemy = "^1.4.44"
-python-dotenv = "^0.21.0"
-psycopg2 = "^2.9.3"
+typing-extensions = "^4.4.0"
+lmfit = "^1.1.0"
+pyarrow = "^11.0.0"
+geopandas = "^0.12.2"
+matplotlib = "^3.7.1"
+mapclassify = "^2.5.0"
+plotly = "^5.13.1"
+SQLAlchemy = "^2.0.7"
+python-dotenv = "^1.0.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "*"
@@ -32,7 +29,6 @@ nox = "^2022.8.7"
 nox-poetry = "^1.0.1"
 autoflake8 = "^0.4.0"
 black = "^22.10.0"
-jupyterlab = "^3.5.0"
 pre-commit = "^2.20.0"
 isort = "^5.10.1"
 flake8 = "^5.0.4"
