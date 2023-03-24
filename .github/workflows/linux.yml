@@ -44,12 +44,12 @@ jobs:
 
     - name: Build docker images
       run: |
-         make docker-build ENV=dev
+         make containers-build
 
     - name: Docker start web
       run: |
-        make docker-start ENV=dev
+        make containers-start
 
     - name: Docker waiting services
       run: |
-        make docker-wait SERVICE=wave-app
+        make containers-wait SERVICE=wave-app

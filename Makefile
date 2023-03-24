@@ -19,7 +19,7 @@ TIMEOUT:=90
 # https://github.com/containers/podman-compose/issues/491#issuecomment-1289944841
 CONTAINER_APP=docker-compose \
 	--env-file=.env \
-	--project-name episcanner-wave \
+	--project-name episcanner \
 	--file containers/docker-compose.yaml
 
 
