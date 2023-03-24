@@ -6,5 +6,5 @@ dependencies:
   - docker-compose
   - make
   - poetry
-  - python 3.11.*
+  - python 3.10.*
   - psycopg2

@@ -72,4 +72,3 @@ RUN chmod +x /opt/entrypoint.sh \
   && echo "source /opt/entrypoint.sh" > ~/.bashrc
 
 ENTRYPOINT ["tini", "--", "/opt/entrypoint.sh"]
-
