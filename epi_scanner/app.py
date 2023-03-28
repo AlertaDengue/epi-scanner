@@ -22,7 +22,7 @@ from typing import List
 
 import pandas as pd
 from epi_scanner.model.scanner import EpiScanner
-from epi_scanner.settings import DATA_CONTAINER_DIR, UFs_dict
+from epi_scanner.settings import CONTAINER_DATA_DIR, STATES
 from epi_scanner.viz import (
     load_map,
     plot_pars_map,
@@ -144,7 +144,7 @@ async def update_r0map(q: Q):
     """
     year = 2022 if q.client.r0year is None else q.client.r0year
     fig2 = await plot_pars_map(
-        q, q.client.weeks_map, year, UFs_dict[q.client.uf]
+        q, q.client.weeks_map, year, STATES[q.client.uf]
     )
     await q.page.save()
     q.page["R0map"] = ui.markdown_card(
@@ -180,7 +180,7 @@ async def on_update_UF(q: Q):
     # if uf != q.client.uf:
     q.client.uf = q.args.state
     await load_table(q)
-    q.page["state_header"].content = f"## {UFs_dict[q.client.uf]}"
+    q.page["state_header"].content = f"## {STATES[q.client.uf]}"
     await q.page.save()
     await update_state_map(q)
     q.client.weeks = False
@@ -188,9 +188,9 @@ async def on_update_UF(q: Q):
     q.client.scanner = EpiScanner(45, q.client.data_table)
     q.page["meta"].notification = "Scanning state for epidemics..."
     await q.page.save()
-    if os.path.exists(f"{DATA_CONTAINER_DIR}/curves_{q.client.uf}.csv.gz"):
+    if os.path.exists(f"{CONTAINER_DATA_DIR}/curves_{q.client.uf}.csv.gz"):
         q.client.parameters = pd.read_csv(
-            f"{DATA_CONTAINER_DIR}/curves_{q.client.uf}.csv.gz"
+            f"{CONTAINER_DATA_DIR}/curves_{q.client.uf}.csv.gz"
         )
     else:
         await q.run(scan_state, q)
@@ -246,9 +246,9 @@ async def update_pars(q: Q):
 def scan_state(q: Q):
     for gc in q.client.cities:
         q.client.scanner.scan(gc, False)
-    q.client.scanner.to_csv(f"{DATA_CONTAINER_DIR}/curves_{q.client.uf}")
+    q.client.scanner.to_csv(f"{CONTAINER_DATA_DIR}/curves_{q.client.uf}")
     q.client.parameters = pd.read_csv(
-        f"{DATA_CONTAINER_DIR}/curves_{q.client.uf}.csv.gz"
+        f"{CONTAINER_DATA_DIR}/curves_{q.client.uf}.csv.gz"
     )
     q.page["meta"].notification = "Finished scanning!"
 
@@ -315,10 +315,10 @@ def df_to_table_rows(df: pd.DataFrame) -> List[ui.TableRow]:
 async def load_table(q: Q):
     global DATA_TABLE
     UF = q.client.uf
-    if os.path.exists(f"{DATA_CONTAINER_DIR}/{UF}_dengue.parquet"):
+    if os.path.exists(f"{CONTAINER_DATA_DIR}/{UF}_dengue.parquet"):
         logger.info("loading data...")
         DATA_TABLE = pd.read_parquet(
-            f"{DATA_CONTAINER_DIR}/{UF}_dengue.parquet"
+            f"{CONTAINER_DATA_DIR}/{UF}_dengue.parquet"
         )
         q.client.data_table = DATA_TABLE
         q.client.loaded = True

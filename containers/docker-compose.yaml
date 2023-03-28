@@ -8,7 +8,7 @@ services:
       context: ".."
       dockerfile: containers/wave/Dockerfile
       args:
-        DATA_HOST_DIR: ${DATA_HOST_DIR}
+        HOST_DATA_DIR: ${HOST_DATA_DIR}
         HOST_UID: ${HOST_UID}
         HOST_GID: ${HOST_GID}
         WORK_DIR: ${WORK_DIR}
@@ -24,7 +24,7 @@ services:
       - '10101:10101'
     volumes:
     #    # Mounting this file allows updates to the data files without restarting the container
-      - ${DATA_HOST_DIR}:${WORK_DIR}/${DATA_CONTAINER_DIR}
+      - ${HOST_DATA_DIR}:${WORK_DIR}/${CONTAINER_DATA_DIR}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:10101/epi-scanner/"]
       interval: 30s

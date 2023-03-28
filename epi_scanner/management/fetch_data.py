@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
-import argparse
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
 from epi_scanner.settings import (
-    DATA_HOST_DIR,
-    UFs_dict,
+    HOST_DATA_DIR,
+    STATES,
     get_disease_suffix,
     make_connection,
 )
-
-connection = make_connection()
 
 
 def get_alerta_table(
@@ -33,14 +30,16 @@ def get_alerta_table(
         df: Pandas dataframe
     """
 
-    # Need the name of the state to query DengueGlobal table
+    connection = make_connection()
 
-    if state_abbv in UFs_dict:
-        state_name = UFs_dict.get(state_abbv)
+    if state_abbv in STATES:
+        state_name = STATES.get(state_abbv)
 
     table_suffix = ""
     if disease != "dengue":
         table_suffix = get_disease_suffix(disease)
+
+    # Need the name of the state to query DengueGlobal table
 
     if municipio_geocodigo is None:
         query = f"""
@@ -59,6 +58,7 @@ def get_alerta_table(
             ORDER BY "data_iniSE" DESC ;"""
 
     df = pd.read_sql_query(query, connection, index_col="id")
+    print(df.data_iniSE.max(), df.data_iniSE.min())
 
     connection.dispose()
 
@@ -97,21 +97,9 @@ def data_to_parquet(
         disease=disease,
     )
 
-    data_path = Path(f"{DATA_HOST_DIR}")
+    data_path = Path(f"{HOST_DATA_DIR}")
     data_path.mkdir(parents=True, exist_ok=True)
 
     parquet_fname = f"{data_path}/{state_abbv}_{disease}.parquet"
-
+    print("The parquet file was created in the data directory!")
     return df.to_parquet(parquet_fname)
-
-
-# receive arguments
-parser = argparse.ArgumentParser()
-parser.add_argument("state_abbv", help="state abbreviation codes")
-parser.add_argument("disease", help="disease name")
-
-args = parser.parse_args()
-
-data_to_parquet(args.state_abbv, args.disease)
-
-print("The parquet file was created in the data directory!")

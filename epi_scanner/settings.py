@@ -15,8 +15,8 @@ PSQL_USER = os.getenv("PSQL_USER")
 PSQL_HOST = os.getenv("PSQL_HOST")
 PSQL_PASSWORD = os.getenv("PSQL_PASSWORD")
 PSQL_PORT = os.getenv("PSQL_PORT")
-DATA_HOST_DIR = os.getenv("DATA_HOST_DIR")
-DATA_CONTAINER_DIR = os.getenv("DATA_CONTAINER_DIR")
+HOST_DATA_DIR = os.getenv("HOST_DATA_DIR")
+CONTAINER_DATA_DIR = os.getenv("CONTAINER_DATA_DIR")
 
 
 PSQL_URI = (
@@ -53,7 +53,7 @@ def get_disease_suffix(disease: str, empty_for_dengue: bool = True):
     )
 
 
-UFs_dict = {
+STATES = {
     "AC": "Acre",
     "AL": "Alagoas",
     "AM": "Amazonas",

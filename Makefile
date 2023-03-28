@@ -94,7 +94,7 @@ create-dotenv:
 	echo -n "HOST_UID=`id -u`\nHOST_GID=`id -g`" > .env
 
 fetch_data:
-	python scripts/create_data_parquet.py ${STATE_ABBV} ${DISEASE}
+	python epi_scanner/management/get_parameters.py ${STATE_ABBV} ${DISEASE}
 
 # Python
 .PHONY: clean
