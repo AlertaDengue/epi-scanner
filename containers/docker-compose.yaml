@@ -10,6 +10,7 @@ services:
       args:
         HOST_UID: ${HOST_UID}
         HOST_GID: ${HOST_GID}
+        WORK_DIR: ${WORK_DIR}
     env_file:
       - ../.env
     environment:
@@ -20,9 +21,9 @@ services:
     entrypoint: [ "wave", "run", "--no-reload", "--no-autostart", "epi_scanner.app" ]
     ports:
       - '10101:10101'
-    # volumes:
+    volumes:
     #    # Mounting this file allows updates to the data files without restarting the container
-    #   - ./epi_scanner:/opt/services/episcanner/
+      - ${EPI_DATA}:${WORK_DIR}/epi_scanner/data/
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:10101/epi-scanner/"]
       interval: 30s
