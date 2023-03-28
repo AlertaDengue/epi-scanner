@@ -1,57 +1,17 @@
 #!/usr/bin/env python3
 import argparse
-import os
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
-from dotenv import load_dotenv
-from sqlalchemy import create_engine
-
-load_dotenv()
-env_path = Path(".") / ".env"
-load_dotenv(dotenv_path=env_path)
-
-
-PSQL_DB = os.getenv("PSQL_DB")
-PSQL_DBF = os.getenv("PSQL_DBF")
-PSQL_USER = os.getenv("PSQL_USER")
-PSQL_HOST = os.getenv("PSQL_HOST")
-PSQL_PASSWORD = os.getenv("PSQL_PASSWORD")
-PSQL_PORT = os.getenv("PSQL_PORT")
-
-PSQL_URI = (
-    "postgresql://"
-    f"{PSQL_USER}:{PSQL_PASSWORD}@{PSQL_HOST}:{PSQL_PORT}/{PSQL_DB}"
+from epi_scanner.settings import (
+    DATA_HOST_DIR,
+    UFs_dict,
+    get_disease_suffix,
+    make_connection,
 )
 
-
-def make_connection():
-    """
-    Returns:
-        db_engine: URI with driver connection.
-    """
-    try:
-        connection = create_engine(PSQL_URI)
-    except ConnectionError as e:
-        raise e
-    return connection
-
-
-def get_disease_suffix(disease: str, empty_for_dengue: bool = True):
-    """
-    :param disease:
-    :return: suffix to table name
-    """
-    return (
-        ("" if empty_for_dengue else "_dengue")
-        if disease == "dengue"
-        else "_chik"
-        if disease == "chikungunya"
-        else "_zika"
-        if disease == "zika"
-        else ""
-    )
+connection = make_connection()
 
 
 def get_alerta_table(
@@ -73,42 +33,10 @@ def get_alerta_table(
         df: Pandas dataframe
     """
 
-    connection = make_connection()
-
-    states_dict = {
-        "AC": "Acre",
-        "AL": "Alagoas",
-        "AM": "Amazonas",
-        "AP": "Amapá",
-        "BA": "Bahia",
-        "CE": "Ceará",
-        "DF": "Distrito Federal",
-        "ES": "Espírito Santo",
-        "GO": "Goiás",
-        "MA": "Maranhão",
-        "MG": "Minas Gerais",
-        "MS": "Mato Grosso do Sul",
-        "MT": "Mato Grosso",
-        "PA": "Pará",
-        "PB": "Paraíba",
-        "PE": "Pernambuco",
-        "PI": "Piauí",
-        "PR": "Paraná",
-        "RJ": "Rio de Janeiro",
-        "RN": "Rio Grande do Norte",
-        "RO": "Rondônia",
-        "RR": "Roraima",
-        "RS": "Rio Grande do Sul",
-        "SC": "Santa Catarina",
-        "SE": "Sergipe",
-        "SP": "São Paulo",
-        "TO": "Tocantins",
-    }
-
     # Need the name of the state to query DengueGlobal table
 
-    if state_abbv in states_dict:
-        state_name = states_dict.get(state_abbv)
+    if state_abbv in UFs_dict:
+        state_name = UFs_dict.get(state_abbv)
 
     table_suffix = ""
     if disease != "dengue":
@@ -169,7 +97,7 @@ def data_to_parquet(
         disease=disease,
     )
 
-    data_path = Path("epi_scanner/data")
+    data_path = Path(f"{DATA_HOST_DIR}")
     data_path.mkdir(parents=True, exist_ok=True)
 
     parquet_fname = f"{data_path}/{state_abbv}_{disease}.parquet"

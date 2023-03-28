@@ -7,12 +7,13 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.express as px
+from epi_scanner.settings import DATA_CONTAINER_DIR
 from h2o_wave import Q
 from plotly.subplots import make_subplots
 
 
 async def load_map(q: Q):
-    file_gpkg = Path("epi_scanner/data/muni_br.gpkg")
+    file_gpkg = Path(f"{DATA_CONTAINER_DIR}/muni_br.gpkg")
 
     brmap = gpd.read_file(file_gpkg, driver="GPKG")
     q.client.brmap = brmap

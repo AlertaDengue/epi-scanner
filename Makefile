@@ -8,6 +8,8 @@ CONSOLE:=bash
 CMD:=
 ARGS:=
 TIMEOUT:=60
+STATE_ABBV:=
+DISEASE:=
 
 
 #  APP ON CI
@@ -90,6 +92,9 @@ containers-reset-storage:
 create-dotenv:
 	touch .env
 	echo -n "HOST_UID=`id -u`\nHOST_GID=`id -g`" > .env
+
+fetch_data:
+	python scripts/create_data_parquet.py ${STATE_ABBV} ${DISEASE}
 
 # Python
 .PHONY: clean
