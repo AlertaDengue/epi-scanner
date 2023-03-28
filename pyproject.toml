@@ -19,7 +19,7 @@ geopandas = "^0.12.2"
 matplotlib = "^3.7.1"
 mapclassify = "^2.5.0"
 plotly = "^5.13.1"
-SQLAlchemy = "^2.0.7"
+SQLAlchemy = "<2.0"
 python-dotenv = "^1.0.0"
 
 [tool.poetry.dev-dependencies]
