@@ -1,14 +1,16 @@
-#!/usr/bin/env python3
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
+
+# Local
 from epi_scanner.settings import (
     HOST_DATA_DIR,
     STATES,
     get_disease_suffix,
     make_connection,
 )
+from tqdm import tqdm
 
 
 def get_alerta_table(
@@ -58,7 +60,8 @@ def get_alerta_table(
             ORDER BY "data_iniSE" DESC ;"""
 
     df = pd.read_sql_query(query, connection, index_col="id")
-    print(df.data_iniSE.max(), df.data_iniSE.min())
+
+    # print(state_abbv, ">>>", df.data_iniSE.max(), df.data_iniSE.min())
 
     connection.dispose()
 
@@ -70,7 +73,7 @@ def get_alerta_table(
 
 
 def data_to_parquet(
-    state_abbv: str,
+    state_abbv: Optional[str] = None,
     disease: str = "dengue",
 ) -> Path:
     """
@@ -92,14 +95,27 @@ def data_to_parquet(
             f"The diseases available are: {[k for k in CID10.keys()]}"
         )
 
-    df = get_alerta_table(
-        state_abbv=state_abbv,
-        disease=disease,
-    )
+    if state_abbv is None:
+        print(
+            """
+             Saving the parquet files for all states in the data directory...
+            """
+        )
 
-    data_path = Path(f"{HOST_DATA_DIR}")
-    data_path.mkdir(parents=True, exist_ok=True)
+        for i, ufs in enumerate(tqdm(list(STATES.keys()))):
+            parquet_fname = f"{HOST_DATA_DIR}/{ufs}_{disease}.parquet"
 
-    parquet_fname = f"{data_path}/{state_abbv}_{disease}.parquet"
-    print("The parquet file was created in the data directory!")
-    return df.to_parquet(parquet_fname)
+            get_alerta_table(
+                state_abbv=ufs,
+                disease=disease,
+            ).to_parquet(parquet_fname)
+
+    else:
+        parquet_fname = f"{HOST_DATA_DIR}/{state_abbv}_{disease}.parquet"
+
+        get_alerta_table(
+            state_abbv=state_abbv,
+            disease=disease,
+        ).to_parquet(parquet_fname)
+
+        print("The parquet file was created in the data directory!")

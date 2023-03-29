@@ -15,8 +15,10 @@ PSQL_USER = os.getenv("PSQL_USER")
 PSQL_HOST = os.getenv("PSQL_HOST")
 PSQL_PASSWORD = os.getenv("PSQL_PASSWORD")
 PSQL_PORT = os.getenv("PSQL_PORT")
-HOST_DATA_DIR = os.getenv("HOST_DATA_DIR")
 CONTAINER_DATA_DIR = os.getenv("CONTAINER_DATA_DIR")
+#
+HOST_DATA_DIR = Path(os.getenv("HOST_DATA_DIR"))
+HOST_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 PSQL_URI = (
