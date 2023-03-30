@@ -8,30 +8,27 @@ load_dotenv()
 env_path = Path(".") / ".env"
 load_dotenv(dotenv_path=env_path)
 
-
-PSQL_DB = os.getenv("PSQL_DB")
-PSQL_DBF = os.getenv("PSQL_DBF")
-PSQL_USER = os.getenv("PSQL_USER")
-PSQL_HOST = os.getenv("PSQL_HOST")
-PSQL_PASSWORD = os.getenv("PSQL_PASSWORD")
-PSQL_PORT = os.getenv("PSQL_PORT")
-CONTAINER_DATA_DIR = os.getenv("CONTAINER_DATA_DIR")
-#
-HOST_DATA_DIR = Path(os.getenv("HOST_DATA_DIR"))
-HOST_DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-
-PSQL_URI = (
-    "postgresql://"
-    f"{PSQL_USER}:{PSQL_PASSWORD}@{PSQL_HOST}:{PSQL_PORT}/{PSQL_DB}"
-)
-
+# This variable is used by container application modules
+# to locate a directory path for data."
+CTNR_EPISCANNER_DATA_DIR = os.getenv("CTNR_EPISCANNER_DATA_DIR")
 
 def make_connection():
     """
     Returns:
         db_engine: URI with driver connection.
     """
+    PSQL_DB = os.getenv("PSQL_DB")
+    PSQL_DBF = os.getenv("PSQL_DBF")
+    PSQL_USER = os.getenv("PSQL_USER")
+    PSQL_HOST = os.getenv("PSQL_HOST")
+    PSQL_PASSWORD = os.getenv("PSQL_PASSWORD")
+    PSQL_PORT = os.getenv("PSQL_PORT")
+
+    PSQL_URI = (
+        "postgresql://"
+        f"{PSQL_USER}:{PSQL_PASSWORD}@{PSQL_HOST}:{PSQL_PORT}/{PSQL_DB}"
+    )
+
     try:
         connection = create_engine(PSQL_URI)
     except ConnectionError as e:

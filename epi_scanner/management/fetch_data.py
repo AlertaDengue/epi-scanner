@@ -5,12 +5,13 @@ import pandas as pd
 
 # Local
 from epi_scanner.settings import (
-    HOST_DATA_DIR,
+    CTNR_EPISCANNER_DATA_DIR,
     STATES,
     get_disease_suffix,
     make_connection,
 )
-from tqdm import tqdm
+
+# from tqdm import tqdm
 
 
 def get_alerta_table(
@@ -102,20 +103,26 @@ def data_to_parquet(
             """
         )
 
-        for i, ufs in enumerate(tqdm(list(STATES.keys()))):
-            parquet_fname = f"{HOST_DATA_DIR}/{ufs}_{disease}.parquet"
+        # for i, ufs in enumerate(tqdm(list(STATES.keys()))):
+        for i, ufs in enumerate(list(STATES.keys())):
+
+            parquet_fname = f"{CTNR_EPISCANNER_DATA_DIR}/{ufs}_{disease}.parquet"
 
             get_alerta_table(
                 state_abbv=ufs,
                 disease=disease,
             ).to_parquet(parquet_fname)
 
+        return parquet_fname
+
     else:
-        parquet_fname = f"{HOST_DATA_DIR}/{state_abbv}_{disease}.parquet"
+        parquet_fname = f"{CTNR_EPISCANNER_DATA_DIR}/{state_abbv}_{disease}.parquet"
 
         get_alerta_table(
             state_abbv=state_abbv,
             disease=disease,
         ).to_parquet(parquet_fname)
 
-        print("The parquet file was created in the data directory!")
+        print(f"{parquet_fname} was successfully created!")
+
+        return parquet_fname
