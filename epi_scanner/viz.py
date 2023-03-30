@@ -8,8 +8,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.express as px
 from epi_scanner.settings import CTNR_EPISCANNER_DATA_DIR
+import plotly.graph_objects as go
 from h2o_wave import Q
 from plotly.subplots import make_subplots
+from plotly import io as pio
 
 
 async def load_map(q: Q):
@@ -184,16 +186,25 @@ async def plot_series_px(q: Q, gc: int, start_date: str, end_date: str):
     dfcity.sort_index(inplace=True)
     dfcity["casos_cum"] = dfcity.casos.cumsum()
     spl = make_subplots(rows=2, cols=1)
-    fig = px.bar(dfcity.casos)
-    fig2 = px.bar(dfcity.casos_cum)
-    spl.add_trace(fig.data[0], row=1, col=1)
-    spl.add_trace(fig2.data[0], row=2, col=1)
-    buffer = io.StringIO()
-    spl.write_html(
-        buffer, include_plotlyjs="cdn", validate=False, full_html=False
+    spl.add_trace(
+        go.Bar(x=dfcity.index, y=dfcity.casos),
+        row=1, col=1
     )
-    html = buffer.getvalue()
-    # html = pio.to_html(spl, validate=False, include_plotlyjs='cdn')
+    spl.add_trace(
+        go.Bar(x=dfcity.index, y=dfcity.casos_cum),
+        row=2, col=1
+    )
+    # fig = px.bar(dfcity.casos)
+    # fig2 = px.bar(dfcity.casos_cum)
+    # spl.add_trace(fig.data[0], row=1, col=1)
+    # spl.add_trace(fig2.data[0], row=2, col=1)
+    # buffer = io.StringIO()
+    # spl.write_html(
+    #     buffer, include_plotlyjs="cdn", validate=False, full_html=False
+    # )
+    # html = buffer.getvalue()
+    html = pio.to_html(spl, validate=False, include_plotlyjs='cdn')
     # print(html)
     q.page["ts_plot_px"].content = html
     await q.page.save()
+
