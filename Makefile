@@ -93,8 +93,12 @@ create-dotenv:
 	touch .env
 	echo -n "HOST_UID=`id -u`\nHOST_GID=`id -g`" > .env
 
-fetch_data:
+fetch-data:
 	python epi_scanner/management/get_parameters.py ${STATE_ABBV} ${DISEASE}
+
+test-fetch-data:
+	set -e
+	$(CONTAINER_APP) exec -T wave-app /bin/bash -c 'pytest epi_scanner/tests'
 
 # Python
 .PHONY: clean

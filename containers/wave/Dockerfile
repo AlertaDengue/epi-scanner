@@ -69,7 +69,8 @@ COPY --chown=${HOST_UID}:${HOST_GID} poetry.lock pyproject.toml ${WORK_DIR}/
 RUN poetry config virtualenvs.create false \
   && poetry install
 
-COPY --chown=${HOST_UID}:${HOST_GID} containers/wave/entrypoint.sh /opt/entrypoint.sh
+COPY --chown=${HOST_UID}:${HOST_GID} ./containers/scripts/tests.sh ${WORK_DIR}/tests.sh
+COPY --chown=${HOST_UID}:${HOST_GID} ./containers/wave/entrypoint.sh /opt/entrypoint.sh
 
 RUN chmod +x /opt/entrypoint.sh \
   && echo "source /opt/entrypoint.sh" > ~/.bashrc
