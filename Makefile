@@ -76,7 +76,6 @@ containers-console:
 
 .PHONY:containers-run-console
 containers-run-console:
-	set -e
 	$(CONTAINER_APP) run --rm ${ARGS} ${SERVICE} ${CONSOLE}
 
 .PHONY:containers-down

@@ -10,7 +10,7 @@ load_dotenv(dotenv_path=env_path)
 
 # This variable is used by container application modules
 # to locate a directory path for data."
-CTNR_EPISCANNER_DATA_DIR = os.getenv("CTNR_EPISCANNER_DATA_DIR")
+CTNR_EPISCANNER_DATA_DIR = Path(os.getenv("CTNR_EPISCANNER_DATA_DIR"))
 
 def make_connection():
     """

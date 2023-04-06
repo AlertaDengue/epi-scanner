@@ -50,5 +50,5 @@ $ make docker-stop
 # Run:
 
 $ python scripts/create_data_parquet.py RJ dengue
-> episcanner/data/RJ_dengue.parquet
+> epi_scanner/data/RJ_dengue.parquet
 ```
