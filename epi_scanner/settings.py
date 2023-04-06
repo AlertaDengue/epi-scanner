@@ -12,13 +12,13 @@ load_dotenv(dotenv_path=env_path)
 # to locate a directory path for data."
 CTNR_EPISCANNER_DATA_DIR = Path(os.getenv("CTNR_EPISCANNER_DATA_DIR"))
 
+
 def make_connection():
     """
     Returns:
         db_engine: URI with driver connection.
     """
     PSQL_DB = os.getenv("PSQL_DB")
-    PSQL_DBF = os.getenv("PSQL_DBF")
     PSQL_USER = os.getenv("PSQL_USER")
     PSQL_HOST = os.getenv("PSQL_HOST")
     PSQL_PASSWORD = os.getenv("PSQL_PASSWORD")

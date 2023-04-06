@@ -106,7 +106,9 @@ def data_to_parquet(
         # for i, ufs in enumerate(tqdm(list(STATES.keys()))):
         for i, ufs in enumerate(list(STATES.keys())):
 
-            parquet_fname = f"{CTNR_EPISCANNER_DATA_DIR}/{ufs}_{disease}.parquet"
+            parquet_fname = (
+                f"{CTNR_EPISCANNER_DATA_DIR}/{ufs}_{disease}.parquet"
+            )
 
             get_alerta_table(
                 state_abbv=ufs,
@@ -116,7 +118,9 @@ def data_to_parquet(
         return parquet_fname
 
     else:
-        parquet_fname = f"{CTNR_EPISCANNER_DATA_DIR}/{state_abbv}_{disease}.parquet"
+        parquet_fname = (
+            f"{CTNR_EPISCANNER_DATA_DIR}/{state_abbv}_{disease}.parquet"
+        )
 
         get_alerta_table(
             state_abbv=state_abbv,

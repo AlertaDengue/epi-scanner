@@ -22,7 +22,8 @@ def test_get_alerta_table():
     assert len(df) > 0
     assert df.SE.min() == 201001
 
-# 
+
+#
 @pytest.fixture(scope="module")
 @pytest.mark.skipif(reason="Create a real data directory")
 def temp_dir():
@@ -49,5 +50,9 @@ def test_data_to_parquet(temp_dir):
     assert isinstance(df, pd.DataFrame), "Data is not a Pandas DataFrame"
 
     # Check if the parquet file was saved in the correct directory
-    expected_path = CTNR_EPISCANNER_DATA_DIR / f"{state_abbv}_{disease}.parquet"
-    assert Path(file_path) == expected_path, f"{file_path} does not match expected path"
+    expected_path = (
+        CTNR_EPISCANNER_DATA_DIR / f"{state_abbv}_{disease}.parquet"
+    )
+    assert (
+        Path(file_path) == expected_path
+    ), f"{file_path} does not match expected path"
