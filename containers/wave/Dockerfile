@@ -22,6 +22,7 @@ ARG HOST_UID
 ARG HOST_GID
 ARG SERVICES
 ARG ENV
+ARG WORK_DIR
 ENV ENV_NAME=episcanner
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -38,20 +39,22 @@ RUN addgroup --gid ${HOST_GID} epiuser \
   && useradd --uid ${HOST_UID} --gid ${HOST_GID} -ms /bin/bash epiuser \
   && echo "epiuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/epiuser \
   && chmod 0440 /etc/sudoers.d/epiuser \
-  && mkdir -p /opt/conda /opt/services/logs /opt/services/epi_scanner \
+  && mkdir -p /opt/conda /opt/services/logs ${WORK_DIR} \
   && chmod -R a+rwx /opt/conda /opt/services/ /tmp \
   && export ENV_NAME="$ENV_NAME" \
   && chown  ${HOST_UID}:${HOST_GID} /opt/services/ /tmp
 
 ENV PATH "$PATH:/home/epiuser/.local/bin"
-ENV PYTHONPATH='/opt/services/epi_scanner'
+ENV PYTHONPATH='${WORK_DIR}'
 ENV PATH /opt/conda/envs/$ENV_NAME/bin:$PATH
 
 USER epiuser
 
-COPY --chown=${HOST_UID}:${HOST_GID} ./conda/ /tmp/conda
+COPY --chown=${HOST_UID}:${HOST_GID} ./epi_scanner ${WORK_DIR}/epi_scanner
 
-WORKDIR /opt/services/epi_scanner
+WORKDIR ${WORK_DIR}/
+
+COPY --chown=${HOST_UID}:${HOST_GID} ./conda/ /tmp/conda
 
 # Use environment to update the env episcanner
 RUN mamba env create -n $ENV_NAME --file /tmp/conda/env-base.yaml \
@@ -61,12 +64,13 @@ RUN mamba env create -n $ENV_NAME --file /tmp/conda/env-base.yaml \
   && find /opt/conda/ -type f,l -name '*.js.map' -delete \
   && rm -rf /opt/conda/pkgs
 
-COPY --chown=${HOST_UID}:${HOST_GID} ./ /opt/services/epi_scanner/
+COPY --chown=${HOST_UID}:${HOST_GID} poetry.lock pyproject.toml ${WORK_DIR}/
 
 RUN poetry config virtualenvs.create false \
   && poetry install
 
-COPY --chown=${HOST_UID}:${HOST_GID} containers/wave/entrypoint.sh /opt/entrypoint.sh
+COPY --chown=${HOST_UID}:${HOST_GID} ./containers/scripts/tests.sh ${WORK_DIR}/tests.sh
+COPY --chown=${HOST_UID}:${HOST_GID} ./containers/scripts/entrypoint.sh /opt/entrypoint.sh
 
 RUN chmod +x /opt/entrypoint.sh \
   && echo "source /opt/entrypoint.sh" > ~/.bashrc

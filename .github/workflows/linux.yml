@@ -6,6 +6,9 @@ env:
   HOST_GID: 1000
   HOST_UID: 1000
   ENV: dev
+  WORK_DIR: /opt/services/epi_scanner
+  CTNR_EPISCANNER_DATA_DIR: /opt/services/epi_scanner/data
+  HOST_EPISCANNER_DATA_DIR: ../infodengue_data/epi_scanner/data
 
 jobs:
   build:
@@ -35,16 +38,26 @@ jobs:
         use-mamba: true
         miniforge-variant: Mambaforge
 
+    - name: Create env file
+      run: envsubst < env.tpl > .env
+
+    - name: Prepare volume for episcanner data
+      run: |
+        mkdir -p ../infodengue_data/epi_scanner/data
+        chmod 777 -R ../infodengue_data/epi_scanner/data
+
     - name: Install dependencies
       run: |
         poetry install
 
-    - name: Create env file
-      run: envsubst < env.tpl > .env
+    - name: Linting
+      run: |
+        pre-commit install
+        pre-commit run --all-files
 
     - name: Build docker images
       run: |
-         make containers-build
+        make containers-build
 
     - name: Docker start web
       run: |
@@ -53,3 +66,7 @@ jobs:
     - name: Docker waiting services
       run: |
         make containers-wait SERVICE=wave-app
+
+    # - name: Run tests with pytest
+    #   run: |
+    #     make test-fetch-data

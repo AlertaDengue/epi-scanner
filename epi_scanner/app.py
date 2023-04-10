@@ -22,6 +22,7 @@ from typing import List
 
 import pandas as pd
 from epi_scanner.model.scanner import EpiScanner
+from epi_scanner.settings import CTNR_EPISCANNER_DATA_DIR, STATES
 from epi_scanner.viz import (
     load_map,
     plot_pars_map,
@@ -39,35 +40,6 @@ from loguru import logger
 warnings.filterwarnings("ignore")
 
 DATA_TABLE = None
-STATES = {
-    "AC": "Acre",
-    "AL": "Alagoas",
-    "AM": "Amazonas",
-    "AP": "Amapá",
-    "BA": "Bahia",
-    "CE": "Ceará",
-    "DF": "Distrito Federal",
-    "ES": "Espírito Santo",
-    "GO": "Goiás",
-    "MA": "Maranhão",
-    "MG": "Minas Gerais",
-    "MS": "Mato Grosso do Sul",
-    "MT": "Mato Grosso",
-    "PA": "Pará",
-    "PB": "Paraíba",
-    "PE": "Pernambuco",
-    "PI": "Piauí",
-    "PR": "Paraná",
-    "RJ": "Rio de Janeiro",
-    "RN": "Rio Grande do Norte",
-    "RO": "Rondônia",
-    "RR": "Roraima",
-    "RS": "Rio Grande do Sul",
-    "SC": "Santa Catarina",
-    "SE": "Sergipe",
-    "SP": "São Paulo",
-    "TO": "Tocantins",
-}
 
 
 async def initialize_app(q: Q):
@@ -216,9 +188,11 @@ async def on_update_UF(q: Q):
     q.client.scanner = EpiScanner(45, q.client.data_table)
     q.page["meta"].notification = "Scanning state for epidemics..."
     await q.page.save()
-    if os.path.exists(f"epi_scanner/data/curves_{q.client.uf}.csv.gz"):
+    if os.path.exists(
+        f"{CTNR_EPISCANNER_DATA_DIR}/curves_{q.client.uf}.csv.gz"
+    ):
         q.client.parameters = pd.read_csv(
-            f"epi_scanner/data/curves_{q.client.uf}.csv.gz"
+            f"{CTNR_EPISCANNER_DATA_DIR}/curves_{q.client.uf}.csv.gz"
         )
     else:
         await q.run(scan_state, q)
@@ -274,9 +248,9 @@ async def update_pars(q: Q):
 def scan_state(q: Q):
     for gc in q.client.cities:
         q.client.scanner.scan(gc, False)
-    q.client.scanner.to_csv(f"epi_scanner/data/curves_{q.client.uf}")
+    q.client.scanner.to_csv(f"{CTNR_EPISCANNER_DATA_DIR}/curves_{q.client.uf}")
     q.client.parameters = pd.read_csv(
-        f"epi_scanner/data/curves_{q.client.uf}.csv.gz"
+        f"{CTNR_EPISCANNER_DATA_DIR}/curves_{q.client.uf}.csv.gz"
     )
     q.page["meta"].notification = "Finished scanning!"
 
@@ -343,9 +317,11 @@ def df_to_table_rows(df: pd.DataFrame) -> List[ui.TableRow]:
 async def load_table(q: Q):
     global DATA_TABLE
     UF = q.client.uf
-    if os.path.exists(f"epi_scanner/data/{UF}_dengue.parquet"):
+    if os.path.exists(f"{CTNR_EPISCANNER_DATA_DIR}/{UF}_dengue.parquet"):
         logger.info("loading data...")
-        DATA_TABLE = pd.read_parquet(f"epi_scanner/data/{UF}_dengue.parquet")
+        DATA_TABLE = pd.read_parquet(
+            f"{CTNR_EPISCANNER_DATA_DIR}/{UF}_dengue.parquet"
+        )
         q.client.data_table = DATA_TABLE
         q.client.loaded = True
         for gc in DATA_TABLE.municipio_geocodigo.unique():

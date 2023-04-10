@@ -8,6 +8,8 @@ CONSOLE:=bash
 CMD:=
 ARGS:=
 TIMEOUT:=60
+STATE_ABBV:=
+DISEASE:=
 
 
 #  APP ON CI
@@ -60,7 +62,7 @@ containers-logs-follow:
 
 .PHONY: containers-wait
 containers-wait:
-	timeout ${TIMEOUT} ./scripts/ci/healthcheck.sh ${SERVICE}
+	timeout ${TIMEOUT} ./containers/scripts/healthcheck.sh ${SERVICE}
 
 .PHONY:containers-exec
 containers-exec:
@@ -74,7 +76,6 @@ containers-console:
 
 .PHONY:containers-run-console
 containers-run-console:
-	set -e
 	$(CONTAINER_APP) run --rm ${ARGS} ${SERVICE} ${CONSOLE}
 
 .PHONY:containers-down
@@ -90,6 +91,13 @@ containers-reset-storage:
 create-dotenv:
 	touch .env
 	echo -n "HOST_UID=`id -u`\nHOST_GID=`id -g`" > .env
+
+fetch-data:
+	python epi_scanner/management/get_parameters.py ${STATE_ABBV} ${DISEASE}
+
+test-fetch-data:
+	set -e
+	$(CONTAINER_APP) exec -T wave-app /bin/bash -c 'pytest epi_scanner/tests'
 
 # Python
 .PHONY: clean
