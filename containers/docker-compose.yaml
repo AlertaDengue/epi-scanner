@@ -23,7 +23,7 @@ services:
       - '10101:10101'
     volumes:
     #    # Mounting this file allows updates to the data files without restarting the container
-      - ${HOST_EPISCANNER_DATA_DIR}:${CNTR_EPISCANNER_DATA_DIR}
+      - ${HOST_EPISCANNER_DATA_DIR}:${CTNR_EPISCANNER_DATA_DIR}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:10101/epi-scanner/"]
       interval: 30s
