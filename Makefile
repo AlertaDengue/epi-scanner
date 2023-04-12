@@ -96,8 +96,7 @@ fetch-data:
 	python epi_scanner/management/get_parameters.py ${STATE_ABBV} ${DISEASE}
 
 test-fetch-data:
-	set -e
-	$(CONTAINER_APP) exec -T wave-app /bin/bash -c 'pytest epi_scanner/tests'
+	$(CONTAINER_APP) exec -T wave-app /bin/bash -c 'pytest -vv epi_scanner/tests'
 
 # Python
 .PHONY: clean

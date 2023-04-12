@@ -73,14 +73,14 @@ def test_to_csv(uf_data, tmp_data_dir):
 
     model = EpiScanner(202306, data_table)
     fname = f"curves_{uf}"
-    file_path = tmp_data_dir / f"{fname}.csv.gz"
-    model.to_csv(str(file_path))
+    fname_path = tmp_data_dir / f"{fname}.csv.gz"
+    model.to_csv(str(fname_path))
 
     # Print statements
-    # print(f"File path: {file_path}")
-    # print(f"File exists: {file_path.is_file()}")
+    # print(f"File path: {fname_path}")
+    # print(f"File exists: {fname_path.is_file()}")
     # print(data_table)
 
-    assert file_path.is_file(), f"{file_path} does not exist"
+    assert fname_path.is_file(), f"{fname_path} does not exist"
 
-    assert str(file_path) == f"/tmp/epi_scanner/data/curves_{uf}.csv.gz"
+    assert str(fname_path) == f"/tmp/epi_scanner/data/curves_{uf}.csv.gz"

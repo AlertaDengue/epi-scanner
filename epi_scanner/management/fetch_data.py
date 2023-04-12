@@ -111,30 +111,30 @@ def data_to_parquet(
             parquet_fname = f"{ufs}_{disease}.parquet"
 
             if output_dir:
-                parquet_path = Path(output_dir) / parquet_fname
+                parquet_fname_path = Path(output_dir) / parquet_fname
             else:
-                parquet_path = Path(parquet_fname)
+                parquet_fname_path = Path(parquet_fname)
 
             get_alerta_table(
                 state_abbv=ufs,
                 disease=disease,
-            ).to_parquet(parquet_path)
+            ).to_parquet(parquet_fname_path)
 
-        return parquet_path
+        return parquet_fname_path
 
     else:
         parquet_fname = f"{state_abbv}_{disease}.parquet"
 
         if output_dir:
-            parquet_path = Path(output_dir) / parquet_fname
+            parquet_fname_path = Path(output_dir) / parquet_fname
         else:
-            parquet_path = Path(parquet_fname)
+            parquet_fname_path = Path(parquet_fname)
 
         get_alerta_table(
             state_abbv=state_abbv,
             disease=disease,
-        ).to_parquet(parquet_path)
+        ).to_parquet(parquet_fname_path)
 
         print(f"{parquet_fname} was successfully created!")
 
-        return parquet_path
+        return parquet_fname_path

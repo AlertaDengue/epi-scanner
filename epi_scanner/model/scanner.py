@@ -174,7 +174,7 @@ class EpiScanner:
             axes[i].legend()
             i += 1
 
-    def to_csv(self, file_path):
+    def to_csv(self, fname_path):
         data = {
             "geocode": [],
             "year": [],
@@ -207,12 +207,12 @@ class EpiScanner:
                 data["R0"].append(sir_params["R0"])
         dfpars = pd.DataFrame(data)
         # Create a Path object for the file path
-        file_path = Path(file_path)
+        fname_path = Path(fname_path)
         try:
             # Check if the directory exists and create it if necessary
-            file_path.parent.mkdir(parents=True, exist_ok=True)
+            fname_path.parent.mkdir(parents=True, exist_ok=True)
             # Write the DataFrame to CSV
-            dfpars.to_csv(file_path)
+            dfpars.to_csv(fname_path)
         except (FileNotFoundError, PermissionError) as e:
             raise ValueError(f"Failed to write CSV file: {e}")
         except Exception as e:
