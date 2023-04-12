@@ -189,9 +189,7 @@ async def on_update_UF(q: Q):
     q.client.scanner = EpiScanner(45, q.client.data_table)
     q.page["meta"].notification = "Scanning state for epidemics..."
     await q.page.save()
-    if os.path.exists(
-        f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}.csv.gz"
-    ):
+    if os.path.exists(f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}.csv.gz"):
         q.client.parameters = pd.read_csv(
             f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}.csv.gz"
         )

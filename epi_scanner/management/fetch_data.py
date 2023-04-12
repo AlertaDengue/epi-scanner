@@ -4,13 +4,7 @@ from typing import Optional
 import pandas as pd
 
 # Local
-from epi_scanner.settings import (  # EPISCANNER_DATA_DIR,
-    STATES,
-    get_disease_suffix,
-    make_connection,
-)
-
-# from tqdm import tqdm
+from epi_scanner.settings import STATES, get_disease_suffix, make_connection
 
 
 def get_alerta_table(
@@ -60,8 +54,6 @@ def get_alerta_table(
             ORDER BY "data_iniSE" DESC ;"""
 
     df = pd.read_sql_query(query, connection, index_col="id")
-
-    # print(state_abbv, ">>>", df.data_iniSE.max(), df.data_iniSE.min())
 
     connection.dispose()
 
@@ -122,9 +114,7 @@ def data_to_parquet(
 
             else:
                 pq_fname_path = Path(pq_fname)
-                print(
-                    f"Saving {pq_fname} in the root directory."
-                )
+                print(f"Saving {pq_fname} in the root directory.")
 
             get_alerta_table(state_abbv=state, disease=disease).to_parquet(
                 pq_fname_path
@@ -149,15 +139,11 @@ def data_to_parquet(
 
         else:
             pq_fname_path = Path(pq_fname)
-            print(
-                f"Saving the {pq_fname_path} in the root directory."
-            )
+            print(f"Saving the {pq_fname_path} in the root directory.")
 
         get_alerta_table(state_abbv=state_abbv, disease=disease).to_parquet(
             pq_fname_path
         )
 
-        print(
-            f"The parquet file was successfully created in: {pq_fname_path}"
-        )
+        print(f"The parquet file was successfully created in: {pq_fname_path}")
         return pq_fname_path
