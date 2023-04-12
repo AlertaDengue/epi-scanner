@@ -1,4 +1,5 @@
 from collections import defaultdict
+from pathlib import Path
 
 import lmfit as lm
 import matplotlib.pyplot as plt
@@ -173,7 +174,7 @@ class EpiScanner:
             axes[i].legend()
             i += 1
 
-    def to_csv(self, fname):
+    def to_csv(self, file_path):
         data = {
             "geocode": [],
             "year": [],
@@ -184,7 +185,6 @@ class EpiScanner:
             "total_cases": [],
             "alpha": [],
         }
-        i = 0  # NOQA F841
         for gc, curve in self.curves.items():
             for c in curve:
                 data["geocode"].append(gc)
@@ -206,4 +206,14 @@ class EpiScanner:
                 data["gamma"].append(sir_params["gamma"])
                 data["R0"].append(sir_params["R0"])
         dfpars = pd.DataFrame(data)
-        dfpars = dfpars.to_csv(f"{fname}.csv.gz")
+        # Create a Path object for the file path
+        file_path = Path(file_path)
+        try:
+            # Check if the directory exists and create it if necessary
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            # Write the DataFrame to CSV
+            dfpars.to_csv(file_path)
+        except (FileNotFoundError, PermissionError) as e:
+            raise ValueError(f"Failed to write CSV file: {e}")
+        except Exception as e:
+            raise ValueError(f"Unexpected error while writing CSV file: {e}")
