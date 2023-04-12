@@ -4,8 +4,7 @@ from typing import Optional
 import pandas as pd
 
 # Local
-from epi_scanner.settings import (
-    # EPISCANNER_DATA_DIR,
+from epi_scanner.settings import (  # EPISCANNER_DATA_DIR,
     STATES,
     get_disease_suffix,
     make_connection,
@@ -94,47 +93,71 @@ def data_to_parquet(
     CID10 = {"dengue": "A90", "chikungunya": "A92.0", "zika": "A928"}
 
     if disease not in CID10.keys():
-        raise Exception(
-            f"The diseases available are: {[k for k in CID10.keys()]}"
+        raise ValueError(
+            f"""
+            Invalid disease name: {disease}.
+            Available diseases: {list(CID10.keys())}
+            """
         )
 
     if state_abbv is None:
         print(
-            """
-             Saving the parquet files for all states in the data directory...
-            """
+            "Saving the parquet files for all states in the data directory..."
         )
 
-        # for i, ufs in enumerate(tqdm(list(STATES.keys()))):
-        for i, ufs in enumerate(list(STATES.keys())):
-
-            parquet_fname = f"{ufs}_{disease}.parquet"
+        for state in STATES.keys():
+            pq_fname = f"{state}_{disease}.parquet"
 
             if output_dir:
-                parquet_fname_path = Path(output_dir) / parquet_fname
+                output_dir = Path(output_dir)
+                pq_fname_path = output_dir / pq_fname
+
+                if not output_dir.exists():
+                    raise FileNotFoundError(
+                        f"""
+                        Output directory not found: {output_dir}.
+                        Please create it before running this function.
+                        """
+                    )
+
             else:
-                parquet_fname_path = Path(parquet_fname)
+                pq_fname_path = Path(pq_fname)
+                print(
+                    f"Saving {pq_fname} in the root directory."
+                )
 
-            get_alerta_table(
-                state_abbv=ufs,
-                disease=disease,
-            ).to_parquet(parquet_fname_path)
+            get_alerta_table(state_abbv=state, disease=disease).to_parquet(
+                pq_fname_path
+            )
 
-        return parquet_fname_path
+        return pq_fname_path
 
     else:
-        parquet_fname = f"{state_abbv}_{disease}.parquet"
+        pq_fname = f"{state_abbv}_{disease}.parquet"
 
         if output_dir:
-            parquet_fname_path = Path(output_dir) / parquet_fname
+            output_dir = Path(output_dir)
+            pq_fname_path = output_dir / pq_fname
+
+            if not output_dir.exists():
+                raise FileNotFoundError(
+                    f"""
+                    Output directory not found: {output_dir}.
+                    Please create it before running this function.
+                    """
+                )
+
         else:
-            parquet_fname_path = Path(parquet_fname)
+            pq_fname_path = Path(pq_fname)
+            print(
+                f"Saving the {pq_fname_path} in the root directory."
+            )
 
-        get_alerta_table(
-            state_abbv=state_abbv,
-            disease=disease,
-        ).to_parquet(parquet_fname_path)
+        get_alerta_table(state_abbv=state_abbv, disease=disease).to_parquet(
+            pq_fname_path
+        )
 
-        print(f"{parquet_fname} was successfully created!")
-
-        return parquet_fname_path
+        print(
+            f"The parquet file was successfully created in: {pq_fname_path}"
+        )
+        return pq_fname_path
