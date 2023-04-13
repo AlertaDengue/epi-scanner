@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from epi_scanner.management.fetch_data import data_to_parquet, get_alerta_table
 from epi_scanner.model.scanner import EpiScanner
-
+import numpy as np
 
 #
 def test_get_alerta_table():
@@ -68,7 +68,7 @@ def uf_data(tmp_data_dir):
     return uf, pd.read_parquet(data_file)
 
 
-def test_to_csv(uf_data, tmp_data_dir):
+def test_save_to_csv_gz_file(uf_data, tmp_data_dir):
     uf, data_table = uf_data
 
     model = EpiScanner(202306, data_table)
@@ -84,3 +84,42 @@ def test_to_csv(uf_data, tmp_data_dir):
     assert fname_path.is_file(), f"{fname_path} does not exist"
 
     assert str(fname_path) == f"/tmp/epi_scanner/data/curves_{uf}.csv.gz"
+
+
+
+def test_open_csv_gz_file():
+    # Define the path to the CSV file using pathlib
+    filepath = Path("/tmp/epi_scanner/data/curves_RJ.csv.gz")
+
+    # Check if the file exists
+    if not filepath.exists():
+        pytest.fail(f"File does not exist: {filepath}")
+
+    # Read the CSV file into a Pandas DataFrame
+    df = pd.read_csv(filepath, usecols=lambda x: x != "Unnamed: 0", encoding="utf-8")
+    # df = pd.read_csv(filepath, encoding="utf-8")
+
+    # Check if the DataFrame has the expected number of rows and columns
+    expected_shape = (312, 8)  # e.g., 100 rows, 8 columns
+    assert df.shape == expected_shape
+
+    expected_from_df = {
+        "geocode": np.int64,
+        "year": np.int64,
+        "peak_week": np.float64,
+        "beta": np.float64,
+        "gamma": np.float64,
+        "R0": np.float64,
+        "total_cases": np.float64,
+        "alpha": np.float64,
+    }
+
+    expected_columns = list(expected_from_df.keys())
+
+    # Check if the DataFrame contains the expected column names
+    assert list(df.columns) == expected_columns
+
+    # Check if the DataFrame contains the expected data type for each column
+    for col, dtype in expected_from_df.items():
+        assert df[col].dtype == dtype
+
