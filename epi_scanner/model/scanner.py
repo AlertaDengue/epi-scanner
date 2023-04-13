@@ -213,6 +213,7 @@ class EpiScanner:
             fname_path.parent.mkdir(parents=True, exist_ok=True)
             # Write the DataFrame to CSV
             dfpars.to_csv(fname_path)
+            print(f"Data exported successfully to {fname_path}")
         except (FileNotFoundError, PermissionError) as e:
             raise ValueError(f"Failed to write CSV file: {e}")
         except Exception as e:
