@@ -38,7 +38,7 @@ def export_data_to_dir(state: str, output_dir: Optional[str] = None) -> None:
             )
 
         parquet_file = output_dir / f"{state}_dengue.parquet"
-        
+
         data_to_parquet(state, output_dir=output_dir)
 
         if parquet_file.exists():

@@ -7,8 +7,8 @@ env:
   HOST_UID: 1000
   ENV: dev
   ROOT_DIR: /opt/services/epi_scanner
-  EPISCANNER_DATA_DIR: /opt/services/epi_scanner/data
-  HOST_EPISCANNER_DATA_DIR: ./data
+  CTNR_EPISCANNER_DATA_DIR: /opt/services/epi_scanner/data
+  HOST_EPISCANNER_DATA_DIR: /home/runner/work/epi-scanner/epi-scanner/data
 
 jobs:
   build:
@@ -43,8 +43,8 @@ jobs:
 
     - name: Prepare volume for episcanner data
       run: |
-        mkdir -p ./data
-        chmod 777 -R ./data
+        mkdir -p /home/runner/work/epi-scanner/epi-scanner/data
+        chmod 777 -R /home/runner/work/epi-scanner/epi-scanner/data
 
     - name: Install dependencies
       run: |

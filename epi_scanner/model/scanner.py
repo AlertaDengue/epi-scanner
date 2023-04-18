@@ -88,7 +88,6 @@ def otim(df, t_ini, t_fin, verbose=False):
 
 
 class EpiScanner:
-
     def __init__(self, last_week: int, data: pd.DataFrame):
         """
         Detecting Epidemic Curves by Scanning Time Series Data
