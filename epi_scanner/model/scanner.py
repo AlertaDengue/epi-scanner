@@ -88,12 +88,18 @@ def otim(df, t_ini, t_fin, verbose=False):
 
 
 class EpiScanner:
+
     def __init__(self, last_week: int, data: pd.DataFrame):
         """
-        Scans a time series for an epidemic curve
-        :Parameters:
-        last_week: Last week of epidemic season
-        data: dataframe with the series from all cities
+        Detecting Epidemic Curves by Scanning Time Series Data
+
+        Parameters
+        ----------
+        last_week : int
+            The last week of data to include in the analysis, represented as
+            a two-digit number (e.g., 20 for the 20th week of the year).
+        data : pandas.DataFrame
+            A pandas DataFrame containing the time series data for all cities.
         """
         self.window = last_week
         self.data = data
