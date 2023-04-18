@@ -37,12 +37,18 @@ def export_data_to_dir(state: str, output_dir: Optional[str] = None) -> None:
             )
 
         parquet_file = output_dir / f"{state}_dengue.parquet"
-        if not parquet_file.exists():
-            data_to_parquet(state, output_dir=output_dir)
-        df = pd.read_parquet(parquet_file)
-        model = EpiScanner(202306, df)
-        csv_file = output_dir / f"curves_{state}.csv.gz"
-        model.to_csv(csv_file)
+        
+        # if not parquet_file.exists():
+        data_to_parquet(state, output_dir=output_dir)
+
+        # parquet_file = output_dir / f"{state}_dengue.parquet"
+        if parquet_file.exists():
+            df = pd.read_parquet(parquet_file)
+            SE = int(df.SE.max()) % 100
+            scanner = EpiScanner(last_week=SE, data=df)
+            csv_file = output_dir / f"curves_{state}.csv.gz"
+            [scanner.scan(gc) for gc in df.municipio_geocodigo.unique()]
+            scanner.to_csv(csv_file)
 
     except FileNotFoundError as e:
         print(e)
@@ -51,6 +57,5 @@ def export_data_to_dir(state: str, output_dir: Optional[str] = None) -> None:
 
 if __name__ == "__main__":
     output_dir = "/tmp/epi_scanner/data"
-    states = list(STATES.keys())
-    for state in states:
-        export_data_to_dir(state, output_dir)
+    for state in list(STATES.keys()):
+        export_data_to_dir(state)
