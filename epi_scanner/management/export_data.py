@@ -27,10 +27,11 @@ def export_data_to_dir(state: str, output_dir: Optional[str] = None) -> None:
         for the specified state does not exist.
     """
     try:
-        if output_dir:
+        if output_dir is not None:
             output_dir = Path(output_dir)
         else:
             output_dir = EPISCANNER_DATA_DIR
+
         if not output_dir.exists():
             raise FileNotFoundError(
                 f"Error: {output_dir} directory does not exist."
@@ -38,24 +39,22 @@ def export_data_to_dir(state: str, output_dir: Optional[str] = None) -> None:
 
         parquet_file = output_dir / f"{state}_dengue.parquet"
         
-        # if not parquet_file.exists():
         data_to_parquet(state, output_dir=output_dir)
 
-        # parquet_file = output_dir / f"{state}_dengue.parquet"
         if parquet_file.exists():
             df = pd.read_parquet(parquet_file)
             SE = int(df.SE.max()) % 100
             scanner = EpiScanner(last_week=SE, data=df)
             csv_file = output_dir / f"curves_{state}.csv.gz"
-            [scanner.scan(gc) for gc in df.municipio_geocodigo.unique()]
+            for gc in df.municipio_geocodigo.unique():
+                scanner.scan(gc)
             scanner.to_csv(csv_file)
 
-    except FileNotFoundError as e:
+    except (FileNotFoundError, pd.errors.EmptyDataError) as e:
         print(e)
-        exit()
 
 
 if __name__ == "__main__":
-    output_dir = "/tmp/epi_scanner/data"
+    output_dir = None
     for state in list(STATES.keys()):
-        export_data_to_dir(state)
+        export_data_to_dir(state, output_dir=output_dir)
