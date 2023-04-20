@@ -47,7 +47,10 @@ async def initialize_app(q: Q):
     Set up UI elements
     """
     create_layout(q)
-    q.page["meta"] = ui.meta_card(box='', icon='https://info.dengue.mat.br/static/img/favicon.ico')
+    # q.page["meta"] = ui.meta_card(
+    #     box='',
+    #     icon='https://info.dengue.mat.br/static/img/favicon.ico'
+    # )
     q.page["title"] = ui.header_card(
         box=ui.box("header"),
         title="Real-time Epidemic Scanner",
@@ -260,6 +263,7 @@ def create_layout(q):
     """
     q.page["meta"] = ui.meta_card(
         box="",
+        icon="https://info.dengue.mat.br/static/img/favicon.ico",
         theme="default",
         layouts=[
             ui.layout(
@@ -353,7 +357,16 @@ async def update_analysis(q):
     )
     await q.page.save()
     q.page["ts_plot_px"] = ui.frame_card(
-        box="analysis", title="Weekly Cases (plotly)", content="<!DOCTYPE html><html><body>  <h1>Hello World!</h1></body></html>",
+        #     box="analysis", title="Weekly Cases", content=""
+        # )
+        box="analysis",
+        title="Weekly Cases (plotly)",
+        content="""
+            <!DOCTYPE html>
+                <html>
+                    <body><h1>Real-time Epidemic Scanner!</h1></body>
+                </html>
+            """,
     )
     await plot_series_px(
         q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
