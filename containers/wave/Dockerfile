@@ -64,7 +64,7 @@ RUN conda env create -n $ENV_NAME --file /tmp/conda/env-base.yaml \
 
 COPY --chown=${HOST_UID}:${HOST_GID} ./epi_scanner ${ROOT_DIR}/epi_scanner
 
-COPY --chown=${HOST_UID}:${HOST_GID} poetry.lock pyproject.toml ${ROOT_DIR}/
+COPY --chown=${HOST_UID}:${HOST_GID} poetry.lock pyproject.toml README.md ${ROOT_DIR}/
 
 RUN poetry config virtualenvs.create false \
   && poetry install
