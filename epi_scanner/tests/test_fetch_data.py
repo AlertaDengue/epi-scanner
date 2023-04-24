@@ -10,7 +10,6 @@ from epi_scanner.model.scanner import EpiScanner
 
 #
 def test_get_alerta_table():
-
     # # Test case with municipality code argument
     df = get_alerta_table(municipio_geocodigo="5300108")
     assert isinstance(df, pd.DataFrame)
