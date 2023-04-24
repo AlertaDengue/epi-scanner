@@ -1,4 +1,5 @@
 from collections import defaultdict
+from pathlib import Path
 
 import lmfit as lm
 import matplotlib.pyplot as plt
@@ -89,10 +90,15 @@ def otim(df, t_ini, t_fin, verbose=False):
 class EpiScanner:
     def __init__(self, last_week: int, data: pd.DataFrame):
         """
-        Scans a time series for an epidemic curve
-        :Parameters:
-        last_week: Last week of epidemic season
-        data: dataframe with the series from all cities
+        Detecting Epidemic Curves by Scanning Time Series Data
+
+        Parameters
+        ----------
+        last_week : int
+            The last week of data to include in the analysis, represented as
+            a two-digit number (e.g., 20 for the 20th week of the year).
+        data : pandas.DataFrame
+            A pandas DataFrame containing the time series data for all cities.
         """
         self.window = last_week
         self.data = data
@@ -173,7 +179,7 @@ class EpiScanner:
             axes[i].legend()
             i += 1
 
-    def to_csv(self, fname):
+    def to_csv(self, fname_path):
         data = {
             "geocode": [],
             "year": [],
@@ -184,7 +190,6 @@ class EpiScanner:
             "total_cases": [],
             "alpha": [],
         }
-        i = 0  # NOQA F841
         for gc, curve in self.curves.items():
             for c in curve:
                 data["geocode"].append(gc)
@@ -206,4 +211,15 @@ class EpiScanner:
                 data["gamma"].append(sir_params["gamma"])
                 data["R0"].append(sir_params["R0"])
         dfpars = pd.DataFrame(data)
-        dfpars = dfpars.to_csv(f"{fname}.csv.gz")
+        # Create a Path object for the file path
+        fname_path = Path(fname_path)
+        try:
+            # Check if the directory exists and create it if necessary
+            fname_path.parent.mkdir(parents=True, exist_ok=True)
+            # Write the DataFrame to CSV
+            dfpars.to_csv(fname_path)
+            print(f"Data exported successfully to {fname_path}")
+        except (FileNotFoundError, PermissionError) as e:
+            raise ValueError(f"Failed to write CSV file: {e}")
+        except Exception as e:
+            raise ValueError(f"Unexpected error while writing CSV file: {e}")

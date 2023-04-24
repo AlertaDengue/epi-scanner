@@ -8,15 +8,13 @@ services:
       context: ".."
       dockerfile: containers/wave/Dockerfile
       args:
-        CTNR_EPISCANNER_DATA_DIR: ${CTNR_EPISCANNER_DATA_DIR}
         HOST_UID: ${HOST_UID}
         HOST_GID: ${HOST_GID}
-        WORK_DIR: ${WORK_DIR}
+        ROOT_DIR: ${ROOT_DIR}
     env_file:
       - ../.env
     environment:
       - H2O_WAVE_BASE_URL=/epi-scanner/
-      - CTNR_EPISCANNER_DATA_DIR=/opt/services/epi_scanner/data
       # - H2O_WAVE_LISTEN=:10101
       # - H2O_APP_ADDRESS=http://waveapp:8000
       # - H2O_WAVE_ADDRESS=http://waveapp:1011

@@ -92,12 +92,20 @@ create-dotenv:
 	touch .env
 	echo -n "HOST_UID=`id -u`\nHOST_GID=`id -g`" > .env
 
+# Fetches data for a specified state and disease and exports it to the data directory.
+.PHONY:fetch-data
 fetch-data:
 	python epi_scanner/management/get_parameters.py ${STATE_ABBV} ${DISEASE}
 
+# Export all fetched data to parquet files for all states.
+.PHONY:fetch-all-data
+fetch-all-data:
+	python epi_scanner/management/export_data.py
+
+#  Run pytest for all tests in epi_scanner/tests inside the container
+.PHONY:test-fetch-data
 test-fetch-data:
-	set -e
-	$(CONTAINER_APP) exec -T wave-app /bin/bash -c 'pytest epi_scanner/tests'
+	$(CONTAINER_APP) exec -T wave-app /bin/bash -c 'pytest -vv epi_scanner/tests'
 
 # Python
 .PHONY: clean

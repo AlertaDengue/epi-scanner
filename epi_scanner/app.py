@@ -22,7 +22,7 @@ from typing import List
 
 import pandas as pd
 from epi_scanner.model.scanner import EpiScanner
-from epi_scanner.settings import CTNR_EPISCANNER_DATA_DIR, STATES
+from epi_scanner.settings import EPISCANNER_DATA_DIR, STATES
 from epi_scanner.viz import (
     load_map,
     plot_pars_map,
@@ -47,7 +47,10 @@ async def initialize_app(q: Q):
     Set up UI elements
     """
     create_layout(q)
-    q.page["meta"] = ui.meta_card(box='', icon='https://info.dengue.mat.br/static/img/favicon.ico')
+    # q.page["meta"] = ui.meta_card(
+    #     box='',
+    #     icon='https://info.dengue.mat.br/static/img/favicon.ico'
+    # )
     q.page["title"] = ui.header_card(
         box=ui.box("header"),
         title="Real-time Epidemic Scanner",
@@ -189,11 +192,9 @@ async def on_update_UF(q: Q):
     q.client.scanner = EpiScanner(45, q.client.data_table)
     q.page["meta"].notification = "Scanning state for epidemics..."
     await q.page.save()
-    if os.path.exists(
-        f"{CTNR_EPISCANNER_DATA_DIR}/curves_{q.client.uf}.csv.gz"
-    ):
+    if os.path.exists(f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}.csv.gz"):
         q.client.parameters = pd.read_csv(
-            f"{CTNR_EPISCANNER_DATA_DIR}/curves_{q.client.uf}.csv.gz"
+            f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}.csv.gz"
         )
     else:
         await q.run(scan_state, q)
@@ -249,9 +250,9 @@ async def update_pars(q: Q):
 def scan_state(q: Q):
     for gc in q.client.cities:
         q.client.scanner.scan(gc, False)
-    q.client.scanner.to_csv(f"{CTNR_EPISCANNER_DATA_DIR}/curves_{q.client.uf}")
+    q.client.scanner.to_csv(f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}")
     q.client.parameters = pd.read_csv(
-        f"{CTNR_EPISCANNER_DATA_DIR}/curves_{q.client.uf}.csv.gz"
+        f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}.csv.gz"
     )
     q.page["meta"].notification = "Finished scanning!"
 
@@ -262,6 +263,7 @@ def create_layout(q):
     """
     q.page["meta"] = ui.meta_card(
         box="",
+        icon="https://info.dengue.mat.br/static/img/favicon.ico",
         theme="default",
         layouts=[
             ui.layout(
@@ -318,10 +320,10 @@ def df_to_table_rows(df: pd.DataFrame) -> List[ui.TableRow]:
 async def load_table(q: Q):
     global DATA_TABLE
     UF = q.client.uf
-    if os.path.exists(f"{CTNR_EPISCANNER_DATA_DIR}/{UF}_dengue.parquet"):
+    if os.path.exists(f"{EPISCANNER_DATA_DIR}/{UF}_dengue.parquet"):
         logger.info("loading data...")
         DATA_TABLE = pd.read_parquet(
-            f"{CTNR_EPISCANNER_DATA_DIR}/{UF}_dengue.parquet"
+            f"{EPISCANNER_DATA_DIR}/{UF}_dengue.parquet"
         )
         q.client.data_table = DATA_TABLE
         q.client.loaded = True
@@ -355,7 +357,16 @@ async def update_analysis(q):
     )
     await q.page.save()
     q.page["ts_plot_px"] = ui.frame_card(
-        box="analysis", title="Weekly Cases (plotly)", content="<!DOCTYPE html><html><body>  <h1>Hello World!</h1></body></html>",
+        #     box="analysis", title="Weekly Cases", content=""
+        # )
+        box="analysis",
+        title="Weekly Cases (plotly)",
+        content="""
+            <!DOCTYPE html>
+                <html>
+                    <body><h1>Real-time Epidemic Scanner!</h1></body>
+                </html>
+            """,
     )
     await plot_series_px(
         q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
