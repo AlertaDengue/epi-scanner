@@ -14,6 +14,7 @@ To avoid reloading data from disk the app maintains the following
 - q.client.scanner: EpiScanner object
 - q.client.city: geocode of the currently selected city.
 - q.client.uf: two-letter code for the currently selected state.
+- q.client.disease: name of the currently selected disease.
 - q.client.parameters: SIR parameters for every city/year in current state.
 """
 import os
@@ -91,13 +92,14 @@ async def initialize_app(q: Q):
     q.client.cities = {}
     q.client.loaded = False
     q.client.uf = "SC"
+    q.client.disease = "dengue"
     q.client.weeks = False
     await load_map(q)
 
     await q.page.save()
 
     q.page["state_header"] = ui.markdown_card(
-        box="pre", title="Epi Report", content=""
+        box="pre", title=f"Epi Report for {q.client.disease}", content=""
     )
     # q.page['message'] = ui.form_card(
     #     box='content',
@@ -132,6 +134,9 @@ async def serve(q: Q):
     await q.page.save()
     # await update_weeks(q)
     # while True:
+    if q.args.disease:
+        await on_update_disease(q)
+        await q.page.save()
     if q.args.state:
         await on_update_UF(q)
         await q.page.save()
@@ -197,6 +202,9 @@ async def update_r0map(q: Q):
     )
     await q.page.save()
 
+async def on_update_disease(q: Q):
+    q.client.disease = q.args.disease
+    q.page["state_header"].title = f"Epi Report for {q.client.disease}"
 
 async def on_update_UF(q: Q):
     logger.info(
@@ -216,13 +224,14 @@ async def on_update_UF(q: Q):
     q.client.scanner = EpiScanner(45, q.client.data_table)
     q.page["meta"].notification = "Scanning state for epidemics..."
     await q.page.save()
-    if os.path.exists(f"epi_scanner/data/curves_{q.client.uf}.csv.gz"):
-        q.client.parameters = pd.read_csv(
-            f"epi_scanner/data/curves_{q.client.uf}.csv.gz"
-        )
-    else:
-        await q.run(scan_state, q)
+    # if os.path.exists(f"epi_scanner/data/curves_{q.client.uf}.csv.gz"):
+    #     q.client.parameters = pd.read_csv(
+    #         f"epi_scanner/data/curves_{q.client.uf}.csv.gz"
+    #     )
+    # else:
+    await scan_state(q) #q.run(scan_state, q)
     dump_results(q)
+    q.client.curves = q.client.scanner.curves
     await update_r0map(q)
     await q.page.save()
 
@@ -245,7 +254,7 @@ async def on_update_city(q: Q):
         ui.choice(name=str(y), label=str(y))
         for y in q.client.parameters[
             q.client.parameters.geocode == int(q.client.city)
-        ].year
+            ].year
     ]
     q.page["years"].items[0].dropdown.choices = years
     # q.page['epi_year'].choices = years
@@ -263,7 +272,7 @@ async def update_pars(q: Q):
         q.client.parameters.geocode == int(q.client.city)
     ].iterrows():
         table += (
-            f"| {res['year']} | {res['beta']:.2f} "
+            f"| {int(res['year'])} | {res['beta']:.2f} "
             f"| {res['gamma']:.2f} | {res['R0']:.2f} "
             f"| {int(res['peak_week'])} |\n"
         )
@@ -271,7 +280,7 @@ async def update_pars(q: Q):
     await q.page.save()
 
 
-def scan_state(q: Q):
+async def scan_state(q: Q):
     for gc in q.client.cities:
         q.client.scanner.scan(gc, False)
     q.client.scanner.to_csv(f"epi_scanner/data/curves_{q.client.uf}")
@@ -279,6 +288,7 @@ def scan_state(q: Q):
         f"epi_scanner/data/curves_{q.client.uf}.csv.gz"
     )
     q.page["meta"].notification = "Finished scanning!"
+
 
 
 def create_layout(q):
@@ -351,15 +361,15 @@ async def load_table(q: Q):
         for gc in DATA_TABLE.municipio_geocodigo.unique():
             q.client.cities[int(gc)] = q.client.brmap[
                 q.client.brmap.code_muni.astype(int) == int(gc)
-            ].name_muni.values[0]
+                ].name_muni.values[0]
         choices = [
             ui.choice(str(gc), q.client.cities[gc])
             for gc in DATA_TABLE.municipio_geocodigo.unique()
         ]
         # q.page['form'].items[1].dropdown.enabled = True
-        q.page["form"].items[1].dropdown.choices = choices
-        q.page["form"].items[1].dropdown.visible = True
-        q.page["form"].items[1].dropdown.value = str(gc)
+        q.page["form"].items[2].dropdown.choices = choices
+        q.page["form"].items[2].dropdown.visible = True
+        q.page["form"].items[2].dropdown.value = str(gc)
 
     await q.page.save()
 
@@ -368,11 +378,13 @@ async def update_analysis(q):
     if q.client.epi_year is None:
         syear = 2010
         eyear = 2022
+        img = await plot_series(
+            q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31")
     else:
         syear = eyear = q.client.epi_year
-    img = await plot_series(
-        q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
-    )
+        img = await plot_series(
+            q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31", curve=True)
+
     q.page["ts_plot"] = ui.markdown_card(
         box="analysis", title="Weekly Cases", content=f"![plot]({img})"
     )
@@ -446,6 +458,13 @@ def add_sidebar(q):
     q.page["form"] = ui.form_card(
         box="sidebar",
         items=[
+            ui.dropdown(
+                name="disease",
+                label="Select disease",
+                required=True,
+                choices=[ui.choice("dengue", "Dengue"), ui.choice("chik", "Chikungunya")],
+                trigger=False,
+            ),
             ui.dropdown(
                 name="state",
                 label="Select state",

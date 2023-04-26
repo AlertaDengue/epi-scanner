@@ -112,8 +112,8 @@ class EpiScanner:
                     print(f"There where less that 3 weeks with Rt>1 in {geocode} in {y}.\nSkipping analysis")
                 continue
             out, curve = otim(dfy[['casos', 'casos_cum']].iloc[0:self.window], 0, self.window)
-            self._save_results(geocode, y, out, curve)
             if out.success:
+                self._save_results(geocode, y, out, curve)
                 if verbose:
                     print(f"R0 in {y}: {self.results[geocode][-1]['sir_pars']['R0']}")
 
@@ -169,3 +169,4 @@ class EpiScanner:
                 data['R0'].append(sir_params['R0'])
         dfpars = pd.DataFrame(data)
         dfpars = dfpars.to_csv(f'{fname}.csv.gz')
+        

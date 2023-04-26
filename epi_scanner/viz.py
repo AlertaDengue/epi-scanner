@@ -150,7 +150,7 @@ def make_markdown_table(fields, rows):
     )
 
 
-async def plot_series(q: Q, gc: int, start_date: str, end_date: str):
+async def plot_series(q: Q, gc: int, start_date: str, end_date: str, curve: bool=False):
     """
     Plot timeseries between two dates of city
     Args:
@@ -163,6 +163,14 @@ async def plot_series(q: Q, gc: int, start_date: str, end_date: str):
     image path
     """
     df = q.client.data_table
+    epi_year = q.client.epi_year if q.client.epi_year else pd.to_datetime(end_date).year
+    if curve:
+        curves = [c for c in q.client.curves[gc]]
+        curvedf = curves[0]['df']
+        # curvedf.index = pd.date_range(start=start_date, end=end_date, periods=len(curvedf))
+        if not curvedf.index.name == 'data_iniSE':
+            curvedf.set_index('data_iniSE', inplace=True)
+        print(curvedf.index)
     dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
     dfcity.sort_index(inplace=True)
     dfcity["casos_cum"] = dfcity.casos.cumsum()
@@ -172,6 +180,8 @@ async def plot_series(q: Q, gc: int, start_date: str, end_date: str):
     dfcity.casos_cum.plot.area(
         ax=ax2, label="Cumulative cases", grid=True, alpha=0.4
     )
+    if curve:
+        curvedf.richards.plot(ax=ax2, label='Model fit', use_index=True)
     ax2.legend()
     image_path = await get_mpl_img(q)
     return image_path
