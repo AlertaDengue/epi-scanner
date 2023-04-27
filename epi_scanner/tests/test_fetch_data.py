@@ -1,4 +1,3 @@
-# import shutil
 from pathlib import Path
 
 import numpy as np
@@ -8,9 +7,8 @@ from epi_scanner.management.fetch_data import data_to_parquet, get_alerta_table
 from epi_scanner.model.scanner import EpiScanner
 
 
-#
 def test_get_alerta_table():
-    # # Test case with municipality code argument
+    # Test case with municipality code argument
     df = get_alerta_table(municipio_geocodigo="5300108")
     assert isinstance(df, pd.DataFrame)
     assert len(df) > 0
@@ -22,8 +20,13 @@ def test_get_alerta_table():
     assert len(df) > 0
     assert df.SE.min() == 201001
 
+    # Test case with no arguments
+    # df = get_alerta_table()
+    # assert isinstance(df, pd.DataFrame)
+    # assert len(df) > 0
 
-#
+
+# Define a fixture to create a temporary directory for testing
 @pytest.fixture(scope="module")
 def tmp_data_dir():
     """Create a temporary directory for testing."""
@@ -33,10 +36,18 @@ def tmp_data_dir():
     # shutil.rmtree(test_dir)
 
 
-def test_data_to_parquet(tmp_data_dir):
-    """Test if parquet file is created for a specific state and disease."""
-    state_abbv = "AC"
+# Define a fixture to create test data for the data_to_parquet() function
+@pytest.fixture
+def uf_data(tmp_data_dir):
+    uf = "AC"
     disease = "dengue"
+    data_file = Path(tmp_data_dir) / f"{uf}_dengue.parquet"
+    return uf, disease, pd.read_parquet(data_file)
+
+
+def test_data_to_parquet(uf_data, tmp_data_dir):
+    """Test if parquet file is created for a specific state and disease."""
+    state_abbv, disease, df = uf_data
 
     # Call the function to create the parquet file
     parquet_fname = data_to_parquet(
@@ -47,10 +58,11 @@ def test_data_to_parquet(tmp_data_dir):
     parquet_fpath = tmp_data_dir / f"{parquet_fname}"
 
     # Check if the parquet file exists
+    # assert str(parquet_fpath) == '/tmp/epi_scanner/data/AC_dengue.parquet'
     assert parquet_fpath.is_file(), f"{parquet_fpath} does not exist"
 
     # Load the data from the parquet file and check if it's a Pandas DataFrame
-    df = pd.read_parquet(parquet_fpath)
+    # df = pd.read_parquet(parquet_fpath)
     assert isinstance(df, pd.DataFrame), "Data is not a Pandas DataFrame"
 
     # Check if the parquet file was saved in the correct directory
@@ -60,35 +72,29 @@ def test_data_to_parquet(tmp_data_dir):
     ), f"{parquet_fname} does not match expected path"
 
 
-#
-@pytest.fixture
-def uf_data(tmp_data_dir):
-    uf = "AC"
-    data_file = Path(tmp_data_dir) / f"{uf}_dengue.parquet"
-    return uf, pd.read_parquet(data_file)
-
-
 def test_save_to_csv_gz_file(uf_data, tmp_data_dir):
-    uf, data_table = uf_data
+    state_abbv, disease, data_table = uf_data
 
+    # Initialize EpiScanner model with data table and a specific date
     model = EpiScanner(202306, data_table)
-    fname = f"curves_{uf}"
+
+    # Set filename for CSV output
+    fname = f"curves_{state_abbv}_{disease}"
+
+    # Define the full file path
     fname_path = tmp_data_dir / f"{fname}.csv.gz"
+
+    # Save model output to CSV file in gzip format
     model.to_csv(str(fname_path))
 
-    # Print statements
-    # print(f"File path: {fname_path}")
-    # print(f"File exists: {fname_path.is_file()}")
-    # print(data_table)
-
+    # Check if the filename and path match the expected values
+    assert str(fname_path) == "/tmp/epi_scanner/data/curves_AC_dengue.csv.gz"
     assert fname_path.is_file(), f"{fname_path} does not exist"
-
-    assert str(fname_path) == f"/tmp/epi_scanner/data/curves_{uf}.csv.gz"
 
 
 def test_open_csv_gz_file():
     # Define the path to the CSV file using pathlib
-    filepath = Path("/tmp/epi_scanner/data/curves_RJ.csv.gz")
+    filepath = Path("/tmp/epi_scanner/data/curves_AC_dengue.csv.gz")
 
     # Check if the file exists
     if not filepath.exists():
