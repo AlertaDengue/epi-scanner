@@ -199,7 +199,7 @@ async def on_update_UF(q: Q):
         f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"
     ):
         q.client.parameters = pd.read_csv(
-            f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz" # NOQA-E501
+            f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"  # NOQA-E501
         )
     else:
         await q.run(scan_state, q)
