@@ -38,7 +38,7 @@ def export_data_to_dir(
 
     For a specific state:
     python epi_scanner/management/export_data.py \
-        -s DF -d dengue chikungunya --output-dir data
+        -s DF -d dengue chikungunya -o data
 
     For all states:
     python epi_scanner/management/export_data.py \

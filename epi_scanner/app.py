@@ -67,6 +67,7 @@ async def initialize_app(q: Q):
     q.client.cities = {}
     q.client.loaded = False
     q.client.uf = "SC"
+    q.client.disease = "dengue"
     q.client.weeks = False
     await load_map(q)
 
@@ -183,6 +184,8 @@ async def on_update_UF(q: Q):
     # uf = q.args.state
     # if uf != q.client.uf:
     q.client.uf = q.args.state
+    # TODO: update q.client.disease
+    # q.client.disease = q.args.disease
     await load_table(q)
     q.page["state_header"].content = f"## {STATES[q.client.uf]}"
     await q.page.save()
@@ -192,9 +195,11 @@ async def on_update_UF(q: Q):
     q.client.scanner = EpiScanner(45, q.client.data_table)
     q.page["meta"].notification = "Scanning state for epidemics..."
     await q.page.save()
-    if os.path.exists(f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}.csv.gz"):
+    if os.path.exists(
+        f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"
+    ):
         q.client.parameters = pd.read_csv(
-            f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}.csv.gz"
+            f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz" # NOQA-E501
         )
     else:
         await q.run(scan_state, q)
@@ -250,9 +255,12 @@ async def update_pars(q: Q):
 def scan_state(q: Q):
     for gc in q.client.cities:
         q.client.scanner.scan(gc, False)
-    q.client.scanner.to_csv(f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}")
+
+    q.client.scanner.to_csv(
+        f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}"
+    )
     q.client.parameters = pd.read_csv(
-        f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}.csv.gz"
+        f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"
     )
     q.page["meta"].notification = "Finished scanning!"
 
@@ -320,10 +328,12 @@ def df_to_table_rows(df: pd.DataFrame) -> List[ui.TableRow]:
 async def load_table(q: Q):
     global DATA_TABLE
     UF = q.client.uf
-    if os.path.exists(f"{EPISCANNER_DATA_DIR}/{UF}_dengue.parquet"):
+    disease = q.client.disease
+
+    if os.path.exists(f"{EPISCANNER_DATA_DIR}/{UF}_{disease}.parquet"):
         logger.info("loading data...")
         DATA_TABLE = pd.read_parquet(
-            f"{EPISCANNER_DATA_DIR}/{UF}_dengue.parquet"
+            f"{EPISCANNER_DATA_DIR}/{UF}_{disease}.parquet"
         )
         q.client.data_table = DATA_TABLE
         q.client.loaded = True
