@@ -113,6 +113,7 @@ async def serve(q: Q):
     # await update_weeks(q)
     # while True:
     if q.args.disease:
+        q.page["form"].items[0].dropdown.value = q.client.disease
         await on_update_disease(q)
         await q.page.save()
     if q.args.state:
@@ -183,6 +184,8 @@ async def update_r0map(q: Q):
 async def on_update_disease(q: Q):
     q.client.disease = q.args.disease
     q.page["state_header"].title = f"Epi Report for {q.client.disease}"
+    await q.page.save()
+    await on_update_UF(q)
 
 async def on_update_UF(q: Q):
     logger.info(
@@ -192,7 +195,8 @@ async def on_update_UF(q: Q):
     )
     # uf = q.args.state
     # if uf != q.client.uf:
-    q.client.uf = q.args.state
+    if q.args.state is not None:
+        q.client.uf = q.args.state
     await load_table(q)
     q.page["state_header"].content = f"## {STATES[q.client.uf]}"
     await q.page.save()
@@ -459,8 +463,10 @@ def add_sidebar(q):
                 name="disease",
                 label="Select disease",
                 required=True,
-                choices=[ui.choice("dengue", "Dengue"), ui.choice("chik", "Chikungunya")],
-                trigger=False,
+                choices=[ui.choice("dengue", "Dengue"),
+                         ui.choice("chikungunya", "Chikungunya")
+                         ],
+                trigger=True,
             ),
             ui.dropdown(
                 name="state",
