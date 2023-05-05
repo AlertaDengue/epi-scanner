@@ -186,6 +186,8 @@ async def on_update_disease(q: Q):
     q.page["state_header"].title = f"Epi Report for {q.client.disease}"
     await q.page.save()
     await on_update_UF(q)
+    if q.client.city is not None:
+        await on_update_city(q)
 
 async def on_update_UF(q: Q):
     logger.info(
@@ -227,7 +229,7 @@ async def on_update_city(q: Q):
         "client.city:{q.client.city}, "
         "args.city: {q.args.city}"
     )
-    if q.client.city != q.args.city:
+    if (q.client.city != q.args.city) and (q.args.city is not None):
         q.client.city = q.args.city
     # print(q.client.cities)
     q.page[
@@ -375,17 +377,17 @@ async def update_analysis(q):
     else:
         syear = eyear = q.client.epi_year
         img = await plot_series(
-            q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31", curve=True)
+            q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31", curve=False)
 
     q.page["ts_plot"] = ui.markdown_card(
-        box="analysis", title="Weekly Cases", content=f"![plot]({img})"
+        box="analysis", title=f"{q.client.disease} Weekly Cases", content=f"![plot]({img})"
     )
     await q.page.save()
     q.page["ts_plot_px"] = ui.frame_card(
         #     box="analysis", title="Weekly Cases", content=""
         # )
         box="analysis",
-        title="Weekly Cases (plotly)",
+        title=f"{q.client.disease} Weekly Cases (plotly)",
         content="""
             <!DOCTYPE html>
                 <html>
@@ -502,7 +504,7 @@ def create_analysis_form(q):
     q.page["sir_pars"] = ui.form_card(
         box="analysis",
         title=(
-            "SIR Parameters for Epidemics in "
+            f"SIR Parameters for {q.client.disease} Epidemics in "
             f"{q.client.cities[int(q.client.city)]}"
         ),
         items=[ui.text(name="sirp_table", content="")],
