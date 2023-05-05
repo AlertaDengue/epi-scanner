@@ -1,9 +1,12 @@
 [tool.poetry]
-name = "h2o-wave-template"
-version = "0.1.0"
+name = "Episcanner"
+version = "1.0.0"  # changed by semantic-release
 description = "Dashboard quickstart template"
 authors = ["Flávio Codeço Coelho <fccoelho@gmail.com>"]
 license = "MIT"
+readme = "README.md"
+repository = "https://github.com/AlertaDengue/epi-scanner"
+homepage = "https://github.com/AlertaDengue/epi-scanner"
 packages = [{include='epi_scanner'}]
 
 [tool.poetry.dependencies]
@@ -19,7 +22,7 @@ geopandas = "^0.12.2"
 matplotlib = "^3.7.1"
 mapclassify = "^2.5.0"
 plotly = "^5.13.1"
-SQLAlchemy = "^2.0.7"
+SQLAlchemy = "<2.0"
 python-dotenv = "^1.0.0"
 
 [tool.poetry.dev-dependencies]

@@ -1,4 +1,3 @@
-import io
 import os
 import uuid
 from pathlib import Path
@@ -6,13 +5,15 @@ from pathlib import Path
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
+from epi_scanner.settings import EPISCANNER_DATA_DIR
 from h2o_wave import Q
+from plotly import io as pio
 from plotly.subplots import make_subplots
 
 
 async def load_map(q: Q):
-    file_gpkg = Path("epi_scanner/data/muni_br.gpkg")
+    file_gpkg = Path(f"{EPISCANNER_DATA_DIR}/muni_br.gpkg")
 
     brmap = gpd.read_file(file_gpkg, driver="GPKG")
     q.client.brmap = brmap
@@ -193,16 +194,18 @@ async def plot_series_px(q: Q, gc: int, start_date: str, end_date: str):
     dfcity.sort_index(inplace=True)
     dfcity["casos_cum"] = dfcity.casos.cumsum()
     spl = make_subplots(rows=2, cols=1)
-    fig = px.bar(dfcity.casos)
-    fig2 = px.bar(dfcity.casos_cum)
-    spl.add_trace(fig.data[0], row=1, col=1)
-    spl.add_trace(fig2.data[0], row=2, col=1)
-    buffer = io.StringIO()
-    spl.write_html(
-        buffer, include_plotlyjs="cdn", validate=False, full_html=False
-    )
-    html = buffer.getvalue()
-    # html = pio.to_html(spl, validate=False, include_plotlyjs='cdn')
+    spl.add_trace(go.Bar(x=dfcity.index, y=dfcity.casos), row=1, col=1)
+    spl.add_trace(go.Bar(x=dfcity.index, y=dfcity.casos_cum), row=2, col=1)
+    # fig = px.bar(dfcity.casos)
+    # fig2 = px.bar(dfcity.casos_cum)
+    # spl.add_trace(fig.data[0], row=1, col=1)
+    # spl.add_trace(fig2.data[0], row=2, col=1)
+    # buffer = io.StringIO()
+    # spl.write_html(
+    #     buffer, include_plotlyjs="cdn", validate=False, full_html=False
+    # )
+    # html = buffer.getvalue()
+    html = pio.to_html(spl, validate=False, include_plotlyjs="cdn")
     # print(html)
     q.page["ts_plot_px"].content = html
     await q.page.save()

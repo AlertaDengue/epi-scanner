@@ -1,4 +1,7 @@
 *.pyc
 *.env
 *__pycache__*
+*.vscode/*
+
 notebooks_tmp
+epi_scanner/data/*

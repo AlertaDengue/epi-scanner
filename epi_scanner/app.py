@@ -23,6 +23,7 @@ from typing import List
 
 import pandas as pd
 from epi_scanner.model.scanner import EpiScanner
+from epi_scanner.settings import EPISCANNER_DATA_DIR, STATES
 from epi_scanner.viz import (
     load_map,
     plot_pars_map,
@@ -40,35 +41,6 @@ from loguru import logger
 warnings.filterwarnings("ignore")
 
 DATA_TABLE = None
-STATES = {
-    "AC": "Acre",
-    "AL": "Alagoas",
-    "AM": "Amazonas",
-    "AP": "Amapá",
-    "BA": "Bahia",
-    "CE": "Ceará",
-    "DF": "Distrito Federal",
-    "ES": "Espírito Santo",
-    "GO": "Goiás",
-    "MA": "Maranhão",
-    "MG": "Minas Gerais",
-    "MS": "Mato Grosso do Sul",
-    "MT": "Mato Grosso",
-    "PA": "Pará",
-    "PB": "Paraíba",
-    "PE": "Pernambuco",
-    "PI": "Piauí",
-    "PR": "Paraná",
-    "RJ": "Rio de Janeiro",
-    "RN": "Rio Grande do Norte",
-    "RO": "Rondônia",
-    "RR": "Roraima",
-    "RS": "Rio Grande do Sul",
-    "SC": "Santa Catarina",
-    "SE": "Sergipe",
-    "SP": "São Paulo",
-    "TO": "Tocantins",
-}
 
 
 async def initialize_app(q: Q):
@@ -76,6 +48,10 @@ async def initialize_app(q: Q):
     Set up UI elements
     """
     create_layout(q)
+    # q.page["meta"] = ui.meta_card(
+    #     box='',
+    #     icon='https://info.dengue.mat.br/static/img/favicon.ico'
+    # )
     q.page["title"] = ui.header_card(
         box=ui.box("header"),
         title="Real-time Epidemic Scanner",
@@ -224,12 +200,14 @@ async def on_update_UF(q: Q):
     q.client.scanner = EpiScanner(45, q.client.data_table)
     q.page["meta"].notification = "Scanning state for epidemics..."
     await q.page.save()
-    # if os.path.exists(f"epi_scanner/data/curves_{q.client.uf}.csv.gz"):
-    #     q.client.parameters = pd.read_csv(
-    #         f"epi_scanner/data/curves_{q.client.uf}.csv.gz"
-    #     )
-    # else:
-    await scan_state(q) #q.run(scan_state, q)
+    if os.path.exists(
+        f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"
+    ):
+        q.client.parameters = pd.read_csv(
+            f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"  # NOQA-E501
+        )
+    else:
+        await q.run(scan_state, q)
     dump_results(q)
     q.client.curves = q.client.scanner.curves
     await update_r0map(q)
@@ -283,9 +261,12 @@ async def update_pars(q: Q):
 async def scan_state(q: Q):
     for gc in q.client.cities:
         q.client.scanner.scan(gc, False)
-    q.client.scanner.to_csv(f"epi_scanner/data/curves_{q.client.uf}")
+
+    q.client.scanner.to_csv(
+        f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}"
+    )
     q.client.parameters = pd.read_csv(
-        f"epi_scanner/data/curves_{q.client.uf}.csv.gz"
+        f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"
     )
     q.page["meta"].notification = "Finished scanning!"
 
@@ -297,6 +278,7 @@ def create_layout(q):
     """
     q.page["meta"] = ui.meta_card(
         box="",
+        icon="https://info.dengue.mat.br/static/img/favicon.ico",
         theme="default",
         layouts=[
             ui.layout(
@@ -353,9 +335,13 @@ def df_to_table_rows(df: pd.DataFrame) -> List[ui.TableRow]:
 async def load_table(q: Q):
     global DATA_TABLE
     UF = q.client.uf
-    if os.path.exists(f"epi_scanner/data/{UF}_dengue.parquet"):
+    disease = q.client.disease
+
+    if os.path.exists(f"{EPISCANNER_DATA_DIR}/{UF}_{disease}.parquet"):
         logger.info("loading data...")
-        DATA_TABLE = pd.read_parquet(f"epi_scanner/data/{UF}_dengue.parquet")
+        DATA_TABLE = pd.read_parquet(
+            f"{EPISCANNER_DATA_DIR}/{UF}_{disease}.parquet"
+        )
         q.client.data_table = DATA_TABLE
         q.client.loaded = True
         for gc in DATA_TABLE.municipio_geocodigo.unique():
@@ -390,7 +376,16 @@ async def update_analysis(q):
     )
     await q.page.save()
     q.page["ts_plot_px"] = ui.frame_card(
-        box="analysis", title="Weekly Cases", content=""
+        #     box="analysis", title="Weekly Cases", content=""
+        # )
+        box="analysis",
+        title="Weekly Cases (plotly)",
+        content="""
+            <!DOCTYPE html>
+                <html>
+                    <body><h1>Real-time Epidemic Scanner!</h1></body>
+                </html>
+            """,
     )
     await plot_series_px(
         q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
