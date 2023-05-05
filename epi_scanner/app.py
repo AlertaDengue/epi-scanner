@@ -77,7 +77,7 @@ async def initialize_app(q: Q):
     """
     create_layout(q)
     q.page["title"] = ui.header_card(
-        box=ui.box("header"),
+        box=ui.box("header", width='100%'),
         title="Real-time Epidemic Scanner",
         subtitle="Real-time epidemiology",
         color="primary",
