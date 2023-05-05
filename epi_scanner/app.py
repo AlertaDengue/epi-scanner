@@ -97,10 +97,12 @@ async def initialize_app(q: Q):
             "Powered by [EpiGraphHub](https://epigraphhub.org/)"
         ),
     )
+    q.page["form"].items[0].dropdown.value = q.client.disease
 
 
 @app("/", mode="multicast")
 async def serve(q: Q):
+
     copy_expando(
         q.args, q.client
     )  # Maintain updated copies of q.args in q.client
