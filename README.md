@@ -1,6 +1,6 @@
 # Dengue Epi-Scanner App
 
-This H2O Wave application analyzes the expansion of dengue and chikungunya diseases in Brazil using up-to-date incidence data from Infodengue.
+This H2O Wave application analyzes the expansion of dengue and chikungunya in Brazil using up-to-date incidence data from Infodengue.
 
 
 [![watch the video](https://img.youtube.com/vi/LQmMhVWVJUs/hqdefault.jpg)](https://youtu.be/LQmMhVWVJUs)
