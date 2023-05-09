@@ -4,6 +4,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import altair as alt
+import gpdvega
 import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.graph_objects as go
@@ -41,7 +42,7 @@ async def t_weeks(q: Q):
 
 
 async def plot_state_map(
-    q, themap: gpd.GeoDataFrame, uf: str = "SC", column=None
+        q, themap: gpd.GeoDataFrame, uf: str = "SC", column=None
 ):
     ax = themap.plot(
         column=column,
@@ -56,6 +57,18 @@ async def plot_state_map(
     ax.set_axis_off()
     image_path = await get_mpl_img(q)
     return image_path
+
+
+async def plot_state_map_altair(q: Q, themap: gpd.GeoDataFrame, uf: str = "SC", column=None):
+    spec = alt.Chart(themap).mark_geoshape(
+    ).encode(
+        color=column,
+        tooltip=['name_muni', column]
+    ).properties(
+        width=500,
+        height=300
+    )
+    return spec.to_json()
 
 
 async def get_mpl_img(q):
@@ -84,7 +97,7 @@ def get_year_map(year: int, themap: gpd.GeoDataFrame, pars: pd.DataFrame):
 
 
 async def plot_pars_map(
-    q, themap: gpd.GeoDataFrame, year: int, state: str, column="R0"
+        q, themap: gpd.GeoDataFrame, year: int, state: str, column="R0"
 ):
     map_pars = get_year_map(year, q.client.weeks_map, q.client.parameters)
     ax = themap.plot(alpha=0.3)
@@ -152,7 +165,7 @@ def make_markdown_table(fields, rows):
     )
 
 
-async def plot_series(q: Q, gc: int, start_date: str, end_date: str, curve: bool=False):
+async def plot_series(q: Q, gc: int, start_date: str, end_date: str, curve: bool = False):
     """
     Plot timeseries between two dates of city
     Args:

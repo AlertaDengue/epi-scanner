@@ -29,7 +29,7 @@ from epi_scanner.viz import (
     plot_pars_map,
     plot_series,
     plot_series_px,
-    plot_state_map,
+    plot_state_map, plot_state_map_altair,
     t_weeks,
     top_n_cities,
     top_n_R0,
@@ -138,12 +138,18 @@ async def update_weeks(q: Q):
         fig = await plot_state_map(
             q, q.client.weeks_map, q.client.uf, column="transmissao"
         )
-        await q.page.save()
-        q.page["plot"] = ui.markdown_card(
-            box="week_zone",
-            title="Number of weeks of Rt > 1 over the last s10 years",
-            content=f"![plot]({fig})",
+        fig_alt = await plot_state_map_altair(
+            q, q.client.weeks_map, q.client.uf, column="transmissao"
         )
+        await q.page.save()
+        # q.page["plot"] = ui.markdown_card(
+        #     box="week_zone",
+        #     title="Number of weeks of Rt > 1 over the last s10 years",
+        #     content=f"![plot]({fig})",
+        # )
+        q.page["plot_alt"] = ui.vega_card(box="week_zone",
+                                          title="Number of weeks of Rt > 1 over the last s10 years",
+                                          specification=fig_alt)
         ttext = await top_n_cities(q, 10)
         q.page["wtable"] = ui.form_card(
             box="week_zone", title="Top 10 cities", items=[ui.text(ttext)]
@@ -287,6 +293,7 @@ def create_layout(q):
     q.page["meta"] = ui.meta_card(
         box="",
         icon="https://info.dengue.mat.br/static/img/favicon.ico",
+        title="Realtime Epi Report",
         theme="default",
         layouts=[
             ui.layout(
