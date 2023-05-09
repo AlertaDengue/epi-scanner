@@ -62,13 +62,20 @@ async def plot_state_map(
 async def plot_state_map_altair(q: Q, themap: gpd.GeoDataFrame, uf: str = "SC", column=None):
     spec = alt.Chart(themap).mark_geoshape(
     ).encode(
-        color=column,
-        tooltip=['name_muni', column]
+        color=alt.Color(f'{column}:Q',
+                        sort="ascending",
+                        scale=alt.Scale(scheme='viridis'),#, domain = [-0.999125,41.548309]),
+                        legend=alt.Legend(title="Weeks",
+                                          orient='bottom',
+                                          tickCount=10,
+                                          )
+                        ),
+        tooltip=['name_muni', column+':N']
     ).properties(
-        width=500,
-        height=300
+        width=600,
+        height=400
     )
-    return spec.to_json()
+    return spec
 
 
 async def get_mpl_img(q):

@@ -147,12 +147,12 @@ async def update_weeks(q: Q):
         #     title="Number of weeks of Rt > 1 over the last s10 years",
         #     content=f"![plot]({fig})",
         # )
-        q.page["plot_alt"] = ui.vega_card(box="week_zone",
+        q.page["plot_alt"] = ui.vega_card(box="week_map",
                                           title="Number of weeks of Rt > 1 over the last s10 years",
-                                          specification=fig_alt)
+                                          specification=fig_alt.to_json())
         ttext = await top_n_cities(q, 10)
         q.page["wtable"] = ui.form_card(
-            box="week_zone", title="Top 10 cities", items=[ui.text(ttext)]
+            box="week_table", title="Top 10 cities", items=[ui.text(ttext)]
         )
 
 
@@ -323,6 +323,7 @@ def create_layout(q):
                                     ui.zone(
                                         name="week_zone",
                                         direction=ui.ZoneDirection.ROW,
+                                        zones=[ui.zone("week_map",size='65%'), ui.zone("week_table",size='35%')],
                                     ),
                                     ui.zone(
                                         name="R0_zone",
