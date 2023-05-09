@@ -3,6 +3,7 @@ import uuid
 from pathlib import Path
 
 import geopandas as gpd
+import altair as alt
 import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.graph_objects as go

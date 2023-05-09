@@ -271,7 +271,7 @@ async def scan_state(q: Q):
         q.client.scanner.scan(gc, False)
 
     q.client.scanner.to_csv(
-        f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}"
+        f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"
     )
     q.client.parameters = pd.read_csv(
         f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"
