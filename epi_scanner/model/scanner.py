@@ -135,6 +135,7 @@ class EpiScanner:
             )
             self._save_results(geocode, y, out, curve)
             if out.success:
+                self._save_results(geocode, y, out, curve)
                 if verbose:
                     print(
                         f"""

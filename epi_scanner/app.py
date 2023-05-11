@@ -14,6 +14,7 @@ To avoid reloading data from disk the app maintains the following
 - q.client.scanner: EpiScanner object
 - q.client.city: geocode of the currently selected city.
 - q.client.uf: two-letter code for the currently selected state.
+- q.client.disease: name of the currently selected disease.
 - q.client.parameters: SIR parameters for every city/year in current state.
 """
 import os
@@ -28,7 +29,8 @@ from epi_scanner.viz import (
     plot_pars_map,
     plot_series,
     plot_series_px,
-    plot_state_map,
+    plot_state_map, # NOQA F401
+    plot_state_map_altair,
     t_weeks,
     top_n_cities,
     top_n_R0,
@@ -74,7 +76,7 @@ async def initialize_app(q: Q):
     await q.page.save()
 
     q.page["state_header"] = ui.markdown_card(
-        box="pre", title="Epi Report", content=""
+        box="pre", title=f"Epi Report for {q.client.disease}", content=""
     )
     # q.page['message'] = ui.form_card(
     #     box='content',
@@ -96,10 +98,12 @@ async def initialize_app(q: Q):
             "Powered by [EpiGraphHub](https://epigraphhub.org/)"
         ),
     )
+    q.page["form"].items[0].dropdown.value = q.client.disease
 
 
 @app("/", mode="multicast")
 async def serve(q: Q):
+
     copy_expando(
         q.args, q.client
     )  # Maintain updated copies of q.args in q.client
@@ -109,6 +113,10 @@ async def serve(q: Q):
     await q.page.save()
     # await update_weeks(q)
     # while True:
+    if q.args.disease:
+        q.page["form"].items[0].dropdown.value = q.client.disease
+        await on_update_disease(q)
+        await q.page.save()
     if q.args.state:
         await on_update_UF(q)
         await q.page.save()
@@ -128,18 +136,24 @@ async def update_weeks(q: Q):
     if (not q.client.weeks) and (q.client.data_table is not None):
         await t_weeks(q)
         logger.info("plot weeks")
-        fig = await plot_state_map(
-            q, q.client.weeks_map, q.client.uf, column="transmissao"
+        # fig = await plot_state_map(
+        #     q, q.client.weeks_map, column="transmissao"
+        # )
+        fig_alt = await plot_state_map_altair(
+            q, q.client.weeks_map, column="transmissao"
         )
         await q.page.save()
-        q.page["plot"] = ui.markdown_card(
-            box="week_zone",
-            title="Number of weeks of Rt > 1 over the last s10 years",
-            content=f"![plot]({fig})",
-        )
+        # q.page["plot"] = ui.markdown_card(
+        #     box="week_zone",
+        #     title="Number of weeks of Rt > 1 over the last s10 years",
+        #     content=f"![plot]({fig})",
+        # )
+        q.page["plot_alt"] = ui.vega_card(box="week_map",
+                                          title="Number of weeks of Rt > 1 over the last s10 years",
+                                          specification=fig_alt.to_json())
         ttext = await top_n_cities(q, 10)
         q.page["wtable"] = ui.form_card(
-            box="week_zone", title="Top 10 cities", items=[ui.text(ttext)]
+            box="week_table", title="Top 10 cities", items=[ui.text(ttext)]
         )
 
 
@@ -174,6 +188,13 @@ async def update_r0map(q: Q):
     )
     await q.page.save()
 
+async def on_update_disease(q: Q):
+    q.client.disease = q.args.disease
+    q.page["state_header"].title = f"Epi Report for {q.client.disease}"
+    await q.page.save()
+    await on_update_UF(q)
+    if q.client.city is not None:
+        await on_update_city(q)
 
 async def on_update_UF(q: Q):
     logger.info(
@@ -183,9 +204,8 @@ async def on_update_UF(q: Q):
     )
     # uf = q.args.state
     # if uf != q.client.uf:
-    q.client.uf = q.args.state
-    # TODO: update q.client.disease
-    # q.client.disease = q.args.disease
+    if q.args.state is not None:
+        q.client.uf = q.args.state
     await load_table(q)
     q.page["state_header"].content = f"## {STATES[q.client.uf]}"
     await q.page.save()
@@ -204,6 +224,7 @@ async def on_update_UF(q: Q):
     else:
         await q.run(scan_state, q)
     dump_results(q)
+    q.client.curves = q.client.scanner.curves
     await update_r0map(q)
     await q.page.save()
 
@@ -215,7 +236,7 @@ async def on_update_city(q: Q):
         "client.city:{q.client.city}, "
         "args.city: {q.args.city}"
     )
-    if q.client.city != q.args.city:
+    if (q.client.city != q.args.city) and (q.args.city is not None):
         q.client.city = q.args.city
     # print(q.client.cities)
     q.page[
@@ -226,7 +247,7 @@ async def on_update_city(q: Q):
         ui.choice(name=str(y), label=str(y))
         for y in q.client.parameters[
             q.client.parameters.geocode == int(q.client.city)
-        ].year
+            ].year
     ]
     q.page["years"].items[0].dropdown.choices = years
     # q.page['epi_year'].choices = years
@@ -244,7 +265,7 @@ async def update_pars(q: Q):
         q.client.parameters.geocode == int(q.client.city)
     ].iterrows():
         table += (
-            f"| {res['year']} | {res['beta']:.2f} "
+            f"| {int(res['year'])} | {res['beta']:.2f} "
             f"| {res['gamma']:.2f} | {res['R0']:.2f} "
             f"| {int(res['peak_week'])} |\n"
         )
@@ -252,17 +273,18 @@ async def update_pars(q: Q):
     await q.page.save()
 
 
-def scan_state(q: Q):
+async def scan_state(q: Q):
     for gc in q.client.cities:
         q.client.scanner.scan(gc, False)
 
     q.client.scanner.to_csv(
-        f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}"
+        f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"
     )
     q.client.parameters = pd.read_csv(
         f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"
     )
     q.page["meta"].notification = "Finished scanning!"
+
 
 
 def create_layout(q):
@@ -272,6 +294,7 @@ def create_layout(q):
     q.page["meta"] = ui.meta_card(
         box="",
         icon="https://info.dengue.mat.br/static/img/favicon.ico",
+        title="Realtime Epi Report",
         theme="default",
         layouts=[
             ui.layout(
@@ -301,6 +324,7 @@ def create_layout(q):
                                     ui.zone(
                                         name="week_zone",
                                         direction=ui.ZoneDirection.ROW,
+                                        zones=[ui.zone("week_map",size='65%'), ui.zone("week_table",size='35%')],
                                     ),
                                     ui.zone(
                                         name="R0_zone",
@@ -340,15 +364,15 @@ async def load_table(q: Q):
         for gc in DATA_TABLE.municipio_geocodigo.unique():
             q.client.cities[int(gc)] = q.client.brmap[
                 q.client.brmap.code_muni.astype(int) == int(gc)
-            ].name_muni.values[0]
+                ].name_muni.values[0]
         choices = [
             ui.choice(str(gc), q.client.cities[gc])
             for gc in DATA_TABLE.municipio_geocodigo.unique()
         ]
         # q.page['form'].items[1].dropdown.enabled = True
-        q.page["form"].items[1].dropdown.choices = choices
-        q.page["form"].items[1].dropdown.visible = True
-        q.page["form"].items[1].dropdown.value = str(gc)
+        q.page["form"].items[2].dropdown.choices = choices
+        q.page["form"].items[2].dropdown.visible = True
+        q.page["form"].items[2].dropdown.value = str(gc)
 
     await q.page.save()
 
@@ -357,20 +381,22 @@ async def update_analysis(q):
     if q.client.epi_year is None:
         syear = 2010
         eyear = 2022
+        img = await plot_series(
+            q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31")
     else:
         syear = eyear = q.client.epi_year
-    img = await plot_series(
-        q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
-    )
+        img = await plot_series(
+            q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31")
+
     q.page["ts_plot"] = ui.markdown_card(
-        box="analysis", title="Weekly Cases", content=f"![plot]({img})"
+        box="analysis", title=f"{q.client.disease} Weekly Cases", content=f"![plot]({img})"
     )
     await q.page.save()
     q.page["ts_plot_px"] = ui.frame_card(
         #     box="analysis", title="Weekly Cases", content=""
         # )
         box="analysis",
-        title="Weekly Cases (plotly)",
+        title=f"{q.client.disease} Weekly Cases (plotly)",
         content="""
             <!DOCTYPE html>
                 <html>
@@ -445,6 +471,15 @@ def add_sidebar(q):
         box="sidebar",
         items=[
             ui.dropdown(
+                name="disease",
+                label="Select disease",
+                required=True,
+                choices=[ui.choice("dengue", "Dengue"),
+                         ui.choice("chikungunya", "Chikungunya")
+                         ],
+                trigger=True,
+            ),
+            ui.dropdown(
                 name="state",
                 label="Select state",
                 required=True,
@@ -478,7 +513,7 @@ def create_analysis_form(q):
     q.page["sir_pars"] = ui.form_card(
         box="analysis",
         title=(
-            "SIR Parameters for Epidemics in "
+            f"SIR Parameters for {q.client.disease} Epidemics in "
             f"{q.client.cities[int(q.client.city)]}"
         ),
         items=[ui.text(name="sirp_table", content="")],

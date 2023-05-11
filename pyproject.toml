@@ -24,6 +24,9 @@ mapclassify = "^2.5.0"
 plotly = "^5.13.1"
 SQLAlchemy = "<2.0"
 python-dotenv = "^1.0.0"
+psycopg2-binary = "^2.9.6"
+altair = "^5.0.0"
+gpdvega = "^0.1.1rc1"
 
 [tool.poetry.dev-dependencies]
 pytest = "*"

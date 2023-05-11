@@ -3,6 +3,8 @@ import uuid
 from pathlib import Path
 
 import geopandas as gpd
+import altair as alt
+import gpdvega  # NOQA
 import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.graph_objects as go
@@ -40,7 +42,7 @@ async def t_weeks(q: Q):
 
 
 async def plot_state_map(
-    q, themap: gpd.GeoDataFrame, uf: str = "SC", column=None
+        q, themap: gpd.GeoDataFrame, column=None
 ):
     ax = themap.plot(
         column=column,
@@ -55,6 +57,25 @@ async def plot_state_map(
     ax.set_axis_off()
     image_path = await get_mpl_img(q)
     return image_path
+
+
+async def plot_state_map_altair(q: Q, themap: gpd.GeoDataFrame, column=None):
+    spec = alt.Chart(themap).mark_geoshape(
+    ).encode(
+        color=alt.Color(f'{column}:Q',
+                        sort="ascending",
+                        scale=alt.Scale(scheme='viridis'),  # , domain = [-0.999125,41.548309]),
+                        legend=alt.Legend(title="Weeks",
+                                          orient='bottom',
+                                          tickCount=10,
+                                          )
+                        ),
+        tooltip=['name_muni', column + ':N']
+    ).properties(
+        width=600,
+        height=400
+    )
+    return spec
 
 
 async def get_mpl_img(q):
@@ -83,7 +104,7 @@ def get_year_map(year: int, themap: gpd.GeoDataFrame, pars: pd.DataFrame):
 
 
 async def plot_pars_map(
-    q, themap: gpd.GeoDataFrame, year: int, state: str, column="R0"
+        q, themap: gpd.GeoDataFrame, year: int, state: str, column="R0"
 ):
     map_pars = get_year_map(year, q.client.weeks_map, q.client.parameters)
     ax = themap.plot(alpha=0.3)
