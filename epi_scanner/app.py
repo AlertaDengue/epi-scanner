@@ -29,7 +29,8 @@ from epi_scanner.viz import (
     plot_pars_map,
     plot_series,
     plot_series_px,
-    plot_state_map, plot_state_map_altair, #NOQA
+    plot_state_map, #NOQA
+    plot_state_map_altair,
     t_weeks,
     top_n_cities,
     top_n_R0,
