@@ -4,7 +4,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import altair as alt
-import gpdvega
+import gpdvega  # NOQA
 import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.graph_objects as go
@@ -64,13 +64,13 @@ async def plot_state_map_altair(q: Q, themap: gpd.GeoDataFrame, uf: str = "SC", 
     ).encode(
         color=alt.Color(f'{column}:Q',
                         sort="ascending",
-                        scale=alt.Scale(scheme='viridis'),#, domain = [-0.999125,41.548309]),
+                        scale=alt.Scale(scheme='viridis'),  # , domain = [-0.999125,41.548309]),
                         legend=alt.Legend(title="Weeks",
                                           orient='bottom',
                                           tickCount=10,
                                           )
                         ),
-        tooltip=['name_muni', column+':N']
+        tooltip=['name_muni', column + ':N']
     ).properties(
         width=600,
         height=400
@@ -185,7 +185,7 @@ async def plot_series(q: Q, gc: int, start_date: str, end_date: str, curve: bool
     image path
     """
     df = q.client.data_table
-    epi_year = q.client.epi_year if q.client.epi_year else pd.to_datetime(end_date).year
+    # epi_year = q.client.epi_year if q.client.epi_year else pd.to_datetime(end_date).year
     if curve:
         curves = [c for c in q.client.curves[gc]]
         curvedf = curves[0]['df']

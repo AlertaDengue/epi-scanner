@@ -135,9 +135,9 @@ async def update_weeks(q: Q):
     if (not q.client.weeks) and (q.client.data_table is not None):
         await t_weeks(q)
         logger.info("plot weeks")
-        fig = await plot_state_map(
-            q, q.client.weeks_map, q.client.uf, column="transmissao"
-        )
+        # fig = await plot_state_map(
+        #     q, q.client.weeks_map, q.client.uf, column="transmissao"
+        # )
         fig_alt = await plot_state_map_altair(
             q, q.client.weeks_map, q.client.uf, column="transmissao"
         )
