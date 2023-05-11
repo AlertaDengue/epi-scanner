@@ -386,7 +386,7 @@ async def update_analysis(q):
     else:
         syear = eyear = q.client.epi_year
         img = await plot_series(
-            q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31", curve=False)
+            q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31")
 
     q.page["ts_plot"] = ui.markdown_card(
         box="analysis", title=f"{q.client.disease} Weekly Cases", content=f"![plot]({img})"
