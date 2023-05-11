@@ -29,7 +29,7 @@ from epi_scanner.viz import (
     plot_pars_map,
     plot_series,
     plot_series_px,
-    plot_state_map, plot_state_map_altair,
+    plot_state_map, plot_state_map_altair, #NOQA
     t_weeks,
     top_n_cities,
     top_n_R0,
@@ -136,10 +136,10 @@ async def update_weeks(q: Q):
         await t_weeks(q)
         logger.info("plot weeks")
         # fig = await plot_state_map(
-        #     q, q.client.weeks_map, q.client.uf, column="transmissao"
+        #     q, q.client.weeks_map, column="transmissao"
         # )
         fig_alt = await plot_state_map_altair(
-            q, q.client.weeks_map, q.client.uf, column="transmissao"
+            q, q.client.weeks_map, column="transmissao"
         )
         await q.page.save()
         # q.page["plot"] = ui.markdown_card(

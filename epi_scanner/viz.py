@@ -42,7 +42,7 @@ async def t_weeks(q: Q):
 
 
 async def plot_state_map(
-        q, themap: gpd.GeoDataFrame, uf: str = "SC", column=None
+        q, themap: gpd.GeoDataFrame, column=None
 ):
     ax = themap.plot(
         column=column,
@@ -59,7 +59,7 @@ async def plot_state_map(
     return image_path
 
 
-async def plot_state_map_altair(q: Q, themap: gpd.GeoDataFrame, uf: str = "SC", column=None):
+async def plot_state_map_altair(q: Q, themap: gpd.GeoDataFrame, column=None):
     spec = alt.Chart(themap).mark_geoshape(
     ).encode(
         color=alt.Color(f'{column}:Q',
@@ -186,13 +186,13 @@ async def plot_series(q: Q, gc: int, start_date: str, end_date: str, curve: bool
     """
     df = q.client.data_table
     # epi_year = q.client.epi_year if q.client.epi_year else pd.to_datetime(end_date).year
-    if curve:
-        curves = [c for c in q.client.curves[gc]]
-        curvedf = curves[0]['df']
-        # curvedf.index = pd.date_range(start=start_date, end=end_date, periods=len(curvedf))
-        if not curvedf.index.name == 'data_iniSE':
-            curvedf.set_index('data_iniSE', inplace=True)
-        print(curvedf.index)
+    # if curve:
+    #     curves = [c for c in q.client.curves[gc]]
+    #     curvedf = curves[0]['df']
+    #     # curvedf.index = pd.date_range(start=start_date, end=end_date, periods=len(curvedf))
+    #     if not curvedf.index.name == 'data_iniSE':
+    #         curvedf.set_index('data_iniSE', inplace=True)
+    #     print(curvedf.index)
     dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
     dfcity.sort_index(inplace=True)
     dfcity["casos_cum"] = dfcity.casos.cumsum()
@@ -202,8 +202,8 @@ async def plot_series(q: Q, gc: int, start_date: str, end_date: str, curve: bool
     dfcity.casos_cum.plot.area(
         ax=ax2, label="Cumulative cases", grid=True, alpha=0.4
     )
-    if curve:
-        curvedf.richards.plot(ax=ax2, label='Model fit', use_index=True)
+    # if curve:
+    #     curvedf.richards.plot(ax=ax2, label='Model fit', use_index=True)
     ax2.legend()
     image_path = await get_mpl_img(q)
     return image_path
