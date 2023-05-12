@@ -24,12 +24,12 @@ from typing import List
 import pandas as pd
 from epi_scanner.model.scanner import EpiScanner
 from epi_scanner.settings import EPISCANNER_DATA_DIR, STATES
+from epi_scanner.viz import plot_state_map  # NOQA F401
 from epi_scanner.viz import (
     load_map,
     plot_pars_map,
     plot_series,
     plot_series_px,
-    plot_state_map, # NOQA F401
     plot_state_map_altair,
     t_weeks,
     top_n_cities,
@@ -148,9 +148,11 @@ async def update_weeks(q: Q):
         #     title="Number of weeks of Rt > 1 over the last s10 years",
         #     content=f"![plot]({fig})",
         # )
-        q.page["plot_alt"] = ui.vega_card(box="week_map",
-                                          title="Number of weeks of Rt > 1 over the last s10 years",
-                                          specification=fig_alt.to_json())
+        q.page["plot_alt"] = ui.vega_card(
+            box="week_map",
+            title="Number of weeks of Rt > 1 over the last s10 years",
+            specification=fig_alt.to_json(),
+        )
         ttext = await top_n_cities(q, 10)
         q.page["wtable"] = ui.form_card(
             box="week_table", title="Top 10 cities", items=[ui.text(ttext)]
@@ -188,6 +190,7 @@ async def update_r0map(q: Q):
     )
     await q.page.save()
 
+
 async def on_update_disease(q: Q):
     q.client.disease = q.args.disease
     q.page["state_header"].title = f"Epi Report for {q.client.disease}"
@@ -195,6 +198,7 @@ async def on_update_disease(q: Q):
     await on_update_UF(q)
     if q.client.city is not None:
         await on_update_city(q)
+
 
 async def on_update_UF(q: Q):
     logger.info(
@@ -247,7 +251,7 @@ async def on_update_city(q: Q):
         ui.choice(name=str(y), label=str(y))
         for y in q.client.parameters[
             q.client.parameters.geocode == int(q.client.city)
-            ].year
+        ].year
     ]
     q.page["years"].items[0].dropdown.choices = years
     # q.page['epi_year'].choices = years
@@ -284,7 +288,6 @@ async def scan_state(q: Q):
         f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"
     )
     q.page["meta"].notification = "Finished scanning!"
-
 
 
 def create_layout(q):
@@ -324,7 +327,10 @@ def create_layout(q):
                                     ui.zone(
                                         name="week_zone",
                                         direction=ui.ZoneDirection.ROW,
-                                        zones=[ui.zone("week_map",size='65%'), ui.zone("week_table",size='35%')],
+                                        zones=[
+                                            ui.zone("week_map", size="65%"),
+                                            ui.zone("week_table", size="35%"),
+                                        ],
                                     ),
                                     ui.zone(
                                         name="R0_zone",
@@ -364,7 +370,7 @@ async def load_table(q: Q):
         for gc in DATA_TABLE.municipio_geocodigo.unique():
             q.client.cities[int(gc)] = q.client.brmap[
                 q.client.brmap.code_muni.astype(int) == int(gc)
-                ].name_muni.values[0]
+            ].name_muni.values[0]
         choices = [
             ui.choice(str(gc), q.client.cities[gc])
             for gc in DATA_TABLE.municipio_geocodigo.unique()
@@ -382,14 +388,18 @@ async def update_analysis(q):
         syear = 2010
         eyear = 2022
         img = await plot_series(
-            q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31")
+            q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
+        )
     else:
         syear = eyear = q.client.epi_year
         img = await plot_series(
-            q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31")
+            q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
+        )
 
     q.page["ts_plot"] = ui.markdown_card(
-        box="analysis", title=f"{q.client.disease} Weekly Cases", content=f"![plot]({img})"
+        box="analysis",
+        title=f"{q.client.disease} Weekly Cases",
+        content=f"![plot]({img})",
     )
     await q.page.save()
     q.page["ts_plot_px"] = ui.frame_card(
@@ -474,9 +484,10 @@ def add_sidebar(q):
                 name="disease",
                 label="Select disease",
                 required=True,
-                choices=[ui.choice("dengue", "Dengue"),
-                         ui.choice("chikungunya", "Chikungunya")
-                         ],
+                choices=[
+                    ui.choice("dengue", "Dengue"),
+                    ui.choice("chikungunya", "Chikungunya"),
+                ],
                 trigger=True,
             ),
             ui.dropdown(
