@@ -24,13 +24,13 @@ from typing import List
 import pandas as pd
 from epi_scanner.model.scanner import EpiScanner
 from epi_scanner.settings import EPISCANNER_DATA_DIR, STATES
-from epi_scanner.viz import plot_state_map  # NOQA F401
 from epi_scanner.viz import (
     load_map,
     plot_pars_map,
     plot_series,
     plot_series_px,
     plot_state_map_altair,
+    plot_pars_map_altair,
     t_weeks,
     top_n_cities,
     top_n_R0,
@@ -164,16 +164,22 @@ async def update_r0map(q: Q):
     Updates R0 map and table
     """
     year = 2022 if q.client.r0year is None else q.client.r0year
-    fig2 = await plot_pars_map(
-        q, q.client.weeks_map, year, STATES[q.client.uf]
-    )
+    # fig2 = await plot_pars_map(
+    #     q, q.client.weeks_map, year, STATES[q.client.uf]
+    # )
+    fig_alt = await plot_pars_map_altair(q, q.client.weeks_map, year, STATES[q.client.uf])
     await q.page.save()
-    q.page["R0map"] = ui.markdown_card(
-        box="R0_zone", title="RO by City", content=f"![r0plot]({fig2})"
+    # q.page["R0map"] = ui.markdown_card(
+    #     box="R0_zone", title="RO by City", content=f"![r0plot]({fig2})"
+    # )
+    q.page["plot_alt_R0"] = ui.vega_card(
+        box="R0_map",
+        title="RO by City",
+        specification=fig_alt.to_json(),
     )
     ttext = await top_n_R0(q, year, 10)
     q.page["R0table"] = ui.form_card(
-        box="R0_zone",
+        box="R0_table",
         title="Top 10 R0s",
         items=[
             ui.slider(
@@ -335,6 +341,10 @@ def create_layout(q):
                                     ui.zone(
                                         name="R0_zone",
                                         direction=ui.ZoneDirection.ROW,
+                                        zones=[
+                                            ui.zone("R0_map", size="65%"),
+                                            ui.zone("R0_table", size="35%"),
+                                        ]
                                     ),
                                     ui.zone("analysis"),
                                 ],

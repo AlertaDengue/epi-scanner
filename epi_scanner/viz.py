@@ -66,7 +66,7 @@ async def plot_state_map_altair(q: Q, themap: gpd.GeoDataFrame, column=None):
                 f"{column}:Q",
                 sort="ascending",
                 scale=alt.Scale(
-                    scheme="viridis"
+                    scheme="bluepurple"
                 ),  # , domain = [-0.999125,41.548309]),
                 legend=alt.Legend(
                     title="Weeks",
@@ -74,7 +74,7 @@ async def plot_state_map_altair(q: Q, themap: gpd.GeoDataFrame, column=None):
                     tickCount=10,
                 ),
             ),
-            tooltip=["name_muni", column + ":N"],
+            tooltip=["name_muni", column + ":Q"],
         )
         .properties(width=600, height=400)
     )
@@ -99,11 +99,22 @@ async def get_mpl_img(q):
     return image_path
 
 
-def get_year_map(year: int, themap: gpd.GeoDataFrame, pars: pd.DataFrame):
+def get_year_map(year: int, themap: gpd.GeoDataFrame, pars: pd.DataFrame) -> gpd.GeoDataFrame:
+    """
+    Merge map with parameters for a given year
+    Args:
+        year: year to be selected
+        themap: map to be merged
+        pars: parameters table
+
+    Returns:
+
+    """
     map_pars = themap.merge(
-        pars[pars.year == year], left_on="code_muni", right_on="geocode"
+        pars[pars.year == year], left_on="code_muni", right_on="geocode",
+        how="outer"
     )
-    return map_pars
+    return map_pars.fillna(0)
 
 
 async def plot_pars_map(
@@ -127,6 +138,30 @@ async def plot_pars_map(
     image_path = await get_mpl_img(q)
     return image_path
 
+async def plot_pars_map_altair(q, themap: gpd.GeoDataFrame, year: int, state: str, column="R0"):
+    map_pars = get_year_map(year, themap, q.client.parameters) # q.client.weeks_map
+    spec = (
+        alt.Chart(map_pars)
+        .mark_geoshape()
+        .encode(
+            color=alt.Color(
+                f"{column}:Q",
+                sort="ascending",
+                scale=alt.Scale(
+                    scheme="bluepurple",
+                    domainMin=0,
+                ),
+                legend=alt.Legend(
+                    title="R0",
+                    orient="bottom",
+                    tickCount=10,
+                ),
+            ),
+            tooltip=["name_muni", column + ":Q"],
+        )
+        .properties(width=600, height=400)
+    )
+    return spec
 
 async def top_n_cities(q: Q, n: int):
     wmap = q.client.weeks_map
