@@ -101,7 +101,7 @@ async def initialize_app(q: Q):
     q.page["form"].items[0].dropdown.value = q.client.disease
 
 
-@app("/", mode="multicast")
+@app("/", mode="unicast")
 async def serve(q: Q):
 
     copy_expando(
