@@ -30,6 +30,7 @@ from epi_scanner.viz import (
     load_map,
     plot_pars_map,
     plot_series,
+    plot_series_altair,
     plot_series_px,
     plot_state_map_altair,
     plot_pars_map_altair,
@@ -409,10 +410,18 @@ async def update_analysis(q):
             q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
         )
 
-    q.page["ts_plot"] = ui.markdown_card(
+    # q.page["ts_plot"] = ui.markdown_card(
+    #     box="analysis",
+    #     title=f"{q.client.disease} Weekly Cases",
+    #     content=f"![plot]({img})",
+    # )
+    altair_plot = await plot_series_altair(
+        q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
+    )
+    q.page["ts_plot_alt"] = ui.vega_card(
         box="analysis",
         title=f"{q.client.disease} Weekly Cases",
-        content=f"![plot]({img})",
+        specification=altair_plot.to_json()
     )
     await q.page.save()
     q.page["ts_plot_px"] = ui.frame_card(

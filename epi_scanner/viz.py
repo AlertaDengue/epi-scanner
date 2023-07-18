@@ -244,8 +244,53 @@ async def plot_series(q: Q, gc: int, start_date: str, end_date: str):
     image_path = await get_mpl_img(q)
     return image_path
 
+async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
+    df = q.client.data_table
+    dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
+    dfcity.sort_index(inplace=True)
+    dfcity["casos_cum"] = dfcity.casos.cumsum()
+    ch1 = (
+        alt.Chart(
+            dfcity.reset_index(),
+            width=800,
+            height=200,
+                  ).mark_area(
+            opacity=0.3,
+            interpolate="step-after",
+        ).encode(
+            x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date")),
+            y=alt.Y("casos:Q", axis=alt.Axis(title="Cases")),
+            tooltip=["data_iniSE:T", "casos:Q"]
+        )
+    ).interactive()
+
+    ch2 = (
+        alt.Chart(
+            dfcity.reset_index(),
+            width=800,
+            height=200,
+                    ).mark_area(
+            opacity=0.3,
+            interpolate="step-after",
+        ).encode(
+            x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date")),
+            y=alt.Y("casos_cum:Q", axis=alt.Axis(title="Cumulative Cases")),
+            tooltip=["data_iniSE:T", "casos_cum:Q"]
+    )
+    ).interactive()
+    spec = alt.vconcat(ch1, ch2)
+    return spec
+
 
 async def plot_series_px(q: Q, gc: int, start_date: str, end_date: str):
+    """
+    Plot timeseries between two dates of city with Plotly
+    Args:
+        q:
+        gc:
+        start_date:
+        end_date:
+    """
     df = q.client.data_table
     dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
     dfcity.sort_index(inplace=True)
