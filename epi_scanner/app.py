@@ -18,9 +18,11 @@ To avoid reloading data from disk the app maintains the following
 - q.client.parameters: SIR parameters for every city/year in current state.
 """
 import os
+import datetime
 import warnings
 from typing import List
 
+import numpy as np
 import pandas as pd
 from epi_scanner.model.scanner import EpiScanner
 from epi_scanner.settings import EPISCANNER_DATA_DIR, STATES
@@ -164,10 +166,11 @@ async def update_r0map(q: Q):
     Updates R0 map and table
     """
     year = 2022 if q.client.r0year is None else q.client.r0year
+    years = range(2010, datetime.date.today().year)
     # fig2 = await plot_pars_map(
     #     q, q.client.weeks_map, year, STATES[q.client.uf]
     # )
-    fig_alt = await plot_pars_map_altair(q, q.client.weeks_map, year, STATES[q.client.uf])
+    fig_alt = await plot_pars_map_altair(q, q.client.weeks_map, list(years), STATES[q.client.uf])
     await q.page.save()
     # q.page["R0map"] = ui.markdown_card(
     #     box="R0_zone", title="RO by City", content=f"![r0plot]({fig2})"

@@ -3,6 +3,7 @@ import uuid
 from pathlib import Path
 
 import altair as alt
+from altair import datum
 import geopandas as gpd
 import gpdvega  # NOQA
 import matplotlib.pyplot as plt
@@ -76,7 +77,7 @@ async def plot_state_map_altair(q: Q, themap: gpd.GeoDataFrame, column=None):
             ),
             tooltip=["name_muni", column + ":Q"],
         )
-        .properties(width=600, height=400)
+        .properties(width=500, height=400)
     )
     return spec
 
@@ -99,11 +100,11 @@ async def get_mpl_img(q):
     return image_path
 
 
-def get_year_map(year: int, themap: gpd.GeoDataFrame, pars: pd.DataFrame) -> gpd.GeoDataFrame:
+def get_year_map(years: list, themap: gpd.GeoDataFrame, pars: pd.DataFrame) -> gpd.GeoDataFrame:
     """
     Merge map with parameters for a given year
     Args:
-        year: year to be selected
+        years: list of one or more years to be selected
         themap: map to be merged
         pars: parameters table
 
@@ -111,7 +112,7 @@ def get_year_map(year: int, themap: gpd.GeoDataFrame, pars: pd.DataFrame) -> gpd
 
     """
     map_pars = themap.merge(
-        pars[pars.year == year], left_on="code_muni", right_on="geocode",
+        pars[pars.year.astype(int).isin(years)], left_on="code_muni", right_on="geocode",
         how="outer"
     )
     return map_pars.fillna(0)
@@ -120,7 +121,7 @@ def get_year_map(year: int, themap: gpd.GeoDataFrame, pars: pd.DataFrame) -> gpd
 async def plot_pars_map(
     q, themap: gpd.GeoDataFrame, year: int, state: str, column="R0"
 ):
-    map_pars = get_year_map(year, q.client.weeks_map, q.client.parameters)
+    map_pars = get_year_map([year], q.client.weeks_map, q.client.parameters)
     ax = themap.plot(alpha=0.3)
     if len(map_pars) == 0:
         pass
@@ -138,10 +139,13 @@ async def plot_pars_map(
     image_path = await get_mpl_img(q)
     return image_path
 
-async def plot_pars_map_altair(q, themap: gpd.GeoDataFrame, year: int, state: str, column="R0"):
-    map_pars = get_year_map(year, themap, q.client.parameters) # q.client.weeks_map
+async def plot_pars_map_altair(q, themap: gpd.GeoDataFrame, years: list, state: str, column="R0"):
+    map_pars = get_year_map(years, themap, q.client.parameters) # q.client.weeks_map
+    slider = alt.binding_range(min=min(years), max=max(years), step=1)
+    select_year = alt.selection_point(name='year', fields=['year'],
+                                      bind=slider, value={'year': 2010})
     spec = (
-        alt.Chart(map_pars)
+        alt.Chart(map_pars[map_pars.year == select_year.year][["geometry","year", "name_muni", "R0"]])
         .mark_geoshape()
         .encode(
             color=alt.Color(
@@ -158,8 +162,9 @@ async def plot_pars_map_altair(q, themap: gpd.GeoDataFrame, year: int, state: st
                 ),
             ),
             tooltip=["name_muni", column + ":Q"],
-        )
-        .properties(width=600, height=400)
+        ).add_params(select_year)#.transform_filter(select_year)
+        .properties(width=500, height=400)
+
     )
     return spec
 
