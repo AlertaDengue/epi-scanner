@@ -350,7 +350,10 @@ def create_layout(q):
                                             ui.zone("R0_table", size="35%"),
                                         ]
                                     ),
-                                    ui.zone("analysis"),
+                                    ui.zone(
+                                        name="analysis",
+                                        direction=ui.ZoneDirection.COLUMN,
+                                            ),
                                 ],
                             ),
                         ],
@@ -401,14 +404,14 @@ async def update_analysis(q):
     if q.client.epi_year is None:
         syear = 2010
         eyear = 2022
-        img = await plot_series(
-            q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
-        )
+        # img = await plot_series(
+        #     q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
+        # )
     else:
         syear = eyear = q.client.epi_year
-        img = await plot_series(
-            q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
-        )
+        # img = await plot_series(
+        #     q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
+        # )
 
     # q.page["ts_plot"] = ui.markdown_card(
     #     box="analysis",
@@ -423,22 +426,22 @@ async def update_analysis(q):
         title=f"{q.client.disease} Weekly Cases",
         specification=altair_plot.to_json()
     )
-    await q.page.save()
-    q.page["ts_plot_px"] = ui.frame_card(
-        #     box="analysis", title="Weekly Cases", content=""
-        # )
-        box="analysis",
-        title=f"{q.client.disease} Weekly Cases (plotly)",
-        content="""
-            <!DOCTYPE html>
-                <html>
-                    <body><h1>Real-time Epidemic Scanner!</h1></body>
-                </html>
-            """,
-    )
-    await plot_series_px(
-        q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
-    )
+    # await q.page.save()
+    # q.page["ts_plot_px"] = ui.frame_card(
+    #     #     box="analysis", title="Weekly Cases", content=""
+    #     # )
+    #     box="analysis",
+    #     title=f"{q.client.disease} Weekly Cases (plotly)",
+    #     content="""
+    #         <!DOCTYPE html>
+    #             <html>
+    #                 <body><h1>Real-time Epidemic Scanner!</h1></body>
+    #             </html>
+    #         """,
+    # )
+    # await plot_series_px(
+    #     q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
+    # )
     await q.page.save()
     await update_pars(q)
 

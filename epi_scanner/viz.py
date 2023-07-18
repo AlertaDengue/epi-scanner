@@ -262,7 +262,7 @@ async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
             y=alt.Y("casos:Q", axis=alt.Axis(title="Cases")),
             tooltip=["data_iniSE:T", "casos:Q"]
         )
-    ).interactive()
+    )
 
     ch2 = (
         alt.Chart(
@@ -277,7 +277,7 @@ async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
             y=alt.Y("casos_cum:Q", axis=alt.Axis(title="Cumulative Cases")),
             tooltip=["data_iniSE:T", "casos_cum:Q"]
     )
-    ).interactive()
+    )
     spec = alt.vconcat(ch1, ch2)
     return spec
 
