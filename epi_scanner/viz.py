@@ -141,11 +141,14 @@ async def plot_pars_map(
 
 async def plot_pars_map_altair(q, themap: gpd.GeoDataFrame, years: list, state: str, column="R0"):
     map_pars = get_year_map(years, themap, q.client.parameters) # q.client.weeks_map
-    slider = alt.binding_range(min=min(years), max=max(years), step=1)
-    select_year = alt.selection_point(name='year', fields=['year'],
-                                      bind=slider, value={'year': 2010})
+    # slider = alt.binding_range(min=2010, max=2022, step=1)
+    # select_year = alt.selection_point(name='year', fields=['year'],
+    #                                   bind=slider, value={'year': 2010})
     spec = (
-        alt.Chart(map_pars[map_pars.year == select_year.year][["geometry","year", "name_muni", "R0"]])
+        alt.Chart(
+            data=map_pars[["geometry","year", "name_muni", "R0"]],
+            padding={"left": 0, "top": 0, "right": 0, "bottom": 0},
+        )
         .mark_geoshape()
         .encode(
             color=alt.Color(
@@ -162,7 +165,7 @@ async def plot_pars_map_altair(q, themap: gpd.GeoDataFrame, years: list, state: 
                 ),
             ),
             tooltip=["name_muni", column + ":Q"],
-        ).add_params(select_year)#.transform_filter(select_year)
+        )#.add_params(select_year)#.transform_filter(select_year)
         .properties(width=500, height=400)
 
     )
