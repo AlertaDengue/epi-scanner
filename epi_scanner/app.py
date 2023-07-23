@@ -353,6 +353,11 @@ def create_layout(q):
                                     ui.zone(
                                         name="analysis",
                                         direction=ui.ZoneDirection.COLUMN,
+                                        zones=[
+                                            ui.zone("Year"),
+                                            ui.zone("SIR parameters"),
+                                            ui.zone("SIR curves", size="100%"),
+                                        ]
                                             ),
                                 ],
                             ),
@@ -422,7 +427,7 @@ async def update_analysis(q):
         q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
     )
     q.page["ts_plot_alt"] = ui.vega_card(
-        box="analysis",
+        box="SIR curves",
         title=f"{q.client.disease} Weekly Cases",
         specification=altair_plot.to_json()
     )
@@ -539,7 +544,7 @@ def add_sidebar(q):
 
 def create_analysis_form(q):
     q.page["years"] = ui.form_card(
-        box="analysis",
+        box="Year",
         title="Parameters",
         items=[
             ui.dropdown(name="epi_year", label="Select Year", required=True),
@@ -547,7 +552,7 @@ def create_analysis_form(q):
         ],
     )
     q.page["sir_pars"] = ui.form_card(
-        box="analysis",
+        box="SIR parameters",
         title=(
             f"SIR Parameters for {q.client.disease} Epidemics in "
             f"{q.client.cities[int(q.client.city)]}"

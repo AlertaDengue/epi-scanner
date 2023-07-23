@@ -252,7 +252,7 @@ async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
     ch1 = (
         alt.Chart(
             dfcity.reset_index(),
-            width=800,
+            width=750,
             height=200,
                   ).mark_area(
             opacity=0.3,
@@ -267,7 +267,7 @@ async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
     ch2 = (
         alt.Chart(
             dfcity.reset_index(),
-            width=800,
+            width=750,
             height=200,
                     ).mark_area(
             opacity=0.3,
