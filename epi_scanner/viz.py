@@ -8,6 +8,7 @@ import geopandas as gpd
 import gpdvega  # NOQA
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 import plotly.graph_objects as go
 from epi_scanner.settings import EPISCANNER_DATA_DIR
 from h2o_wave import Q
@@ -244,11 +245,24 @@ async def plot_series(q: Q, gc: int, start_date: str, end_date: str):
     image_path = await get_mpl_img(q)
     return image_path
 
+@np.vectorize
+def richards(L,a,b,t,tj):
+    """
+    Richards model
+    """
+    j=L-L*(1+a*np.exp(b*(t-tj)))**(-1/a)
+    return j
+
 async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
     df = q.client.data_table
     dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
     dfcity.sort_index(inplace=True)
     dfcity["casos_cum"] = dfcity.casos.cumsum()
+    # if q.client.r0year is not None:
+    #     sirp = q.client.parameters[(q.client.parameters.geocode == gc) & (q.client.parameters.year == q.client.r0year)][["total_cases", "beta", "gamma","peak_week"]].values
+    #     a = (sirp[0,1]+sirp[0,2])/sirp[0,1]
+    #     L,b,tj = sirp[0,0], sirp[0,1]*a, sirp[0,3]
+    #     dfcity["richards"] = richards(L,a,b,range(len(dfcity.index)),tj)
     ch1 = (
         alt.Chart(
             dfcity.reset_index(),
@@ -278,7 +292,16 @@ async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
             tooltip=["data_iniSE:T", "casos_cum:Q"]
     )
     )
-    spec = alt.vconcat(ch1, ch2)
+    if q.client.r0year is not None:
+        # model = (
+        #     alt.Chart(dfcity.reset_index()).mark_line(color="red").encode(
+        #     x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date")),
+        #     y=alt.Y("richards:Q", axis=alt.Axis(title="Richards model"))
+        # )
+        # )
+        spec = alt.vconcat(ch1, ch2)# +model) leaving this off for now
+    else:
+        spec = alt.vconcat(ch1, ch2)
     return spec
 
 
