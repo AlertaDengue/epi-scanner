@@ -101,7 +101,9 @@ async def get_mpl_img(q):
     return image_path
 
 
-def get_year_map(years: list, themap: gpd.GeoDataFrame, pars: pd.DataFrame) -> gpd.GeoDataFrame:
+def get_year_map(
+    years: list, themap: gpd.GeoDataFrame, pars: pd.DataFrame
+) -> gpd.GeoDataFrame:
     """
     Merge map with parameters for a given year
     Args:
@@ -113,8 +115,10 @@ def get_year_map(years: list, themap: gpd.GeoDataFrame, pars: pd.DataFrame) -> g
 
     """
     map_pars = themap.merge(
-        pars[pars.year.astype(int).isin(years)], left_on="code_muni", right_on="geocode",
-        how="outer"
+        pars[pars.year.astype(int).isin(years)],
+        left_on="code_muni",
+        right_on="geocode",
+        how="outer",
     )
     return map_pars.fillna(0)
 
@@ -140,8 +144,13 @@ async def plot_pars_map(
     image_path = await get_mpl_img(q)
     return image_path
 
-async def plot_pars_map_altair(q, themap: gpd.GeoDataFrame, years: list, state: str, column="R0"):
-    map_pars = get_year_map(years, themap, q.client.parameters)[["geometry","year", "name_muni", "R0"]] # q.client.weeks_map
+
+async def plot_pars_map_altair(
+    q, themap: gpd.GeoDataFrame, years: list, state: str, column="R0"
+):
+    map_pars = get_year_map(years, themap, q.client.parameters)[
+        ["geometry", "year", "name_muni", "R0"]
+    ]  # q.client.weeks_map
     # slider = alt.binding_range(min=2010, max=2023, step=1)
     # select_year = alt.selection_point(name='year', fields=['year'],
     #                                   bind=slider, value={'year': 2010})
@@ -166,11 +175,11 @@ async def plot_pars_map_altair(q, themap: gpd.GeoDataFrame, years: list, state: 
                 ),
             ),
             tooltip=["name_muni", column + ":Q"],
-        )#.add_params(select_year)#.transform_filter(select_year)
+        )  # .add_params(select_year)#.transform_filter(select_year)
         .properties(width=500, height=400)
-
     )
     return spec
+
 
 async def top_n_cities(q: Q, n: int):
     wmap = q.client.weeks_map
@@ -245,36 +254,45 @@ async def plot_series(q: Q, gc: int, start_date: str, end_date: str):
     image_path = await get_mpl_img(q)
     return image_path
 
+
 @np.vectorize
-def richards(L,a,b,t,tj):
+def richards(L, a, b, t, tj):
     """
     Richards model
     """
-    j=L-L*(1+a*np.exp(b*(t-tj)))**(-1/a)
+    j = L - L * (1 + a * np.exp(b * (t - tj))) ** (-1 / a)
     return j
+
 
 async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
     df = q.client.data_table
     dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
     dfcity.sort_index(inplace=True)
     dfcity["casos_cum"] = dfcity.casos.cumsum()
-    # if q.client.r0year is not None:
-    #     sirp = q.client.parameters[(q.client.parameters.geocode == gc) & (q.client.parameters.year == q.client.r0year)][["total_cases", "beta", "gamma","peak_week"]].values
-    #     a = (sirp[0,1]+sirp[0,2])/sirp[0,1]
-    #     L,b,tj = sirp[0,0], sirp[0,1]*a, sirp[0,3]
-    #     dfcity["richards"] = richards(L,a,b,range(len(dfcity.index)),tj)
+    if 'epi_year' in q.client:
+        sirp = q.client.parameters[
+            (q.client.parameters.geocode == gc)
+            & (q.client.parameters.year == int(q.client.epi_year))
+        ][["total_cases", "beta", "gamma", "peak_week"]].values
+        a = 1 - (sirp[0, 2] / sirp[0, 1])
+        L, b, tj = sirp[0, 0], sirp[0, 1]-sirp[0, 2], sirp[0, 3]
+        dfcity["Model fit"] = richards(
+            L, a, b, np.arange(len(dfcity.index)), tj
+        )
     ch1 = (
         alt.Chart(
             dfcity.reset_index(),
             width=750,
             height=200,
-                  ).mark_area(
+        )
+        .mark_area(
             opacity=0.3,
             interpolate="step-after",
-        ).encode(
+        )
+        .encode(
             x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date")),
             y=alt.Y("casos:Q", axis=alt.Axis(title="Cases")),
-            tooltip=["data_iniSE:T", "casos:Q"]
+            tooltip=["data_iniSE:T", "casos:Q"],
         )
     )
 
@@ -283,23 +301,27 @@ async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
             dfcity.reset_index(),
             width=750,
             height=200,
-                    ).mark_area(
+        )
+        .mark_area(
             opacity=0.3,
             interpolate="step-after",
-        ).encode(
+        )
+        .encode(
             x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date")),
             y=alt.Y("casos_cum:Q", axis=alt.Axis(title="Cumulative Cases")),
-            tooltip=["data_iniSE:T", "casos_cum:Q"]
+            tooltip=["data_iniSE:T", "casos_cum:Q", "Model fit:Q"],
+        )
     )
-    )
-    if q.client.r0year is not None:
-        # model = (
-        #     alt.Chart(dfcity.reset_index()).mark_line(color="red").encode(
-        #     x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date")),
-        #     y=alt.Y("richards:Q", axis=alt.Axis(title="Richards model"))
-        # )
-        # )
-        spec = alt.vconcat(ch1, ch2)# +model) leaving this off for now
+    if 'epi_year' in q.client:
+        model = (
+            alt.Chart(dfcity.reset_index())
+            .mark_line(color="red")
+            .encode(
+                x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date")),
+                y=alt.Y("Model fit:Q", axis=alt.Axis(title="Model fit")),
+            )
+        )
+        spec = alt.vconcat(ch1, ch2 + model)  # leaving this off for now
     else:
         spec = alt.vconcat(ch1, ch2)
     return spec

@@ -245,6 +245,11 @@ async def on_update_UF(q: Q):
 
 
 async def on_update_city(q: Q):
+    """
+    Prepares the city visualizations
+    Args:
+        q:
+    """
     logger.info(
         f"client.uf: {q.client.uf}, "
         "args.state: {q.args.state}, "
@@ -429,7 +434,7 @@ async def update_analysis(q):
     )
     q.page["ts_plot_alt"] = ui.vega_card(
         box="SIR curves",
-        title=f"{q.client.disease} Weekly Cases",
+        title=f"{q.client.disease} Weekly Cases in {eyear}",
         specification=altair_plot.to_json()
     )
     # await q.page.save()
