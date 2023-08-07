@@ -141,13 +141,13 @@ async def plot_pars_map(
     return image_path
 
 async def plot_pars_map_altair(q, themap: gpd.GeoDataFrame, years: list, state: str, column="R0"):
-    map_pars = get_year_map(years, themap, q.client.parameters) # q.client.weeks_map
-    # slider = alt.binding_range(min=2010, max=2022, step=1)
+    map_pars = get_year_map(years, themap, q.client.parameters)[["geometry","year", "name_muni", "R0"]] # q.client.weeks_map
+    # slider = alt.binding_range(min=2010, max=2023, step=1)
     # select_year = alt.selection_point(name='year', fields=['year'],
     #                                   bind=slider, value={'year': 2010})
     spec = (
         alt.Chart(
-            data=map_pars[["geometry","year", "name_muni", "R0"]],
+            data=map_pars,
             padding={"left": 0, "top": 0, "right": 0, "bottom": 0},
         )
         .mark_geoshape()

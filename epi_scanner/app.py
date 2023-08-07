@@ -172,6 +172,7 @@ async def update_r0map(q: Q):
     #     q, q.client.weeks_map, year, STATES[q.client.uf]
     # )
     fig_alt = await plot_pars_map_altair(q, q.client.weeks_map, [year], STATES[q.client.uf])
+    # fig_alt = await plot_pars_map_altair(q, q.client.weeks_map, years, STATES[q.client.uf])
     await q.page.save()
     # q.page["R0map"] = ui.markdown_card(
     #     box="R0_zone", title="RO by City", content=f"![r0plot]({fig2})"
