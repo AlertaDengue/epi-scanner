@@ -317,7 +317,7 @@ def create_layout(q):
         theme="default",
         layouts=[
             ui.layout(
-                breakpoint="xl",
+                breakpoint="xs",
                 width="1200px",
                 zones=[
                     ui.zone("header"),
