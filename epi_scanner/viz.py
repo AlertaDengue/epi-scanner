@@ -269,16 +269,18 @@ async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
     dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
     dfcity.sort_index(inplace=True)
     dfcity["casos_cum"] = dfcity.casos.cumsum()
-    if 'epi_year' in q.client:
+    sirp = np.array([])
+    if 'epi_year' in q.client and (q.client.epi_year is not None):
         sirp = q.client.parameters[
             (q.client.parameters.geocode == gc)
             & (q.client.parameters.year == int(q.client.epi_year))
         ][["total_cases", "beta", "gamma", "peak_week"]].values
-        a = 1 - (sirp[0, 2] / sirp[0, 1])
-        L, b, tj = sirp[0, 0], sirp[0, 1]-sirp[0, 2], sirp[0, 3]
-        dfcity["Model fit"] = richards(
-            L, a, b, np.arange(len(dfcity.index)), tj
-        )
+        if sirp.any():
+            a = 1 - (sirp[0, 2] / sirp[0, 1])
+            L, b, tj = sirp[0, 0], sirp[0, 1]-sirp[0, 2], sirp[0, 3]
+            dfcity["Model fit"] = richards(
+                L, a, b, np.arange(len(dfcity.index)), tj
+            )
     ch1 = (
         alt.Chart(
             dfcity.reset_index(),
@@ -312,7 +314,7 @@ async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
             tooltip=["data_iniSE:T", "casos_cum:Q", "Model fit:Q"],
         )
     )
-    if 'epi_year' in q.client:
+    if 'epi_year' in q.client and sirp.any():
         model = (
             alt.Chart(dfcity.reset_index())
             .mark_line(color="red")

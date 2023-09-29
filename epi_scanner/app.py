@@ -147,12 +147,12 @@ async def update_weeks(q: Q):
         await q.page.save()
         # q.page["plot"] = ui.markdown_card(
         #     box="week_zone",
-        #     title="Number of weeks of Rt > 1 over the last s10 years",
+        #     title="Number of weeks of Rt > 1 since 2010",
         #     content=f"![plot]({fig})",
         # )
         q.page["plot_alt"] = ui.vega_card(
             box="week_map",
-            title="Number of weeks of Rt > 1 over the last s10 years",
+            title="Number of weeks of Rt > 1 since 2010",
             specification=fig_alt.to_json(),
         )
         ttext = await top_n_cities(q, 10)
@@ -178,7 +178,7 @@ async def update_r0map(q: Q):
     # )
     q.page["plot_alt_R0"] = ui.vega_card(
         box="R0_map",
-        title="RO by City",
+        title=f"RO by city in {year}",
         specification=fig_alt.to_json(),
     )
     ttext = await top_n_R0(q, year, 10)
