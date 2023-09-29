@@ -3,10 +3,12 @@ import uuid
 from pathlib import Path
 
 import altair as alt
+from altair import datum
 import geopandas as gpd
 import gpdvega  # NOQA
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 import plotly.graph_objects as go
 from epi_scanner.settings import EPISCANNER_DATA_DIR
 from h2o_wave import Q
@@ -66,7 +68,7 @@ async def plot_state_map_altair(q: Q, themap: gpd.GeoDataFrame, column=None):
                 f"{column}:Q",
                 sort="ascending",
                 scale=alt.Scale(
-                    scheme="viridis"
+                    scheme="bluepurple"
                 ),  # , domain = [-0.999125,41.548309]),
                 legend=alt.Legend(
                     title="Weeks",
@@ -74,9 +76,9 @@ async def plot_state_map_altair(q: Q, themap: gpd.GeoDataFrame, column=None):
                     tickCount=10,
                 ),
             ),
-            tooltip=["name_muni", column + ":N"],
+            tooltip=["name_muni", column + ":Q"],
         )
-        .properties(width=600, height=400)
+        .properties(width=500, height=400)
     )
     return spec
 
@@ -99,17 +101,32 @@ async def get_mpl_img(q):
     return image_path
 
 
-def get_year_map(year: int, themap: gpd.GeoDataFrame, pars: pd.DataFrame):
+def get_year_map(
+    years: list, themap: gpd.GeoDataFrame, pars: pd.DataFrame
+) -> gpd.GeoDataFrame:
+    """
+    Merge map with parameters for a given year
+    Args:
+        years: list of one or more years to be selected
+        themap: map to be merged
+        pars: parameters table
+
+    Returns:
+
+    """
     map_pars = themap.merge(
-        pars[pars.year == year], left_on="code_muni", right_on="geocode"
+        pars[pars.year.astype(int).isin(years)],
+        left_on="code_muni",
+        right_on="geocode",
+        how="outer",
     )
-    return map_pars
+    return map_pars.fillna(0)
 
 
 async def plot_pars_map(
     q, themap: gpd.GeoDataFrame, year: int, state: str, column="R0"
 ):
-    map_pars = get_year_map(year, q.client.weeks_map, q.client.parameters)
+    map_pars = get_year_map([year], q.client.weeks_map, q.client.parameters)
     ax = themap.plot(alpha=0.3)
     if len(map_pars) == 0:
         pass
@@ -126,6 +143,42 @@ async def plot_pars_map(
     ax.set_axis_off()
     image_path = await get_mpl_img(q)
     return image_path
+
+
+async def plot_pars_map_altair(
+    q, themap: gpd.GeoDataFrame, years: list, state: str, column="R0"
+):
+    map_pars = get_year_map(years, themap, q.client.parameters)[
+        ["geometry", "year", "name_muni", "R0"]
+    ]  # q.client.weeks_map
+    # slider = alt.binding_range(min=2010, max=2023, step=1)
+    # select_year = alt.selection_point(name='year', fields=['year'],
+    #                                   bind=slider, value={'year': 2010})
+    spec = (
+        alt.Chart(
+            data=map_pars,
+            padding={"left": 0, "top": 0, "right": 0, "bottom": 0},
+        )
+        .mark_geoshape()
+        .encode(
+            color=alt.Color(
+                f"{column}:Q",
+                sort="ascending",
+                scale=alt.Scale(
+                    scheme="bluepurple",
+                    domainMin=0,
+                ),
+                legend=alt.Legend(
+                    title="R0",
+                    orient="bottom",
+                    tickCount=10,
+                ),
+            ),
+            tooltip=["name_muni", column + ":Q"],
+        )  # .add_params(select_year)#.transform_filter(select_year)
+        .properties(width=500, height=400)
+    )
+    return spec
 
 
 async def top_n_cities(q: Q, n: int):
@@ -202,7 +255,87 @@ async def plot_series(q: Q, gc: int, start_date: str, end_date: str):
     return image_path
 
 
+@np.vectorize
+def richards(L, a, b, t, tj):
+    """
+    Richards model
+    """
+    j = L - L * (1 + a * np.exp(b * (t - tj))) ** (-1 / a)
+    return j
+
+
+async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
+    df = q.client.data_table
+    dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
+    dfcity.sort_index(inplace=True)
+    dfcity["casos_cum"] = dfcity.casos.cumsum()
+    if 'epi_year' in q.client:
+        sirp = q.client.parameters[
+            (q.client.parameters.geocode == gc)
+            & (q.client.parameters.year == int(q.client.epi_year))
+        ][["total_cases", "beta", "gamma", "peak_week"]].values
+        a = 1 - (sirp[0, 2] / sirp[0, 1])
+        L, b, tj = sirp[0, 0], sirp[0, 1]-sirp[0, 2], sirp[0, 3]
+        dfcity["Model fit"] = richards(
+            L, a, b, np.arange(len(dfcity.index)), tj
+        )
+    ch1 = (
+        alt.Chart(
+            dfcity.reset_index(),
+            width=750,
+            height=200,
+        )
+        .mark_area(
+            opacity=0.3,
+            interpolate="step-after",
+        )
+        .encode(
+            x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date")),
+            y=alt.Y("casos:Q", axis=alt.Axis(title="Cases")),
+            tooltip=["data_iniSE:T", "casos:Q"],
+        )
+    )
+
+    ch2 = (
+        alt.Chart(
+            dfcity.reset_index(),
+            width=750,
+            height=200,
+        )
+        .mark_area(
+            opacity=0.3,
+            interpolate="step-after",
+        )
+        .encode(
+            x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date")),
+            y=alt.Y("casos_cum:Q", axis=alt.Axis(title="Cumulative Cases")),
+            tooltip=["data_iniSE:T", "casos_cum:Q", "Model fit:Q"],
+        )
+    )
+    if 'epi_year' in q.client:
+        model = (
+            alt.Chart(dfcity.reset_index())
+            .mark_line(color="red")
+            .encode(
+                x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date")),
+                y=alt.Y("Model fit:Q", axis=alt.Axis(title="Model fit")),
+            )
+        )
+        spec = alt.vconcat(ch1, ch2 + model)  # leaving this off for now
+    else:
+        spec = alt.vconcat(ch1, ch2)
+    return spec
+
+
 async def plot_series_px(q: Q, gc: int, start_date: str, end_date: str):
+    """
+    Plot timeseries between two dates of city with Plotly
+    Args:
+        q:
+        gc:
+        start_date:
+        end_date:
+    """
     df = q.client.data_table
     dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
     dfcity.sort_index(inplace=True)

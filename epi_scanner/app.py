@@ -18,19 +18,22 @@ To avoid reloading data from disk the app maintains the following
 - q.client.parameters: SIR parameters for every city/year in current state.
 """
 import os
+import datetime
 import warnings
 from typing import List
 
+import numpy as np
 import pandas as pd
 from epi_scanner.model.scanner import EpiScanner
 from epi_scanner.settings import EPISCANNER_DATA_DIR, STATES
-from epi_scanner.viz import plot_state_map  # NOQA F401
 from epi_scanner.viz import (
     load_map,
     plot_pars_map,
     plot_series,
+    plot_series_altair,
     plot_series_px,
     plot_state_map_altair,
+    plot_pars_map_altair,
     t_weeks,
     top_n_cities,
     top_n_R0,
@@ -101,7 +104,7 @@ async def initialize_app(q: Q):
     q.page["form"].items[0].dropdown.value = q.client.disease
 
 
-@app("/", mode="multicast")
+@app("/", mode="unicast")
 async def serve(q: Q):
 
     copy_expando(
@@ -164,16 +167,24 @@ async def update_r0map(q: Q):
     Updates R0 map and table
     """
     year = 2022 if q.client.r0year is None else q.client.r0year
-    fig2 = await plot_pars_map(
-        q, q.client.weeks_map, year, STATES[q.client.uf]
-    )
+    years = range(2010, datetime.date.today().year)
+    # fig2 = await plot_pars_map(
+    #     q, q.client.weeks_map, year, STATES[q.client.uf]
+    # )
+    fig_alt = await plot_pars_map_altair(q, q.client.weeks_map, [year], STATES[q.client.uf])
+    # fig_alt = await plot_pars_map_altair(q, q.client.weeks_map, years, STATES[q.client.uf])
     await q.page.save()
-    q.page["R0map"] = ui.markdown_card(
-        box="R0_zone", title="RO by City", content=f"![r0plot]({fig2})"
+    # q.page["R0map"] = ui.markdown_card(
+    #     box="R0_zone", title="RO by City", content=f"![r0plot]({fig2})"
+    # )
+    q.page["plot_alt_R0"] = ui.vega_card(
+        box="R0_map",
+        title="RO by City",
+        specification=fig_alt.to_json(),
     )
     ttext = await top_n_R0(q, year, 10)
     q.page["R0table"] = ui.form_card(
-        box="R0_zone",
+        box="R0_table",
         title="Top 10 R0s",
         items=[
             ui.slider(
@@ -234,6 +245,11 @@ async def on_update_UF(q: Q):
 
 
 async def on_update_city(q: Q):
+    """
+    Prepares the city visualizations
+    Args:
+        q:
+    """
     logger.info(
         f"client.uf: {q.client.uf}, "
         "args.state: {q.args.state}, "
@@ -301,7 +317,7 @@ def create_layout(q):
         theme="default",
         layouts=[
             ui.layout(
-                breakpoint="xl",
+                breakpoint="xs",
                 width="1200px",
                 zones=[
                     ui.zone("header"),
@@ -335,8 +351,20 @@ def create_layout(q):
                                     ui.zone(
                                         name="R0_zone",
                                         direction=ui.ZoneDirection.ROW,
+                                        zones=[
+                                            ui.zone("R0_map", size="65%"),
+                                            ui.zone("R0_table", size="35%"),
+                                        ]
                                     ),
-                                    ui.zone("analysis"),
+                                    ui.zone(
+                                        name="analysis",
+                                        direction=ui.ZoneDirection.COLUMN,
+                                        zones=[
+                                            ui.zone("Year"),
+                                            ui.zone("SIR parameters"),
+                                            ui.zone("SIR curves", size="100%"),
+                                        ]
+                                            ),
                                 ],
                             ),
                         ],
@@ -387,36 +415,44 @@ async def update_analysis(q):
     if q.client.epi_year is None:
         syear = 2010
         eyear = 2022
-        img = await plot_series(
-            q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
-        )
+        # img = await plot_series(
+        #     q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
+        # )
     else:
         syear = eyear = q.client.epi_year
-        img = await plot_series(
-            q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
-        )
-
-    q.page["ts_plot"] = ui.markdown_card(
-        box="analysis",
-        title=f"{q.client.disease} Weekly Cases",
-        content=f"![plot]({img})",
-    )
-    await q.page.save()
-    q.page["ts_plot_px"] = ui.frame_card(
-        #     box="analysis", title="Weekly Cases", content=""
+        # img = await plot_series(
+        #     q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
         # )
-        box="analysis",
-        title=f"{q.client.disease} Weekly Cases (plotly)",
-        content="""
-            <!DOCTYPE html>
-                <html>
-                    <body><h1>Real-time Epidemic Scanner!</h1></body>
-                </html>
-            """,
-    )
-    await plot_series_px(
+
+    # q.page["ts_plot"] = ui.markdown_card(
+    #     box="analysis",
+    #     title=f"{q.client.disease} Weekly Cases",
+    #     content=f"![plot]({img})",
+    # )
+    altair_plot = await plot_series_altair(
         q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
     )
+    q.page["ts_plot_alt"] = ui.vega_card(
+        box="SIR curves",
+        title=f"{q.client.disease} Weekly Cases in {eyear}",
+        specification=altair_plot.to_json()
+    )
+    # await q.page.save()
+    # q.page["ts_plot_px"] = ui.frame_card(
+    #     #     box="analysis", title="Weekly Cases", content=""
+    #     # )
+    #     box="analysis",
+    #     title=f"{q.client.disease} Weekly Cases (plotly)",
+    #     content="""
+    #         <!DOCTYPE html>
+    #             <html>
+    #                 <body><h1>Real-time Epidemic Scanner!</h1></body>
+    #             </html>
+    #         """,
+    # )
+    # await plot_series_px(
+    #     q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
+    # )
     await q.page.save()
     await update_pars(q)
 
@@ -514,7 +550,7 @@ def add_sidebar(q):
 
 def create_analysis_form(q):
     q.page["years"] = ui.form_card(
-        box="analysis",
+        box="Year",
         title="Parameters",
         items=[
             ui.dropdown(name="epi_year", label="Select Year", required=True),
@@ -522,7 +558,7 @@ def create_analysis_form(q):
         ],
     )
     q.page["sir_pars"] = ui.form_card(
-        box="analysis",
+        box="SIR parameters",
         title=(
             f"SIR Parameters for {q.client.disease} Epidemics in "
             f"{q.client.cities[int(q.client.city)]}"
