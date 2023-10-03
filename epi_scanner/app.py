@@ -395,9 +395,18 @@ async def load_table(q: Q):
         q.client.data_table = DATA_TABLE
         q.client.loaded = True
         for gc in DATA_TABLE.municipio_geocodigo.unique():
-            q.client.cities[int(gc)] = q.client.brmap[
-                q.client.brmap.code_muni.astype(int) == int(gc)
-                ].name_muni.values[0]
+            try: #FIXME: this is a hack to deal with missing cities in the map
+                city_name = q.client.brmap[
+                    q.client.brmap.code_muni.astype(int) == int(gc)
+                    ].name_muni.values
+                q.client.cities[int(gc)] = '' if not city_name.any() else city_name[0]
+            except IndexError:
+                pass # If city is missing in the map, ignore it
+                print(gc, q.client.brmap[q.client.brmap.code_muni.astype(int) == int(gc)
+                    ].name_muni)
+            # q.client.cities[int(gc)] = q.client.brmap[
+            #     q.client.brmap.code_muni.astype(int) == int(gc)
+            #     ].name_muni.values[0]
         choices = [
             ui.choice(str(gc), q.client.cities[gc])
             for gc in DATA_TABLE.municipio_geocodigo.unique()
