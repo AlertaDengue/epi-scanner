@@ -106,7 +106,6 @@ async def initialize_app(q: Q):
 
 @app("/", mode="unicast")
 async def serve(q: Q):
-
     copy_expando(
         q.args, q.client
     )  # Maintain updated copies of q.args in q.client
@@ -148,12 +147,12 @@ async def update_weeks(q: Q):
         await q.page.save()
         # q.page["plot"] = ui.markdown_card(
         #     box="week_zone",
-        #     title="Number of weeks of Rt > 1 over the last s10 years",
+        #     title="Number of weeks of Rt > 1 since 2010",
         #     content=f"![plot]({fig})",
         # )
         q.page["plot_alt"] = ui.vega_card(
             box="week_map",
-            title="Number of weeks of Rt > 1 over the last s10 years",
+            title="Number of weeks of Rt > 1 since 2010",
             specification=fig_alt.to_json(),
         )
         ttext = await top_n_cities(q, 10)
@@ -179,7 +178,7 @@ async def update_r0map(q: Q):
     # )
     q.page["plot_alt_R0"] = ui.vega_card(
         box="R0_map",
-        title="RO by City",
+        title=f"RO by city in {year}",
         specification=fig_alt.to_json(),
     )
     ttext = await top_n_R0(q, year, 10)
@@ -228,10 +227,10 @@ async def on_update_UF(q: Q):
     q.client.weeks = False
     await update_weeks(q)
     q.client.scanner = EpiScanner(45, q.client.data_table)
-    q.page["meta"].notification = "Scanning state for epidemics..."
+    # q.page["meta"].notification = "Scanning state for epidemics..."
     await q.page.save()
     if os.path.exists(
-        f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"
+            f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"
     ):
         q.client.parameters = pd.read_csv(
             f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"  # NOQA-E501
@@ -267,7 +266,7 @@ async def on_update_city(q: Q):
         ui.choice(name=str(y), label=str(y))
         for y in q.client.parameters[
             q.client.parameters.geocode == int(q.client.city)
-        ].year
+            ].year
     ]
     q.page["years"].items[0].dropdown.choices = years
     # q.page['epi_year'].choices = years
@@ -303,7 +302,7 @@ async def scan_state(q: Q):
     q.client.parameters = pd.read_csv(
         f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"
     )
-    q.page["meta"].notification = "Finished scanning!"
+    # q.page["meta"].notification = "Finished scanning!"
 
 
 def create_layout(q):
@@ -396,9 +395,18 @@ async def load_table(q: Q):
         q.client.data_table = DATA_TABLE
         q.client.loaded = True
         for gc in DATA_TABLE.municipio_geocodigo.unique():
-            q.client.cities[int(gc)] = q.client.brmap[
-                q.client.brmap.code_muni.astype(int) == int(gc)
-            ].name_muni.values[0]
+            try: #FIXME: this is a hack to deal with missing cities in the map
+                city_name = q.client.brmap[
+                    q.client.brmap.code_muni.astype(int) == int(gc)
+                    ].name_muni.values
+                q.client.cities[int(gc)] = '' if not city_name.any() else city_name[0]
+            except IndexError:
+                pass # If city is missing in the map, ignore it
+                print(gc, q.client.brmap[q.client.brmap.code_muni.astype(int) == int(gc)
+                    ].name_muni)
+            # q.client.cities[int(gc)] = q.client.brmap[
+            #     q.client.brmap.code_muni.astype(int) == int(gc)
+            #     ].name_muni.values[0]
         choices = [
             ui.choice(str(gc), q.client.cities[gc])
             for gc in DATA_TABLE.municipio_geocodigo.unique()
@@ -458,6 +466,11 @@ async def update_analysis(q):
 
 
 def dump_results(q):
+    """
+    Dump top 20 cities to markdown list
+    Args:
+        q:
+    """
     results = ""
     cities = q.client.parameters.groupby("geocode")
     report = {}
@@ -467,7 +480,7 @@ def dump_results(q):
         report[
             q.client.cities[gc]
         ] = f"{len(citydf)} epidemic years: {list(sorted(citydf.year))}\n"
-    for n, linha in sorted(report.items()):
+    for n, linha in sorted(report.items(), key=lambda x: x[1], reverse=True)[:20]:
         results += f"**{n}** :{linha}\n"
 
     #     for k, l in q.client.scanner.curves.items():
@@ -544,7 +557,7 @@ def add_sidebar(q):
         ],
     )
     q.page["results"] = ui.markdown_card(
-        box="sidebar", title="Results", content=""
+        box="sidebar", title="Top 20 most active cities", content="",
     )
 
 
