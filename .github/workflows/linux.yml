@@ -6,7 +6,7 @@ env:
   HOST_GID: 1000
   HOST_UID: 1000
   ENV: dev
-  ROOT_DIR: /opt/services/epi_scanner
+  PROJECT_ROOT: /opt/services/epi_scanner
   CTNR_EPISCANNER_DATA_DIR: /opt/services/epi_scanner/data
   HOST_EPISCANNER_DATA_DIR: /home/runner/work/epi-scanner/epi-scanner/data
 
@@ -65,4 +65,4 @@ jobs:
 
     - name: Docker waiting services
       run: |
-        make containers-wait SERVICE=wave-app
+        make containers-wait SERVICE=episcanner
