@@ -36,13 +36,13 @@ Using docker compose makes it a little easier to build and run the app.
 
 ```bash
 # Build image
-$ make docker-build
+$ make docker-build ENV=dev
 
 # Start container
-$ make docker-start
+$ make docker-start ENV=dev
 
 # Stop and remove network and all containers
-$ make docker-stop
+$ make docker-stop ENV=dev
 ```
 
 ### Data Update
