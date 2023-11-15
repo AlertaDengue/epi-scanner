@@ -93,10 +93,11 @@ async def initialize_app(q: Q):
     q.page["analysis_header"] = ui.markdown_card(
         box="analysis", title="City-level Analysis", content=""
     )
+    year = datetime.date.today().year
     q.page["footer"] = ui.footer_card(
         box="footer",
         caption=(
-            "(c) 2023 [Infodengue](https://info.dengue.mat.br). "
+            f"(c) {year} [Infodengue](https://info.dengue.mat.br). "
             "All rights reserved.\n"
             "Powered by [Mosqlimate](https://mosqlimate.org) & [EpiGraphHub](https://epigraphhub.org/)"
         ),
@@ -166,7 +167,7 @@ async def update_r0map(q: Q):
     Updates R0 map and table
     """
     year = datetime.date.today().year if q.client.r0year is None else q.client.r0year
-    years = range(2010, datetime.date.today().year)
+    years = range(2010, year)
     # fig2 = await plot_pars_map(
     #     q, q.client.weeks_map, year, STATES[q.client.uf]
     # )
@@ -190,7 +191,7 @@ async def update_r0map(q: Q):
                 name="r0year",
                 label="Year",
                 min=2010,
-                max=datetime.date.today().year,
+                max=year,
                 step=1,
                 value=year,
                 trigger=True,
