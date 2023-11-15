@@ -368,7 +368,7 @@ def create_layout(q):
                             ),
                         ],
                     ),
-                    ui.zone("footer"),
+                    ui.zone(name="footer"),
                 ],
             )
         ],
