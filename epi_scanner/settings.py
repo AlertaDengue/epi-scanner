@@ -9,10 +9,10 @@ env_path = Path(".") / ".env"
 load_dotenv(dotenv_path=env_path)
 
 # This variable is used by container application modules
-ROOT_DIR = Path(__file__).resolve(strict=True).parent.parent
+PROJECT_ROOT = Path(__file__).resolve(strict=True).parent.parent
 
 # Episcanner/
-APPS_DIR = ROOT_DIR / "epi_scanner"
+APPS_DIR = PROJECT_ROOT / "epi_scanner"
 
 # Stores the file path to the data directory.
 # epi_scanner/data

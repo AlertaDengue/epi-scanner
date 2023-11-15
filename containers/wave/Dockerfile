@@ -22,7 +22,7 @@ ARG HOST_UID
 ARG HOST_GID
 ARG SERVICES
 ARG ENV
-ARG ROOT_DIR
+ARG PROJECT_ROOT
 ENV ENV_NAME=episcanner
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -39,18 +39,18 @@ RUN addgroup --gid ${HOST_GID} epiuser \
   && useradd --uid ${HOST_UID} --gid ${HOST_GID} -ms /bin/bash epiuser \
   && echo "epiuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/epiuser \
   && chmod 0440 /etc/sudoers.d/epiuser \
-  && mkdir -p /opt/conda /opt/services/logs ${ROOT_DIR} \
+  && mkdir -p /opt/conda /opt/services/logs ${PROJECT_ROOT} \
   && chmod -R a+rwx /opt/conda /opt/services/ /tmp \
   && export ENV_NAME="$ENV_NAME" \
   && chown  ${HOST_UID}:${HOST_GID} /opt/services/ /tmp
 
 ENV PATH "$PATH:/home/epiuser/.local/bin"
-ENV PYTHONPATH='${ROOT_DIR}'
+ENV PYTHONPATH='${PROJECT_ROOT}'
 ENV PATH /opt/conda/envs/$ENV_NAME/bin:$PATH
 
 USER epiuser
 
-WORKDIR ${ROOT_DIR}/
+WORKDIR ${PROJECT_ROOT}/
 
 COPY --chown=${HOST_UID}:${HOST_GID} ./conda/ /tmp/conda
 
@@ -62,14 +62,15 @@ RUN conda env create -n $ENV_NAME --file /tmp/conda/env-base.yaml \
   && find /opt/conda/ -type f,l -name '*.js.map' -delete \
   && rm -rf /opt/conda/pkgs
 
-COPY --chown=${HOST_UID}:${HOST_GID} ./epi_scanner ${ROOT_DIR}/epi_scanner
+COPY --chown=${HOST_UID}:${HOST_GID} ./epi_scanner ${PROJECT_ROOT}/epi_scanner
 
-COPY --chown=${HOST_UID}:${HOST_GID} poetry.lock pyproject.toml README.md ${ROOT_DIR}/
+COPY --chown=${HOST_UID}:${HOST_GID} poetry.lock pyproject.toml README.md ${PROJECT_ROOT}/
 
-RUN poetry config virtualenvs.create false \
-  && poetry install
+COPY --chown=${HOST_UID}:${HOST_GID} ./containers/scripts/poetry-install.sh /tmp/poetry-install.sh
 
-COPY --chown=${HOST_UID}:${HOST_GID} ./containers/scripts/tests.sh ${ROOT_DIR}/tests.sh
+RUN bash /tmp/poetry-install.sh
+
+COPY --chown=${HOST_UID}:${HOST_GID} ./containers/scripts/tests.sh ${PROJECT_ROOT}/tests.sh
 COPY --chown=${HOST_UID}:${HOST_GID} ./containers/scripts/entrypoint.sh /opt/entrypoint.sh
 
 RUN chmod +x /opt/entrypoint.sh \
