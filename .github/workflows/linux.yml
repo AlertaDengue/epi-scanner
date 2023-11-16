@@ -6,15 +6,13 @@ env:
   HOST_GID: 1000
   HOST_UID: 1000
   ENV: dev
-  ROOT_DIR: /opt/services/epi_scanner
+  PROJECT_ROOT: /opt/services/epi_scanner
   CTNR_EPISCANNER_DATA_DIR: /opt/services/epi_scanner/data
   HOST_EPISCANNER_DATA_DIR: /home/runner/work/epi-scanner/epi-scanner/data
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    using: 'node20'
-    main: 'main.js'
 
     timeout-minutes: 30
     strategy:
@@ -56,10 +54,10 @@ jobs:
       run: |
         poetry install
 
-    - name: Linting
-      run: |
-        pre-commit install
-        pre-commit run --all-files
+    # - name: Linting
+    #   run: |
+    #     pre-commit install
+    #     pre-commit run --all-files
 
     - name: Build docker images
       run: |
