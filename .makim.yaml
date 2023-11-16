@@ -1,0 +1,46 @@
+version: 1.0.0
+
+groups:
+  episcanner:
+    targets:
+      deploy:
+        args:
+          service:
+            help: Specify the service name
+            type: string
+            required: True
+          env:
+            help: Specify mode to deploy
+            type: string
+            required: True
+        help: Run script inside the container
+        run: |
+            sugar ext start --group {{ args.env }} --service {{ args.service }} --options -d --build
+
+      down:
+        args:
+          service:
+            help: Specify the service name
+            type: string
+            required: True
+          env:
+            help: Specify mode to deploy
+            type: string
+            required: True
+        help: Run script inside the container
+        run: |
+            sugar ext start --group {{ args.env }} --service {{ args.service }} --options -v --remove-orphans
+
+      container-wait:
+        help: Wait for a specific service to become available.
+        args:
+          timeout:
+            help: Define the timeout in seconds for the health check.
+            type: integer
+            default: 30
+          service:
+            help: Specify the name of the service to wait for.
+            type: string
+            required: true
+        run: |
+          timeout {{ args.timeout }} ./containers/scripts/healthcheck.sh {{ args.service }}

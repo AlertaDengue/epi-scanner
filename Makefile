@@ -12,20 +12,13 @@ STATE_ABBV:=
 DISEASE:=
 
 
-#  APP ON CI
-# .PHONY: app-wait
-# app-wait:
-# 	timeout ${TIMEOUT} ./scripts/ci/status_code_check.sh
+# CONTAINER_APP
 
-
-# https://github.com/containers/podman-compose/issues/491#issuecomment-1289944841
 CONTAINER_APP=docker-compose \
 	--env-file=.env \
-	--project-name episcanner \
-	--file containers/docker-compose.yaml
+	--project-name episcanner-$(ENV) \
+	--file containers/compose.yaml
 
-
-# CONTAINER_APP
 
 .ONESHELL:
 .PHONY:containers-pull
@@ -95,7 +88,7 @@ create-dotenv:
 #  Run pytest for all tests in epi_scanner/tests inside the container
 .PHONY:test-fetch-data
 test-fetch-data:
-	$(CONTAINER_APP) exec -T wave-app /bin/bash -c 'pytest -vv epi_scanner/tests'
+	$(CONTAINER_APP) exec -T wave /bin/bash -c 'pytest -vv epi_scanner/tests'
 
 # Python
 .PHONY: clean

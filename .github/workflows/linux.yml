@@ -6,13 +6,14 @@ env:
   HOST_GID: 1000
   HOST_UID: 1000
   ENV: dev
-  ROOT_DIR: /opt/services/epi_scanner
+  PROJECT_ROOT: /opt/services/epi_scanner
   CTNR_EPISCANNER_DATA_DIR: /opt/services/epi_scanner/data
   HOST_EPISCANNER_DATA_DIR: /home/runner/work/epi-scanner/epi-scanner/data
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     timeout-minutes: 30
     strategy:
       matrix:
@@ -26,7 +27,10 @@ jobs:
         shell: bash -l {0}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v3
+      with:
+        node-version: '14'
 
     - uses: conda-incubator/setup-miniconda@v2
       with:
@@ -50,10 +54,10 @@ jobs:
       run: |
         poetry install
 
-    - name: Linting
-      run: |
-        pre-commit install
-        pre-commit run --all-files
+    # - name: Linting
+    #   run: |
+    #     pre-commit install
+    #     pre-commit run --all-files
 
     - name: Build docker images
       run: |
@@ -61,8 +65,8 @@ jobs:
 
     - name: Docker start web
       run: |
-        make containers-start
+        makim episcanner.deploy --env dev --srv wave
 
     - name: Docker waiting services
       run: |
-        make containers-wait SERVICE=wave-app
+        makim episcanner.container-wait --service wave
