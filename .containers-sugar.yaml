@@ -1,0 +1,23 @@
+version: 1.0.0
+compose-app: docker-compose
+env-file: .env
+defaults:
+  group: {{ env.ENV }}
+groups:
+  - name: prod
+    project-name: episcanner-prod
+    compose-path: containers/compose.yaml
+    env-file: .env
+    services:
+      default: wave
+      available:
+        - name: wave
+
+  - name: dev
+    project-name: episcanner-dev
+    compose-path: containers/compose.yaml
+    env-file: .env
+    services:
+      default: wave
+      available:
+        - name: wave

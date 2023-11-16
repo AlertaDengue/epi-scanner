@@ -88,7 +88,7 @@ create-dotenv:
 #  Run pytest for all tests in epi_scanner/tests inside the container
 .PHONY:test-fetch-data
 test-fetch-data:
-	$(CONTAINER_APP) exec -T wave-app /bin/bash -c 'pytest -vv epi_scanner/tests'
+	$(CONTAINER_APP) exec -T wave /bin/bash -c 'pytest -vv epi_scanner/tests'
 
 # Python
 .PHONY: clean

@@ -8,7 +8,7 @@ if [ -f ${PROJECT_DIR}/.env ]; then
 fi
 
 export CONTAINER_NAME=${1:-""}
-export CONTAINER_NAME="episcanner_${CONTAINER_NAME}_1"
+export CONTAINER_NAME="episcanner-dev_${CONTAINER_NAME}_1"
 
 echo "[II] Checking ${CONTAINER_NAME} ..."
 

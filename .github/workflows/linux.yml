@@ -61,8 +61,8 @@ jobs:
 
     - name: Docker start web
       run: |
-        make containers-start
+        makim episcanner.deploy --env dev --srv wave
 
     - name: Docker waiting services
       run: |
-        make containers-wait SERVICE=wave-app
+        makim episcanner.container-wait --service wave
