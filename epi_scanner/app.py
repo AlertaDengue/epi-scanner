@@ -166,8 +166,9 @@ async def update_r0map(q: Q):
     """
     Updates R0 map and table
     """
+    end_year = datetime.date.today().year
     year = datetime.date.today().year if q.client.r0year is None else q.client.r0year
-    years = range(2010, year)
+    years = range(2010, end_year)
     # fig2 = await plot_pars_map(
     #     q, q.client.weeks_map, year, STATES[q.client.uf]
     # )
@@ -191,7 +192,7 @@ async def update_r0map(q: Q):
                 name="r0year",
                 label="Year",
                 min=2010,
-                max=year,
+                max=end_year,
                 step=1,
                 value=year,
                 trigger=True,
