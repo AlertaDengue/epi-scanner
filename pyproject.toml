@@ -11,7 +11,7 @@ packages = [{include='epi_scanner'}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-h2o-wave = "^0.23.1"
+h2o-wave = "^1.0.0"
 pandas = "^1.5.0"
 psutil = "^5.9.2"
 loguru = "^0.6.0"
@@ -27,6 +27,7 @@ python-dotenv = "^1.0.0"
 psycopg2-binary = "^2.9.6"
 altair = "^5.0.0"
 gpdvega = "^0.1.1rc1"
+scipy = "^1.7.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "*"
@@ -38,6 +39,8 @@ black = "^22.10.0"
 pre-commit = "^2.20.0"
 isort = "^5.10.1"
 flake8 = "^5.0.4"
+containers-sugar = { version = "^1.9.1", python = ">=3.8.1,<3.12" }
+makim = "^1.8.3"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -70,3 +73,8 @@ exclude = '''
 [tool.isort]
 profile = "black"
 src_paths = ["isort", "test"]
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "dirty-tag"
+write_to = "epi_scanner/_version.py"
