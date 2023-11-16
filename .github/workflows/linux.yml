@@ -13,6 +13,9 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    using: 'node20'
+    main: 'main.js'
+
     timeout-minutes: 30
     strategy:
       matrix:
@@ -26,7 +29,10 @@ jobs:
         shell: bash -l {0}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v3
+      with:
+        node-version: '14'
 
     - uses: conda-incubator/setup-miniconda@v2
       with:
