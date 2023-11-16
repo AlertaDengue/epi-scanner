@@ -192,7 +192,7 @@ async def update_r0map(q: Q):
                 name="r0year",
                 label="Year",
                 min=2010,
-                max=year,
+                max=end_year,
                 step=1,
                 value=year,
                 trigger=True,
