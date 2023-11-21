@@ -1,35 +1,35 @@
 version: 1.0.0
-
+shell: bash
 groups:
   episcanner:
     targets:
       deploy:
         args:
+          group:
+            help: Specify the sugar group
+            type: string
+            required: True
           service:
             help: Specify the service name
             type: string
             required: True
-          env:
-            help: Specify mode to deploy
-            type: string
-            required: True
         help: Run script inside the container
         run: |
-            sugar ext start --group {{ args.env }} --service {{ args.service }} --options -d --build
+          sugar ext start --group {{ args.group }} --services {{ args.service }} --options -d --build
 
       down:
         args:
+          group:
+            help: Specify the sugar group
+            type: string
+            required: True
           service:
             help: Specify the service name
             type: string
             required: True
-          env:
-            help: Specify mode to deploy
-            type: string
-            required: True
         help: Run script inside the container
         run: |
-            sugar ext start --group {{ args.env }} --service {{ args.service }} --options -v --remove-orphans
+          sugar down --group {{ args.group }} --services {{ args.service }} --options -v --remove-orphans
 
       container-wait:
         help: Wait for a specific service to become available.
@@ -37,7 +37,11 @@ groups:
           timeout:
             help: Define the timeout in seconds for the health check.
             type: integer
-            default: 30
+            default: 60
+          group:
+            help: Specify the sugar group
+            type: string
+            required: True
           service:
             help: Specify the name of the service to wait for.
             type: string

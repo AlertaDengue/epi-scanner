@@ -59,14 +59,10 @@ jobs:
     #     pre-commit install
     #     pre-commit run --all-files
 
-    - name: Build docker images
-      run: |
-        make containers-build
-
     - name: Docker start web
       run: |
-        makim episcanner.deploy --env dev --srv wave
+        makim episcanner.deploy --group dev --service wave
 
     - name: Docker waiting services
       run: |
-        makim episcanner.container-wait --service wave
+        makim episcanner.container-wait --group dev --service wave
