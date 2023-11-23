@@ -2,8 +2,8 @@ version: '3.4'
 
 services:
   wave:
-    hostname: wave
-    # container_name: wave
+    container_name: episcanner-${ENV}-wave
+    hostname: episcanner-${ENV}-wave
     restart: unless-stopped
     build:
       context: ${HOST_EPISCANNER_ROOT:-..}
@@ -20,15 +20,15 @@ services:
       - H2O_WAVE_LISTEN=:10101
       - H2O_WAVE_ADDRESS=http://wave:10101
       - H2O_WAVE_MAX_REQUEST_SIZE=15MB
-    entrypoint: [ "wave", "run", "--no-reload", "--no-autostart", "epi_scanner.app" ]
+    entrypoint: ["wave", "run", "--no-reload", "--no-autostart", "epi_scanner.app"]
     ports:
       - '10101:10101'
     volumes:
       - ${HOST_EPISCANNER_DATA_DIR}:${CTNR_EPISCANNER_DATA_DIR}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:10101/epi-scanner/"]
-      interval: 30s
-      timeout: 10s
+      interval: 15s
+      timeout: 5s
       retries: 5
       start_period: 10s
     networks:
