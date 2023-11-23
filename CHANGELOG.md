@@ -1,6 +1,13 @@
 Release Notes
 ---
 
+## [1.2.0](https://github.com/AlertaDengue/epi-scanner/compare/1.1.0...1.2.0) (2023-11-23)
+
+
+### Features
+
+* Improve episcanner deploy ([#38](https://github.com/AlertaDengue/epi-scanner/issues/38)) ([c3f3d39](https://github.com/AlertaDengue/epi-scanner/commit/c3f3d3960166102096ba300d474dec4772913919))
+
 ## [1.1.0](https://github.com/AlertaDengue/epi-scanner/compare/1.0.0...1.1.0) (2023-05-15)
 
 
