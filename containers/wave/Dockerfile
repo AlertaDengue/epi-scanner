@@ -66,9 +66,9 @@ COPY --chown=${HOST_UID}:${HOST_GID} ./epi_scanner ${PROJECT_ROOT}/epi_scanner
 
 COPY --chown=${HOST_UID}:${HOST_GID} poetry.lock pyproject.toml README.md ${PROJECT_ROOT}/
 
-COPY --chown=${HOST_UID}:${HOST_GID} ./containers/scripts/poetry-install.sh /tmp/poetry-install.sh
+COPY --chown=${HOST_UID}:${HOST_GID} ./containers/scripts/poetry-install.sh ${PROJECT_ROOT}/poetry-install.sh
 
-RUN bash /tmp/poetry-install.sh
+RUN bash ${PROJECT_ROOT}/poetry-install.sh
 
 COPY --chown=${HOST_UID}:${HOST_GID} ./containers/scripts/tests.sh ${PROJECT_ROOT}/tests.sh
 COPY --chown=${HOST_UID}:${HOST_GID} ./containers/scripts/entrypoint.sh /opt/entrypoint.sh
