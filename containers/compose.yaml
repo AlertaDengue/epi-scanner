@@ -1,5 +1,3 @@
-version: '3.4'
-
 services:
   wave:
     container_name: episcanner-${ENV}-wave
@@ -25,6 +23,7 @@ services:
       - '10101:10101'
     volumes:
       - ${HOST_EPISCANNER_DATA_DIR}:${CTNR_EPISCANNER_DATA_DIR}
+      - ${HOST_EPISCANNER_DUCKDB_DIR}:${CTNR_EPISCANNER_DUCKDB_DIR}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:10101/epi-scanner/"]
       interval: 15s
