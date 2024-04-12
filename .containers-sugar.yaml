@@ -8,14 +8,18 @@ groups:
     project-name: episcanner-prod
     compose-path:
       - containers/compose.yaml
+      - containers/compose-prod.yaml
     env-file: .env
     services:
       default: wave
       available:
         - name: wave
+
   - name: dev
     project-name: episcanner-dev
-    compose-path: containers/compose.yaml
+    compose-path: 
+      - containers/compose.yaml
+      - containers/compose-dev.yaml
     env-file: .env
     services:
       default: wave
