@@ -17,6 +17,7 @@ APPS_DIR = ROOT_DIR / "epi_scanner"
 # Stores the file path to the data directory.
 # epi_scanner/data
 EPISCANNER_DATA_DIR = APPS_DIR / "data"
+EPISCANNER_DUCKDB_DIR = os.getenv("CTNR_EPISCANNER_DUCKDB_DIR")
 
 
 def make_connection():

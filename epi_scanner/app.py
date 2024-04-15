@@ -21,17 +21,18 @@ import os
 import datetime
 import warnings
 from typing import List
+from pathlib import Path
 
-import numpy as np
 import pandas as pd
-from epi_scanner.model.scanner import EpiScanner
-from epi_scanner.settings import EPISCANNER_DATA_DIR, STATES
+import duckdb
+from epi_scanner.settings import (
+    EPISCANNER_DATA_DIR,
+    EPISCANNER_DUCKDB_DIR,
+    STATES
+)
 from epi_scanner.viz import (
     load_map,
-    plot_pars_map,
-    plot_series,
     plot_series_altair,
-    plot_series_px,
     plot_state_map_altair,
     plot_pars_map_altair,
     t_weeks,
@@ -45,6 +46,9 @@ from loguru import logger
 warnings.filterwarnings("ignore")
 
 DATA_TABLE = None
+DUCKDB_FILE = Path(os.path.join(
+    str(EPISCANNER_DUCKDB_DIR), "episcanner.duckdb")
+)
 
 
 async def initialize_app(q: Q):
@@ -52,10 +56,6 @@ async def initialize_app(q: Q):
     Set up UI elements
     """
     create_layout(q)
-    # q.page["meta"] = ui.meta_card(
-    #     box='',
-    #     icon='https://info.dengue.mat.br/static/img/favicon.ico'
-    # )
     q.page["title"] = ui.header_card(
         box=ui.box("header"),
         title="Real-time Epidemic Scanner",
@@ -65,7 +65,6 @@ async def initialize_app(q: Q):
             "https://info.dengue.mat.br/static/"
             "img/info-dengue-logo-multicidades.png"
         ),
-        # icon='health'
     )
     await q.page.save()
     # Setup some client side variables
@@ -81,14 +80,6 @@ async def initialize_app(q: Q):
     q.page["state_header"] = ui.markdown_card(
         box="pre", title=f"Epi Report for {q.client.disease}", content=""
     )
-    # q.page['message'] = ui.form_card(
-    #     box='content',
-    #     items=[
-    #         ui.message_bar(type='info', text=''),
-    #         ui.message_bar(type='success', text=''),
-    #         ])
-    # q.page['plot'] = ui.markdown_card(
-    #     box='content', title=f'Map of {UF}', content=f'![plot]({fig})')
     add_sidebar(q)
     q.page["analysis_header"] = ui.markdown_card(
         box="analysis", title="City-level Analysis", content=""
@@ -100,7 +91,7 @@ async def initialize_app(q: Q):
             f"(c) {year} [Infodengue](https://info.dengue.mat.br). "
             "All rights reserved.\n"
             "Powered by [Mosqlimate](https://mosqlimate.org) & [EpiGraphHub](https://epigraphhub.org/)"
-        ),
+        )
     )
     q.page["form"].items[0].dropdown.value = q.client.disease
 
@@ -114,8 +105,6 @@ async def serve(q: Q):
         await initialize_app(q)
         q.client.initialized = True
     await q.page.save()
-    # await update_weeks(q)
-    # while True:
     if q.args.disease:
         q.page["form"].items[0].dropdown.value = q.client.disease
         await on_update_disease(q)
@@ -139,18 +128,10 @@ async def update_weeks(q: Q):
     if (not q.client.weeks) and (q.client.data_table is not None):
         await t_weeks(q)
         logger.info("plot weeks")
-        # fig = await plot_state_map(
-        #     q, q.client.weeks_map, column="transmissao"
-        # )
         fig_alt = await plot_state_map_altair(
             q, q.client.weeks_map, column="transmissao"
         )
         await q.page.save()
-        # q.page["plot"] = ui.markdown_card(
-        #     box="week_zone",
-        #     title="Number of weeks of Rt > 1 since 2010",
-        #     content=f"![plot]({fig})",
-        # )
         q.page["plot_alt"] = ui.vega_card(
             box="week_map",
             title="Number of weeks of Rt > 1 since 2010",
@@ -167,20 +148,14 @@ async def update_r0map(q: Q):
     Updates R0 map and table
     """
     end_year = datetime.date.today().year
-    year = datetime.date.today().year if q.client.r0year is None else q.client.r0year
-    years = range(2010, end_year)
-    # fig2 = await plot_pars_map(
-    #     q, q.client.weeks_map, year, STATES[q.client.uf]
-    # )
-    fig_alt = await plot_pars_map_altair(q, q.client.weeks_map, [year], STATES[q.client.uf])
-    # fig_alt = await plot_pars_map_altair(q, q.client.weeks_map, years, STATES[q.client.uf])
+    year = q.client.r0year or datetime.date.today().year
+    fig_alt = await plot_pars_map_altair(
+        q, q.client.weeks_map, [year], STATES[q.client.uf]
+    )
     await q.page.save()
-    # q.page["R0map"] = ui.markdown_card(
-    #     box="R0_zone", title="RO by City", content=f"![r0plot]({fig2})"
-    # )
     q.page["plot_alt_R0"] = ui.vega_card(
         box="R0_map",
-        title=f"RO by city in {year}",
+        title=f"R0 by city in {year}",
         specification=fig_alt.to_json(),
     )
     ttext = await top_n_R0(q, year, 10)
@@ -218,8 +193,6 @@ async def on_update_UF(q: Q):
         "args.state: {q.args.state}, "
         "args.city:{q.args.city}"
     )
-    # uf = q.args.state
-    # if uf != q.client.uf:
     if q.args.state is not None:
         q.client.uf = q.args.state
     await load_table(q)
@@ -228,19 +201,22 @@ async def on_update_UF(q: Q):
     await update_state_map(q)
     q.client.weeks = False
     await update_weeks(q)
-    q.client.scanner = EpiScanner(45, q.client.data_table)
-    # q.page["meta"].notification = "Scanning state for epidemics..."
     await q.page.save()
-    if os.path.exists(
-            f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"
-    ):
-        q.client.parameters = pd.read_csv(
-            f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"  # NOQA-E501
-        )
+
+    if DUCKDB_FILE.exists():
+        db = duckdb.connect(str(DUCKDB_FILE), read_only=True)
     else:
-        await q.run(scan_state, q)
+        raise FileNotFoundError("Duckdb file not found")
+
+    try:
+        q.client.parameters = db.execute(
+            f"SELECT * FROM '{q.client.uf.upper()}' "
+            f"WHERE disease = '{q.client.disease}'"
+        ).fetchdf()
+    finally:
+        db.close()
+
     dump_results(q)
-    q.client.curves = q.client.scanner.curves
     await update_r0map(q)
     await q.page.save()
 
@@ -259,7 +235,6 @@ async def on_update_city(q: Q):
     )
     if (q.client.city != q.args.city) and (q.args.city is not None):
         q.client.city = q.args.city
-    # print(q.client.cities)
     q.page[
         "analysis_header"
     ].content = f"## {q.client.cities[int(q.client.city)]}"
@@ -268,11 +243,9 @@ async def on_update_city(q: Q):
         ui.choice(name=str(y), label=str(y))
         for y in q.client.parameters[
             q.client.parameters.geocode == int(q.client.city)
-            ].year
+        ].year
     ]
     q.page["years"].items[0].dropdown.choices = years
-    # q.page['epi_year'].choices = years
-    # print(years, q.page['years'].items[0].dropdown.choices)
     await update_analysis(q)
     await q.page.save()
 
@@ -294,19 +267,6 @@ async def update_pars(q: Q):
     await q.page.save()
 
 
-async def scan_state(q: Q):
-    for gc in q.client.cities:
-        q.client.scanner.scan(gc, False)
-
-    q.client.scanner.to_csv(
-        f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"
-    )
-    q.client.parameters = pd.read_csv(
-        f"{EPISCANNER_DATA_DIR}/curves_{q.client.uf}_{q.client.disease}.csv.gz"
-    )
-    # q.page["meta"].notification = "Finished scanning!"
-
-
 def create_layout(q):
     """
     Creates the main layout of the app
@@ -320,8 +280,10 @@ def create_layout(q):
             ui.layout(
                 breakpoint="xs",
                 width="1200px",
+                min_height="100vh",
                 zones=[
                     ui.zone("header"),
+                    ui.zone(name="footer"),
                     ui.zone(
                         "body",
                         direction=ui.ZoneDirection.ROW,
@@ -329,16 +291,11 @@ def create_layout(q):
                             ui.zone(
                                 "sidebar",
                                 size="25%",
-                                # direction=ui.ZoneDirection.COLUMN,
-                                # align='start',
-                                # justify='around'
                             ),
                             ui.zone(
                                 "content",
                                 size="75%",
                                 direction=ui.ZoneDirection.COLUMN,
-                                # align='end',
-                                # justify='around',
                                 zones=[
                                     ui.zone("pre"),
                                     ui.zone(
@@ -365,12 +322,11 @@ def create_layout(q):
                                             ui.zone("SIR parameters"),
                                             ui.zone("SIR curves", size="100%"),
                                         ]
-                                            ),
+                                    ),
                                 ],
                             ),
                         ],
                     ),
-                    ui.zone(name="footer"),
                 ],
             )
         ],
@@ -397,23 +353,18 @@ async def load_table(q: Q):
         q.client.data_table = DATA_TABLE
         q.client.loaded = True
         for gc in DATA_TABLE.municipio_geocodigo.unique():
-            try: #FIXME: this is a hack to deal with missing cities in the map
+            try:  # FIXME: this is a hack to deal with missing cities in the map
                 city_name = q.client.brmap[
                     q.client.brmap.code_muni.astype(int) == int(gc)
-                    ].name_muni.values
-                q.client.cities[int(gc)] = '' if not city_name.any() else city_name[0]
+                ].name_muni.values
+                q.client.cities[int(gc)] = '' if not city_name.any(
+                ) else city_name[0]
             except IndexError:
-                pass # If city is missing in the map, ignore it
-                print(gc, q.client.brmap[q.client.brmap.code_muni.astype(int) == int(gc)
-                    ].name_muni)
-            # q.client.cities[int(gc)] = q.client.brmap[
-            #     q.client.brmap.code_muni.astype(int) == int(gc)
-            #     ].name_muni.values[0]
+                pass  # If city is missing in the map, ignore it
         choices = [
             ui.choice(str(gc), q.client.cities[gc])
             for gc in DATA_TABLE.municipio_geocodigo.unique()
         ]
-        # q.page['form'].items[1].dropdown.enabled = True
         q.page["form"].items[2].dropdown.choices = choices
         q.page["form"].items[2].dropdown.visible = True
         q.page["form"].items[2].dropdown.value = str(gc)
@@ -425,44 +376,19 @@ async def update_analysis(q):
     if q.client.epi_year is None:
         syear = 2010
         eyear = datetime.date.today().year
-        # img = await plot_series(
-        #     q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
-        # )
     else:
         syear = eyear = q.client.epi_year
-        # img = await plot_series(
-        #     q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
-        # )
-
-    # q.page["ts_plot"] = ui.markdown_card(
-    #     box="analysis",
-    #     title=f"{q.client.disease} Weekly Cases",
-    #     content=f"![plot]({img})",
-    # )
     altair_plot = await plot_series_altair(
         q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
     )
     q.page["ts_plot_alt"] = ui.vega_card(
         box="SIR curves",
-        title=f"{q.client.disease} Weekly Cases in {eyear}",
+        title=(
+            f"{q.client.disease.capitalize()} weekly cases "
+            f"in {eyear} for {q.client.cities[int(q.client.city)]}"
+        ),
         specification=altair_plot.to_json()
     )
-    # await q.page.save()
-    # q.page["ts_plot_px"] = ui.frame_card(
-    #     #     box="analysis", title="Weekly Cases", content=""
-    #     # )
-    #     box="analysis",
-    #     title=f"{q.client.disease} Weekly Cases (plotly)",
-    #     content="""
-    #         <!DOCTYPE html>
-    #             <html>
-    #                 <body><h1>Real-time Epidemic Scanner!</h1></body>
-    #             </html>
-    #         """,
-    # )
-    # await plot_series_px(
-    #     q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
-    # )
     await q.page.save()
     await update_pars(q)
 
@@ -484,17 +410,6 @@ def dump_results(q):
         ] = f"{len(citydf)} epidemic years: {list(sorted(citydf.year))}\n"
     for n, linha in sorted(report.items(), key=lambda x: x[1], reverse=True)[:20]:
         results += f"**{n}** :{linha}\n"
-
-    #     for k, l in q.client.scanner.curves.items():
-    #         years = sorted([str(c['year']) for c in l])
-    #         Name = q.client.cities[k]
-    #         if len(l) >= 1:
-    #             results += f"""
-    # **{Name}** ({k}):
-    # There were {len(l)} epidemics:
-    # {','.join(years)}
-    #
-    # """
     q.page["results"].content = results
 
 

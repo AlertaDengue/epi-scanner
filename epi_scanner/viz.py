@@ -52,7 +52,7 @@ async def plot_state_map(q, themap: gpd.GeoDataFrame, column=None):
             "loc": "lower center",
             "ncols": 5,
             "fontsize": "x-small",
-        },  # {'bbox_to_anchor': (1.15, 1)}
+        },
     )
     ax.set_axis_off()
     image_path = await get_mpl_img(q)
@@ -150,10 +150,7 @@ async def plot_pars_map_altair(
 ):
     map_pars = get_year_map(years, themap, q.client.parameters)[
         ["geometry", "year", "name_muni", "R0"]
-    ]  # q.client.weeks_map
-    # slider = alt.binding_range(min=2010, max=2023, step=1)
-    # select_year = alt.selection_point(name='year', fields=['year'],
-    #                                   bind=slider, value={'year': 2010})
+    ]
     spec = (
         alt.Chart(
             data=map_pars,
@@ -175,7 +172,7 @@ async def plot_pars_map_altair(
                 ),
             ),
             tooltip=["name_muni", column + ":Q"],
-        )  # .add_params(select_year)#.transform_filter(select_year)
+        )
         .properties(width=500, height=400)
     )
     return spec
@@ -345,16 +342,6 @@ async def plot_series_px(q: Q, gc: int, start_date: str, end_date: str):
     spl = make_subplots(rows=2, cols=1)
     spl.add_trace(go.Bar(x=dfcity.index, y=dfcity.casos), row=1, col=1)
     spl.add_trace(go.Bar(x=dfcity.index, y=dfcity.casos_cum), row=2, col=1)
-    # fig = px.bar(dfcity.casos)
-    # fig2 = px.bar(dfcity.casos_cum)
-    # spl.add_trace(fig.data[0], row=1, col=1)
-    # spl.add_trace(fig2.data[0], row=2, col=1)
-    # buffer = io.StringIO()
-    # spl.write_html(
-    #     buffer, include_plotlyjs="cdn", validate=False, full_html=False
-    # )
-    # html = buffer.getvalue()
-    html = pio.to_html(spl, validate=False, include_plotlyjs="cdn")
-    # print(html)
+    html = pio.to_html(spl, validate=False, include_plotlyjs=True)
     q.page["ts_plot_px"].content = html
     await q.page.save()
