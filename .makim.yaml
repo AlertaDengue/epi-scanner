@@ -37,7 +37,7 @@ groups:
           timeout:
             help: Define the timeout in seconds for the health check.
             type: integer
-            default: 60
+            default: 120
           group:
             help: Specify the sugar group
             type: string
