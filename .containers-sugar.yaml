@@ -25,3 +25,13 @@ groups:
       default: wave
       available:
         - name: wave
+
+  - name: ci
+    project-name: episcanner-dev
+    compose-path: 
+      - containers/compose.yaml
+    env-file: .env
+    services:
+      default: wave
+      available:
+        - name: wave

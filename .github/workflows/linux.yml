@@ -9,6 +9,8 @@ env:
   PROJECT_ROOT: /opt/services/epi_scanner
   CTNR_EPISCANNER_DATA_DIR: /opt/services/epi_scanner/data
   HOST_EPISCANNER_DATA_DIR: /home/runner/work/epi-scanner/epi-scanner/data
+  HOST_EPISCANNER_DUCKDB_DIR: /home/runner
+  CTNR_EPISCANNER_DUCKDB_DIR: /opt/services/duckdb
 
 jobs:
   build:
@@ -61,8 +63,8 @@ jobs:
 
     - name: Docker start web
       run: |
-        makim episcanner.deploy --group dev --service wave
+        makim episcanner.deploy --group ci --service wave
 
     - name: Docker waiting services
       run: |
-        makim episcanner.container-wait --group dev --service wave
+        makim episcanner.container-wait --group ci --service wave
