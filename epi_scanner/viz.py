@@ -52,7 +52,7 @@ async def plot_state_map(q, themap: gpd.GeoDataFrame, column=None):
             "loc": "lower center",
             "ncols": 5,
             "fontsize": "x-small",
-        },  # {'bbox_to_anchor': (1.15, 1)}
+        },
     )
     ax.set_axis_off()
     image_path = await get_mpl_img(q)
@@ -149,8 +149,7 @@ async def plot_pars_map_altair(
     q, themap: gpd.GeoDataFrame, years: list, state: str, column="R0"
 ):
     map_pars = get_year_map(years, themap, q.client.parameters)[
-        # ["geometry", "year", "name_muni", "R0"]
-        ["year", "name_muni", "R0"]
+        ["geometry", "year", "name_muni", "R0"]
     ]
     spec = (
         alt.Chart(

@@ -148,8 +148,10 @@ async def update_r0map(q: Q):
     Updates R0 map and table
     """
     end_year = datetime.date.today().year
-    year = datetime.date.today().year if q.client.r0year is None else q.client.r0year
-    fig_alt = await plot_pars_map_altair(q, q.client.weeks_map, [year], STATES[q.client.uf])
+    year = q.client.r0year or datetime.date.today().year
+    fig_alt = await plot_pars_map_altair(
+        q, q.client.weeks_map, [year], STATES[q.client.uf]
+    )
     await q.page.save()
     q.page["plot_alt_R0"] = ui.vega_card(
         box="R0_map",
@@ -206,12 +208,13 @@ async def on_update_UF(q: Q):
     else:
         raise FileNotFoundError("Duckdb file not found")
 
-    q.client.parameters = db.execute(
-        f"SELECT * FROM '{q.client.uf.upper()}' "
-        f"WHERE disease = '{q.client.disease}'"
-    ).fetchdf()
-
-    db.close()
+    try:
+        q.client.parameters = db.execute(
+            f"SELECT * FROM '{q.client.uf.upper()}' "
+            f"WHERE disease = '{q.client.disease}'"
+        ).fetchdf()
+    finally:
+        db.close()
 
     dump_results(q)
     await update_r0map(q)
@@ -280,6 +283,7 @@ def create_layout(q):
                 min_height="100vh",
                 zones=[
                     ui.zone("header"),
+                    ui.zone(name="footer"),
                     ui.zone(
                         "body",
                         direction=ui.ZoneDirection.ROW,
@@ -323,7 +327,6 @@ def create_layout(q):
                             ),
                         ],
                     ),
-                    ui.zone(name="footer"),
                 ],
             )
         ],
@@ -382,7 +385,7 @@ async def update_analysis(q):
         box="SIR curves",
         title=(
             f"{q.client.disease.capitalize()} weekly cases "
-            f"in {eyear} for {q.client.city}"
+            f"in {eyear} for {q.client.cities[int(q.client.city)]}"
         ),
         specification=altair_plot.to_json()
     )
@@ -407,17 +410,6 @@ def dump_results(q):
         ] = f"{len(citydf)} epidemic years: {list(sorted(citydf.year))}\n"
     for n, linha in sorted(report.items(), key=lambda x: x[1], reverse=True)[:20]:
         results += f"**{n}** :{linha}\n"
-
-    #     for k, l in q.client.scanner.curves.items():
-    #         years = sorted([str(c['year']) for c in l])
-    #         Name = q.client.cities[k]
-    #         if len(l) >= 1:
-    #             results += f"""
-    # **{Name}** ({k}):
-    # There were {len(l)} epidemics:
-    # {','.join(years)}
-    #
-    # """
     q.page["results"].content = results
 
 
