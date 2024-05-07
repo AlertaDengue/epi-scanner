@@ -20,6 +20,11 @@ $ conda activate episcanner
 $ poetry install
 ```
 
+### Populate the data/ directory
+```sh
+python ./epi_scanner/management/cli.py [disease]
+```
+
 ```bash
 # Then in the terminal, start the app
 $ wave run --no-reload --no-autostart epi_scanner.app
