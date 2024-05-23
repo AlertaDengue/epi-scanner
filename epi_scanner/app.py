@@ -50,7 +50,6 @@ DUCKDB_FILE = Path(os.path.join(
     str(EPISCANNER_DUCKDB_DIR), "episcanner.duckdb")
 )
 
-
 async def initialize_app(q: Q):
     """
     Set up UI elements
@@ -252,8 +251,8 @@ async def on_update_city(q: Q):
 
 async def update_pars(q: Q):
     table = (
-        "| Year | Beta | Gamma | R0 | Peak Week |\n"
-        "| ---- | ---- | ----- | -- | ---- |\n"
+        "| Year | Beta | Gamma | R0 | Peak Week |  Start Week |  End Week | Duration \n"
+        "| ---- | ---- | ----- | -- | ---- | ---- | ---- | ---- |\n"
     )
     for i, res in q.client.parameters[
         q.client.parameters.geocode == int(q.client.city)
@@ -261,7 +260,7 @@ async def update_pars(q: Q):
         table += (
             f"| {int(res['year'])} | {res['beta']:.2f} "
             f"| {res['gamma']:.2f} | {res['R0']:.2f} "
-            f"| {int(res['peak_week'])} |\n"
+            f"| {int(res['ep_pw'])} |{int(res['ep_ini'])} |{int(res['ep_end'])} | {int(res['ep_dur'])} | \n"
         )
     q.page["sir_pars"].items[0].text.content = table
     await q.page.save()
