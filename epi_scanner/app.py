@@ -22,7 +22,7 @@ import datetime
 import warnings
 from typing import List
 from pathlib import Path
-
+from typing import Optional
 import pandas as pd
 import duckdb
 from epi_scanner.settings import (
@@ -46,10 +46,10 @@ from loguru import logger
 warnings.filterwarnings("ignore")
 
 DATA_TABLE = None
-DUCKDB_FILE = Path(os.path.join(
-    str(EPISCANNER_DUCKDB_DIR), "episcanner.duckdb")
-)
-
+#DUCKDB_FILE = Path(os.path.join(
+#    str(EPISCANNER_DUCKDB_DIR), "episcanner.duckdb")
+#)
+DUCKDB_FILE = Path('/Users/eduardoaraujo/episcanner/episcanner.duckdb')
 async def initialize_app(q: Q):
     """
     Set up UI elements
@@ -77,7 +77,7 @@ async def initialize_app(q: Q):
     await q.page.save()
 
     q.page["state_header"] = ui.markdown_card(
-        box="pre", title=f"Epi Report for {q.client.disease}", content=""
+        box="pre", title=f"", content=f"## Epi Report for {q.client.disease}"
     )
     add_sidebar(q)
     q.page["analysis_header"] = ui.markdown_card(
@@ -123,6 +123,19 @@ async def serve(q: Q):
         await q.page.save()
 
 
+async def update_sum_cases(q: Q, start_date:str = '2024-01-01', end_date:str = '2024-12-31', city : Optional[int] = None):
+
+    df = q.client.data_table
+
+    df.sort_index(inplace=True)
+
+    if city is not None: 
+        df = df[df.municipio_geocodigo == city]
+
+    df = df.loc[start_date:end_date]
+
+    return  df.casos.sum()
+
 async def update_weeks(q: Q):
     if (not q.client.weeks) and (q.client.data_table is not None):
         await t_weeks(q)
@@ -133,12 +146,12 @@ async def update_weeks(q: Q):
         await q.page.save()
         q.page["plot_alt"] = ui.vega_card(
             box="week_map",
-            title="Number of weeks of Rt > 1 since 2010",
+            title="",
             specification=fig_alt.to_json(),
         )
         ttext = await top_n_cities(q, 10)
         q.page["wtable"] = ui.form_card(
-            box="week_table", title="Top 10 cities", items=[ui.text(ttext)]
+            box="week_table", title="", items=[ui.text('**Top 10 cities**'), ui.text(ttext)]
         )
 
 
@@ -154,14 +167,14 @@ async def update_r0map(q: Q):
     await q.page.save()
     q.page["plot_alt_R0"] = ui.vega_card(
         box="R0_map",
-        title=f"R0 by city in {year}",
+        title=f"",
         specification=fig_alt.to_json(),
     )
     ttext = await top_n_R0(q, year, 10)
     q.page["R0table"] = ui.form_card(
         box="R0_table",
-        title="Top 10 R0s",
-        items=[
+        title="",
+        items=[ui.text('**Top 10 R0s**'),
             ui.slider(
                 name="r0year",
                 label="Year",
@@ -179,7 +192,7 @@ async def update_r0map(q: Q):
 
 async def on_update_disease(q: Q):
     q.client.disease = q.args.disease
-    q.page["state_header"].title = f"Epi Report for {q.client.disease}"
+    #q.page["state_header"].title = f"Epi Report for {q.client.disease}"
     await q.page.save()
     await on_update_UF(q)
     if q.client.city is not None:
@@ -195,7 +208,11 @@ async def on_update_UF(q: Q):
     if q.args.state is not None:
         q.client.uf = q.args.state
     await load_table(q)
-    q.page["state_header"].content = f"## {STATES[q.client.uf]}"
+
+    today_date =  datetime.date.today()
+
+    sum_cases = await update_sum_cases(q, f'{today_date.year}-01-01', today_date.strftime('%Y-%m-%d'), None)
+    q.page["state_header"].content = f"## Epi Report for {q.client.disease}\n ## {STATES[q.client.uf]}\nCumulative notified cases since Jan {datetime.date.today().year}: {sum_cases}"
     await q.page.save()
     await update_state_map(q)
     q.client.weeks = False
@@ -238,12 +255,13 @@ async def on_update_city(q: Q):
         "analysis_header"
     ].content = f"## {q.client.cities[int(q.client.city)]}"
     create_analysis_form(q)
-    years = [
+    years = [#ui.choice(name=None, label='All'), 
         ui.choice(name=str(y), label=str(y))
         for y in q.client.parameters[
             q.client.parameters.geocode == int(q.client.city)
         ].year
     ]
+    years.insert(0, ui.choice(name='all', label='All'))
     q.page["years"].items[0].dropdown.choices = years
     await update_analysis(q)
     await q.page.save()
@@ -251,18 +269,21 @@ async def on_update_city(q: Q):
 
 async def update_pars(q: Q):
     table = (
-        "| Year | Beta | Gamma | R0 | Peak Week |  Start Week |  End Week | Duration \n"
-        "| ---- | ---- | ----- | -- | ---- | ---- | ---- | ---- |\n"
+        "| Year | Beta | Gamma | R0 | Peak Week |  Start Week |  End Week | Duration | Cumulative cases estimated| Cumulative cases reported | \n"
+        #"|     estimated |  estimated    |    estimated   |  estimated  |   estimated   |  estimated  | estimated |  estimated | estimated | \n"
+        "| ---- | ---- | ----- | -- | ---- | ---- | ---- | ---- | ---- | ---- | \n"
     )
     for i, res in q.client.parameters[
         q.client.parameters.geocode == int(q.client.city)
     ].iterrows():
+        
+        sum_cases = await update_sum_cases(q, f"{int(res['year'])-1}-11-01", f"{int(res['year'])}-11-01", int(q.client.city))
         table += (
             f"| {int(res['year'])} | {res['beta']:.2f} "
             f"| {res['gamma']:.2f} | {res['R0']:.2f} "
-            f"| {int(res['ep_pw'])} |{int(res['ep_ini'])} |{int(res['ep_end'])} | {int(res['ep_dur'])} | \n"
+            f"| {int(res['ep_pw'])} |{int(res['ep_ini'])} |{int(res['ep_end'])} | {int(res['ep_dur'])} | {int(res['total_cases'])} | {sum_cases} | \n"
         )
-    q.page["sir_pars"].items[0].text.content = table
+    q.page["sir_pars"].items[2].text.content = table
     await q.page.save()
 
 
@@ -372,20 +393,17 @@ async def load_table(q: Q):
 
 
 async def update_analysis(q):
-    if q.client.epi_year is None:
-        syear = 2010
+    if (q.client.epi_year is None) or (q.client.epi_year == 'all'):
+        syear = 2011
         eyear = datetime.date.today().year
     else:
         syear = eyear = q.client.epi_year
     altair_plot = await plot_series_altair(
-        q, int(q.client.city), f"{syear}-01-01", f"{eyear}-12-31"
+        q, int(q.client.city), f"{int(syear)-1}-11-01", f"{eyear}-11-01"
     )
     q.page["ts_plot_alt"] = ui.vega_card(
         box="SIR curves",
-        title=(
-            f"{q.client.disease.capitalize()} weekly cases "
-            f"in {eyear} for {q.client.cities[int(q.client.city)]}"
-        ),
+        title='',
         specification=altair_plot.to_json()
     )
     await q.page.save()
@@ -398,7 +416,7 @@ def dump_results(q):
     Args:
         q:
     """
-    results = ""
+    results = "**Top 20 most active cities** \n\n"
     cities = q.client.parameters.groupby("geocode")
     report = {}
     for gc, citydf in cities:
@@ -470,10 +488,11 @@ def add_sidebar(q):
                 trigger=True,
                 visible=False,
             ),
+            ui.text('The parameters table can be downloaded in the [Mosqlimate API](https://api.mosqlimate.org/docs/datastore/GET/episcanner/).')
         ],
     )
     q.page["results"] = ui.markdown_card(
-        box="sidebar", title="Top 20 most active cities", content="",
+        box="sidebar", title="", content="",
     )
 
 
@@ -486,11 +505,14 @@ def create_analysis_form(q):
             ui.button(name="slice_year", label="Update"),
         ],
     )
-    q.page["sir_pars"] = ui.form_card(
-        box="SIR parameters",
-        title=(
+    title=(
             f"SIR Parameters for {q.client.disease} Epidemics in "
             f"{q.client.cities[int(q.client.city)]}"
-        ),
-        items=[ui.text(name="sirp_table", content="")],
+        )
+    q.page["sir_pars"] = ui.form_card(
+        box="SIR parameters",
+        title='',
+        items=[ui.text_l(content=f'<h1 style="font-size:18px;">{title}</h1>'),
+               ui.text(content='A description of each parameter below is available in the [Mosqlimate API](https://api.mosqlimate.org/docs/datastore/GET/episcanner/).'),
+               ui.text(name="sirp_table", content="")],
     )
