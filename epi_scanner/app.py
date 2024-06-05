@@ -46,10 +46,10 @@ from loguru import logger
 warnings.filterwarnings("ignore")
 
 DATA_TABLE = None
-#DUCKDB_FILE = Path(os.path.join(
-#    str(EPISCANNER_DUCKDB_DIR), "episcanner.duckdb")
-#)
-DUCKDB_FILE = Path('/Users/eduardoaraujo/episcanner/episcanner.duckdb')
+DUCKDB_FILE = Path(os.path.join(
+    str(EPISCANNER_DUCKDB_DIR), "episcanner.duckdb")
+)
+
 async def initialize_app(q: Q):
     """
     Set up UI elements
@@ -77,7 +77,7 @@ async def initialize_app(q: Q):
     await q.page.save()
 
     q.page["state_header"] = ui.markdown_card(
-        box="pre", title=f"", content=f"## Epi Report for {q.client.disease}"
+        box="pre", title=f"", content=f"## Epidemiological Report for {q.client.disease}"
     )
     add_sidebar(q)
     q.page["analysis_header"] = ui.markdown_card(
