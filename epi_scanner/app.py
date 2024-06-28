@@ -50,6 +50,7 @@ DUCKDB_FILE = Path(os.path.join(
     str(EPISCANNER_DUCKDB_DIR), "episcanner.duckdb")
 )
 
+
 async def initialize_app(q: Q):
     """
     Set up UI elements
@@ -123,18 +124,19 @@ async def serve(q: Q):
         await q.page.save()
 
 
-async def update_sum_cases(q: Q, start_date:str = '2024-01-01', end_date:str = '2024-12-31', city : Optional[int] = None):
+async def update_sum_cases(q: Q, start_date: str = '2024-01-01', end_date: str = '2024-12-31', city: Optional[int] = None):
 
     df = q.client.data_table
 
     df.sort_index(inplace=True)
 
-    if city is not None: 
+    if city is not None:
         df = df[df.municipio_geocodigo == city]
 
     df = df.loc[start_date:end_date]
 
-    return  df.casos.sum()
+    return df.casos.sum()
+
 
 async def update_weeks(q: Q):
     if (not q.client.weeks) and (q.client.data_table is not None):
@@ -175,15 +177,15 @@ async def update_r0map(q: Q):
         box="R0_table",
         title="",
         items=[ui.text('**Top 10 R0s**'),
-            ui.slider(
-                name="r0year",
-                label="Year",
-                min=2010,
-                max=end_year,
-                step=1,
-                value=year,
-                trigger=True,
-            ),
+               ui.slider(
+            name="r0year",
+            label="Year",
+            min=2010,
+            max=end_year,
+            step=1,
+            value=year,
+            trigger=True,
+        ),
             ui.text(ttext),
         ],
     )
@@ -192,7 +194,7 @@ async def update_r0map(q: Q):
 
 async def on_update_disease(q: Q):
     q.client.disease = q.args.disease
-    #q.page["state_header"].title = f"Epi Report for {q.client.disease}"
+    # q.page["state_header"].title = f"Epi Report for {q.client.disease}"
     await q.page.save()
     await on_update_UF(q)
     if q.client.city is not None:
@@ -209,7 +211,7 @@ async def on_update_UF(q: Q):
         q.client.uf = q.args.state
     await load_table(q)
 
-    today_date =  datetime.date.today()
+    today_date = datetime.date.today()
 
     sum_cases = await update_sum_cases(q, f'{today_date.year}-01-01', today_date.strftime('%Y-%m-%d'), None)
     q.page["state_header"].content = f"## Epi Report for {q.client.disease}\n ## {STATES[q.client.uf]}\nCumulative notified cases since Jan {datetime.date.today().year}: {sum_cases}"
@@ -255,7 +257,7 @@ async def on_update_city(q: Q):
         "analysis_header"
     ].content = f"## {q.client.cities[int(q.client.city)]}"
     create_analysis_form(q)
-    years = [#ui.choice(name=None, label='All'), 
+    years = [  # ui.choice(name=None, label='All'),
         ui.choice(name=str(y), label=str(y))
         for y in q.client.parameters[
             q.client.parameters.geocode == int(q.client.city)
@@ -270,13 +272,13 @@ async def on_update_city(q: Q):
 async def update_pars(q: Q):
     table = (
         "| Year | Beta | Gamma | R0 | Peak Week |  Start Week |  End Week | Duration | Cumulative cases estimated| Cumulative cases reported | \n"
-        #"|     estimated |  estimated    |    estimated   |  estimated  |   estimated   |  estimated  | estimated |  estimated | estimated | \n"
+        # "|     estimated |  estimated    |    estimated   |  estimated  |   estimated   |  estimated  | estimated |  estimated | estimated | \n"
         "| ---- | ---- | ----- | -- | ---- | ---- | ---- | ---- | ---- | ---- | \n"
     )
     for i, res in q.client.parameters[
         q.client.parameters.geocode == int(q.client.city)
     ].iterrows():
-        
+
         sum_cases = await update_sum_cases(q, f"{int(res['year'])-1}-11-01", f"{int(res['year'])}-11-01", int(q.client.city))
         table += (
             f"| {int(res['year'])} | {res['beta']:.2f} "
@@ -364,6 +366,9 @@ async def load_table(q: Q):
     global DATA_TABLE
     UF = q.client.uf
     disease = q.client.disease
+
+    if disease == "chik":
+        disease = "chikungunya"
 
     if os.path.exists(f"{EPISCANNER_DATA_DIR}/{UF}_{disease}.parquet"):
         logger.info("loading data...")
@@ -469,7 +474,7 @@ def add_sidebar(q):
                 required=True,
                 choices=[
                     ui.choice("dengue", "Dengue"),
-                    ui.choice("chikungunya", "Chikungunya"),
+                    ui.choice("chik", "Chikungunya"),
                 ],
                 trigger=True,
             ),
@@ -488,7 +493,8 @@ def add_sidebar(q):
                 trigger=True,
                 visible=False,
             ),
-            ui.text('The parameters table can be downloaded in the [Mosqlimate API](https://api.mosqlimate.org/docs/datastore/GET/episcanner/).')
+            ui.text(
+                'The parameters table can be downloaded in the [Mosqlimate API](https://api.mosqlimate.org/docs/datastore/GET/episcanner/).')
         ],
     )
     q.page["results"] = ui.markdown_card(
@@ -505,14 +511,15 @@ def create_analysis_form(q):
             ui.button(name="slice_year", label="Update"),
         ],
     )
-    title=(
-            f"SIR Parameters for {q.client.disease} Epidemics in "
-            f"{q.client.cities[int(q.client.city)]}"
-        )
+    title = (
+        f"SIR Parameters for {q.client.disease} Epidemics in "
+        f"{q.client.cities[int(q.client.city)]}"
+    )
     q.page["sir_pars"] = ui.form_card(
         box="SIR parameters",
         title='',
         items=[ui.text_l(content=f'<h1 style="font-size:18px;">{title}</h1>'),
-               ui.text(content='A description of each parameter below is available in the [Mosqlimate API](https://api.mosqlimate.org/docs/datastore/GET/episcanner/).'),
+               ui.text(
+                   content='A description of each parameter below is available in the [Mosqlimate API](https://api.mosqlimate.org/docs/datastore/GET/episcanner/).'),
                ui.text(name="sirp_table", content="")],
     )
