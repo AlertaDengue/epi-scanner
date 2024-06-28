@@ -14,6 +14,8 @@ services:
       - ../.env
     environment:
       - H2O_APP_ADDRESS=http://wave:8000
+      - H2O_WAVE_LOG=error
+      - H2O_WAVE_NO_LOG=1
       - H2O_WAVE_BASE_URL=/epi-scanner/
       - H2O_WAVE_LISTEN=:10101
       - H2O_WAVE_ADDRESS=http://wave:10101
