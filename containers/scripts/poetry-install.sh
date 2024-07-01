@@ -7,4 +7,5 @@ if [[ $ENV == "prod" ]]; then
 fi
 
 poetry config virtualenvs.create false
-poetry install $POETRY_INSTALL_ARGS
+poetry config installer.max-workers 10
+poetry install $POETRY_INSTALL_ARGS --no-interaction --no-ansi
