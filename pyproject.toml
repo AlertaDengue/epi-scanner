@@ -30,6 +30,7 @@ gpdvega = "^0.1.1rc1"
 scipy = "^1.7.1"
 compose-go = "^2.20.2"
 duckdb = "^0.10.1"
+virtualenv = "^20.26.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "*"
