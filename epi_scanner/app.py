@@ -124,17 +124,17 @@ async def serve(q: Q):
         await q.page.save()
 
 
-async def update_sum_cases(q: Q, start_date: str = '2024-01-01', end_date: str = '2024-12-31', city: Optional[int] = None):
-
+async def update_sum_cases(
+    q: Q,
+    start_date: str = '2024-01-01',
+    end_date: str = '2024-12-31',
+    city: Optional[int] = None
+):
     df = q.client.data_table
-
     df.sort_index(inplace=True)
-
     if city is not None:
         df = df[df.municipio_geocodigo == city]
-
     df = df.loc[start_date:end_date]
-
     return df.casos.sum()
 
 
@@ -153,7 +153,9 @@ async def update_weeks(q: Q):
         )
         ttext = await top_n_cities(q, 10)
         q.page["wtable"] = ui.form_card(
-            box="week_table", title="", items=[ui.text('**Top 10 cities**'), ui.text(ttext)]
+            box="week_table",
+            title="",
+            items=[ui.text('**Top 10 cities**'), ui.text(ttext)]
         )
 
 
@@ -169,23 +171,24 @@ async def update_r0map(q: Q):
     await q.page.save()
     q.page["plot_alt_R0"] = ui.vega_card(
         box="R0_map",
-        title=f"",
+        title="",
         specification=fig_alt.to_json(),
     )
     ttext = await top_n_R0(q, year, 10)
     q.page["R0table"] = ui.form_card(
         box="R0_table",
         title="",
-        items=[ui.text('**Top 10 R0s**'),
-               ui.slider(
-            name="r0year",
-            label="Year",
-            min=2010,
-            max=end_year,
-            step=1,
-            value=year,
-            trigger=True,
-        ),
+        items=[
+            ui.text('**Top 10 R0s**'),
+            ui.slider(
+                name="r0year",
+                label="Year",
+                min=2010,
+                max=end_year,
+                step=1,
+                value=year,
+                trigger=True,
+            ),
             ui.text(ttext),
         ],
     )
@@ -194,7 +197,6 @@ async def update_r0map(q: Q):
 
 async def on_update_disease(q: Q):
     q.client.disease = q.args.disease
-    # q.page["state_header"].title = f"Epi Report for {q.client.disease}"
     await q.page.save()
     await on_update_UF(q)
     if q.client.city is not None:
@@ -203,9 +205,9 @@ async def on_update_disease(q: Q):
 
 async def on_update_UF(q: Q):
     logger.info(
-        f"client.uf: {q.client.uf}, "
-        "args.state: {q.args.state}, "
-        "args.city:{q.args.city}"
+        f"\nclient.uf: {q.client.uf}"
+        f"\nargs.state: {q.args.state}"
+        f"\nargs.city: {q.args.city}"
     )
     if q.args.state is not None:
         q.client.uf = q.args.state
@@ -213,8 +215,15 @@ async def on_update_UF(q: Q):
 
     today_date = datetime.date.today()
 
-    sum_cases = await update_sum_cases(q, f'{today_date.year}-01-01', today_date.strftime('%Y-%m-%d'), None)
-    q.page["state_header"].content = f"## Epi Report for {q.client.disease}\n ## {STATES[q.client.uf]}\nCumulative notified cases since Jan {datetime.date.today().year}: {sum_cases}"
+    sum_cases = await update_sum_cases(
+        q,
+        f'{today_date.year}-01-01',
+        today_date.strftime('%Y-%m-%d'),
+        None
+    )
+
+    q.page["state_header"].content = f"## Epidemiological Report for {q.client.disease}\n ## {STATES[q.client.uf]}\nCumulative notified cases since Jan {datetime.date.today().year}: {sum_cases}"
+
     await q.page.save()
     await update_state_map(q)
     q.client.weeks = False
@@ -246,10 +255,10 @@ async def on_update_city(q: Q):
         q:
     """
     logger.info(
-        f"client.uf: {q.client.uf}, "
-        "args.state: {q.args.state}, "
-        "client.city:{q.client.city}, "
-        "args.city: {q.args.city}"
+        f"\nclient.uf: {q.client.uf}",
+        f"\nargs.state: {q.args.state}",
+        f"\nclient.city: {q.client.city}",
+        f"\nargs.city: {q.args.city}",
     )
     if (q.client.city != q.args.city) and (q.args.city is not None):
         q.client.city = q.args.city
@@ -257,7 +266,7 @@ async def on_update_city(q: Q):
         "analysis_header"
     ].content = f"## {q.client.cities[int(q.client.city)]}"
     create_analysis_form(q)
-    years = [  # ui.choice(name=None, label='All'),
+    years = [
         ui.choice(name=str(y), label=str(y))
         for y in q.client.parameters[
             q.client.parameters.geocode == int(q.client.city)
@@ -275,15 +284,21 @@ async def update_pars(q: Q):
         # "|     estimated |  estimated    |    estimated   |  estimated  |   estimated   |  estimated  | estimated |  estimated | estimated | \n"
         "| ---- | ---- | ----- | -- | ---- | ---- | ---- | ---- | ---- | ---- | \n"
     )
-    for i, res in q.client.parameters[
+    for _, res in q.client.parameters[
         q.client.parameters.geocode == int(q.client.city)
     ].iterrows():
-
-        sum_cases = await update_sum_cases(q, f"{int(res['year'])-1}-11-01", f"{int(res['year'])}-11-01", int(q.client.city))
+        sum_cases = await update_sum_cases(
+            q,
+            f"{int(res['year'])-1}-11-01",
+            f"{int(res['year'])}-11-01",
+            int(q.client.city)
+        )
         table += (
             f"| {int(res['year'])} | {res['beta']:.2f} "
             f"| {res['gamma']:.2f} | {res['R0']:.2f} "
-            f"| {int(res['ep_pw'])} |{int(res['ep_ini'])} |{int(res['ep_end'])} | {int(res['ep_dur'])} | {int(res['total_cases'])} | {sum_cases} | \n"
+            f"| {int(res['ep_pw'])} | {int(res['ep_ini'])} "
+            f"| {int(res['ep_end'])} | {int(res['ep_dur'])} "
+            f"| {int(res['total_cases'])} | {sum_cases} | \n"
         )
     q.page["sir_pars"].items[2].text.content = table
     await q.page.save()
@@ -392,7 +407,6 @@ async def load_table(q: Q):
         ]
         q.page["form"].items[2].dropdown.choices = choices
         q.page["form"].items[2].dropdown.visible = True
-        q.page["form"].items[2].dropdown.value = str(gc)
 
     await q.page.save()
 
@@ -492,6 +506,7 @@ def add_sidebar(q):
                 choices=[],
                 trigger=True,
                 visible=False,
+                placeholder="Nothing selected"
             ),
             ui.text(
                 'The parameters table can be downloaded in the [Mosqlimate API](https://api.mosqlimate.org/docs/datastore/GET/episcanner/).')
