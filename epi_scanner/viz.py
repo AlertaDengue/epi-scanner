@@ -122,6 +122,43 @@ def get_year_map(
     )
     return map_pars.fillna(0)
 
+def get_diff_map(
+    years:list, statemap:gpd.GeoDataFrame, data:pd.DataFrame, pars:pd.DataFrame
+) -> gpd.GeoDataFrame:
+    """
+    Merge map with cases and stimated cases
+    Args:
+        years: list of one or more years to be selected (???)
+        statemap: map to be merged
+        data: data tables
+        pars: parameters table
+
+    Returns:
+
+    """
+    
+    df = data[data.index.year == years[0]]
+    casos = df[['municipio_geocodigo','casos']].groupby('municipio_geocodigo').sum()
+    pop = df[['municipio_geocodigo','pop']].groupby('municipio_geocodigo').last()
+
+    map_diff = statemap.merge(casos,
+               left_on="code_muni",
+               right_index=True,
+               how="outer"
+        ).merge(pop,
+               left_on="code_muni",
+               right_index=True,
+               how="outer"
+        ).merge(pars[pars.year.astype(int).isin(years)],
+                left_on="code_muni",
+                right_on="geocode",
+                how="outer",
+        )[['name_muni','geometry','casos','total_cases','pop']]
+
+    map_diff['diff'] = map_diff['casos']-map_diff['total_cases']
+    map_diff['n_diff'] = map_diff['diff']/map_diff['pop']*1e5
+    return map_diff
+
 
 async def plot_pars_map(
     q, themap: gpd.GeoDataFrame, year: int, state: str, column="R0"
@@ -177,6 +214,46 @@ async def plot_pars_map_altair(
     )
     return spec
 
+async def plot_diff_map_altair(
+    q, statemap: gpd.GeoDataFrame, years: list, state: str, column="n_diff"
+):
+    map_diff = get_diff_map(years, statemap, q.client.data_table, q.client.parameters)
+    spec = (
+        alt.Chart(
+            data=map_diff,
+        )
+        .mark_geoshape(
+            fillOpacity = 0,
+            stroke='#666', 
+            strokeOpacity=0.5
+        )+
+        alt.Chart(
+            data=map_diff,
+        )
+        .mark_geoshape(
+            stroke='#666', 
+            strokeOpacity=0.5
+        )
+        .encode(
+            color=alt.Color(
+                f"{column}:Q",
+                sort="ascending",
+                scale=alt.Scale(
+                    type='threshold',
+                    domain = [-100,-25,25,100],
+                    range=['#cb2b2b', '#dc7080', '#48d085', '#00b4ca', '#006aea']
+                ),
+                legend=alt.Legend(
+                    title="Real Cases - Estimated Cases",
+                    orient="bottom",
+                    tickCount=10,
+                ),
+            ),
+            tooltip=["name_muni", column + ":Q"],
+        ).properties(width=500, height=400)
+    )
+    return spec
+
 
 async def top_n_cities(q: Q, n: int):
     wmap = q.client.weeks_map
@@ -202,6 +279,17 @@ async def top_n_R0(q: Q, year: int, n: int):
         rows=table[["name", "R0"]].round(decimals=2).values.tolist(),
     )
 
+async def top_n_diff(q:Q, year: int, n:int):
+    table = get_diff_map([year], q.client.statemap, q.client.data_table, q.client.parameters)
+    table["abs"] = abs(table["n_diff"])
+    table = (
+        table.sort_values("abs",ascending=False)[['name_muni','n_diff','diff']].head(n)
+    )
+    return make_markdown_table(
+        fields=["Names", "Diff/Pop", "Diff"],
+        rows=table[["name_muni", "n_diff", "diff"]].round(decimals=0).values.tolist(),
+    )
+    
 
 def make_markdown_row(values):
     return f"| {' | '.join([str(x) for x in values])} |"
