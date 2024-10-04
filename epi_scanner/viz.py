@@ -159,7 +159,7 @@ def get_diff_map(
                 how="outer",
         )[['name_muni','geometry','casos','total_cases','pop']]
 
-    map_diff['diff'] = map_diff['casos']-map_diff['total_cases']
+    map_diff['diff'] = map_diff['total_cases']-map_diff['casos']
     map_diff['n_diff'] = map_diff['diff']/map_diff['pop']*1e5
     return map_diff
 
@@ -222,7 +222,7 @@ async def plot_pars_map_altair(
     return spec
 
 async def plot_diff_map_altair(
-    q, statemap: gpd.GeoDataFrame, years: list, state: str, column="n_diff"
+    q, statemap: gpd.GeoDataFrame, years: list, state: str, column="n_diff", title ="Difference between Estimated and Real Incidence(100k) by city in"
 ):
     map_diff = get_diff_map(years, statemap, q.client.data_table, q.client.parameters)
     spec = (
@@ -251,13 +251,19 @@ async def plot_diff_map_altair(
                     range=['#cb2b2b', '#dc7080', '#48d085', '#00b4ca', '#006aea']
                 ),
                 legend=alt.Legend(
-                    title="Real Cases - Estimated Cases",
+                    title="Estimated Incidense - Real Incidence",
                     orient="bottom",
                     tickCount=10,
+                    titleLimit=250,
                 ),
             ),
-            tooltip=["name_muni", column + ":Q"],
-        ).properties(width=500, height=400)
+            tooltip=["name_muni", column + ":Q"],)
+        .properties(title={
+        "text": f"{title} {years[0]}",
+        "fontSize": 15,
+        "anchor": "start"}, 
+        width=500, height=400
+        )
     )
     return spec
 

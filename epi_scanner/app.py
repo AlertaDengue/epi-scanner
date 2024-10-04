@@ -208,14 +208,15 @@ async def update_diff(q:Q):
     await q.page.save()
     q.page["plot_alt_diff"] = ui.vega_card(
         box = "diff_map",
-        title = f"Difference between Real Cases and Estimated Cases (per 100K residents) by city in {year}",
+        title = f"",
         specification = fig_alt.to_json()
     )
     ttext = await top_n_diff(q, year, 10)
     q.page["difftable"] = ui.form_card(
         box="diff_table",
-        title="Top 10 Differences",
+        title="",
         items=[
+            ui.text("**Top 10 Differences**"),
             ui.slider(
                 name="diffyear",
                 label="Year",
