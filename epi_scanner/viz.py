@@ -59,7 +59,8 @@ async def plot_state_map(q, themap: gpd.GeoDataFrame, column=None):
     return image_path
 
 
-async def plot_state_map_altair(q: Q, themap: gpd.GeoDataFrame, column=None):
+async def plot_state_map_altair(q: Q, themap: gpd.GeoDataFrame, column=None, 
+                                title = 'Number of weeks of Rt > 1 since 2010'):
     spec = (
         alt.Chart(themap)
         .mark_geoshape()
@@ -78,7 +79,10 @@ async def plot_state_map_altair(q: Q, themap: gpd.GeoDataFrame, column=None):
             ),
             tooltip=["name_muni", column + ":Q"],
         )
-        .properties(width=500, height=400)
+        .properties(title={
+        "text": f"{title}",
+        "fontSize": 15,
+        "anchor": "start"}, width=500, height=400)
     )
     return spec
 
@@ -183,7 +187,7 @@ async def plot_pars_map(
 
 
 async def plot_pars_map_altair(
-    q, themap: gpd.GeoDataFrame, years: list, state: str, column="R0"
+    q, themap: gpd.GeoDataFrame, years: list, state: str, column="R0", title = 'R0 by city in'
 ):
     map_pars = get_year_map(years, themap, q.client.parameters)[
         ["geometry", "year", "name_muni", "R0"]
@@ -210,7 +214,10 @@ async def plot_pars_map_altair(
             ),
             tooltip=["name_muni", column + ":Q"],
         )
-        .properties(width=500, height=400)
+        .properties(title={
+        "text": f"{title} {years[0]}",
+        "fontSize": 15,
+        "anchor": "start"}, width=500, height=400)
     )
     return spec
 
@@ -350,12 +357,26 @@ def richards(L, a, b, t, tj):
 
 
 async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
+
+    if 'epi_year' in q.client and (q.client.epi_year is not None) and (q.client.epi_year != 'all'):
+
+        title = (
+            f"{q.client.disease.capitalize()} weekly cases "
+            f"in {q.client.epi_year} for {q.client.cities[int(q.client.city)]}"
+        )
+
+    else:
+        title = (
+            f"{q.client.disease.capitalize()} weekly cases "
+            f"in {q.client.cities[int(q.client.city)]}"
+        ) 
+
     df = q.client.data_table
     dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
     dfcity.sort_index(inplace=True)
     dfcity["casos_cum"] = dfcity.casos.cumsum()
     sirp = np.array([])
-    if 'epi_year' in q.client and (q.client.epi_year is not None):
+    if 'epi_year' in q.client and (q.client.epi_year is not None) and (q.client.epi_year != 'all'):
         sirp = q.client.parameters[
             (q.client.parameters.geocode == gc)
             & (q.client.parameters.year == int(q.client.epi_year))
@@ -367,18 +388,23 @@ async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
                 L, a, b, np.arange(len(dfcity.index)), tj
             )
     ch1 = (
-        alt.Chart(
+        alt.Chart( 
             dfcity.reset_index(),
             width=750,
             height=200,
+            title={
+            "text": f"{title}",
+            "fontSize": 15,
+            "anchor": "start"},
         )
         .mark_area(
             opacity=0.3,
             interpolate="step-after",
         )
+        
         .encode(
-            x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date")),
-            y=alt.Y("casos:Q", axis=alt.Axis(title="Cases")),
+            x=alt.X("data_iniSE:T", axis=alt.Axis(title="")),
+            y=alt.Y("casos:Q", axis=alt.Axis(title="Cases", titleFontSize = 12)),
             tooltip=["data_iniSE:T", "casos:Q"],
         )
     )
@@ -394,8 +420,8 @@ async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
             interpolate="step-after",
         )
         .encode(
-            x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date")),
-            y=alt.Y("casos_cum:Q", axis=alt.Axis(title="Cumulative Cases")),
+            x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date", titleFontSize = 12)),
+            y=alt.Y("casos_cum:Q", axis=alt.Axis(title="Cumulative Cases", titleFontSize=12)),
             tooltip=["data_iniSE:T", "casos_cum:Q", "Model fit:Q"],
         )
     )
