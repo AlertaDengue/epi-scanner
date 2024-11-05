@@ -355,8 +355,8 @@ def create_layout(q):
                                         name="analysis",
                                         direction=ui.ZoneDirection.COLUMN,
                                         zones=[
-                                            ui.zone("Year"),
                                             ui.zone("SIR parameters"),
+                                            ui.zone("Year"),
                                             ui.zone("SIR curves", size="100%"),
                                         ]
                                     ),
