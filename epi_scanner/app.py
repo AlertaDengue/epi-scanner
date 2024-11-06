@@ -1,6 +1,6 @@
 """
 This app analyzes dengue incidence
- across space and time in the south of Brasil.
+across space and time in the south of Brasil.
 
 To facilitate customization, we list below key information about the code.
 To avoid reloading data from disk the app maintains the following
