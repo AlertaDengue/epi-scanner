@@ -35,9 +35,11 @@ from epi_scanner.viz import (
     plot_series_altair,
     plot_state_map_altair,
     plot_pars_map_altair,
+    plot_diff_map_altair,
     t_weeks,
     top_n_cities,
     top_n_R0,
+    top_n_diff,
     update_state_map,
 )
 from h2o_wave import Q, app, copy_expando, data, main, ui  # Noqa F401
@@ -119,6 +121,9 @@ async def serve(q: Q):
     if q.args.r0year:
         await update_r0map(q)
         await q.page.save()
+    if q.args.diffyear:
+        await update_diff(q)
+        await q.page.save()
     if "slice_year" in q.args:
         await update_analysis(q)
         await q.page.save()
@@ -194,6 +199,37 @@ async def update_r0map(q: Q):
     )
     await q.page.save()
 
+async def update_diff(q:Q):
+    end_year = datetime.date.today().year
+    year = q.client.diffyear or (datetime.date.today().year-1)
+    fig_alt = await plot_diff_map_altair(
+        q, q.client.statemap, [year],STATES[q.client.uf]
+    )
+    await q.page.save()
+    q.page["plot_alt_diff"] = ui.vega_card(
+        box = "diff_map",
+        title = f"",
+        specification = fig_alt.to_json()
+    )
+    ttext = await top_n_diff(q, year, 10)
+    q.page["difftable"] = ui.form_card(
+        box="diff_table",
+        title="",
+        items=[
+            ui.text("**Top 10 Differences**"),
+            ui.slider(
+                name="diffyear",
+                label="Year",
+                min=2010,
+                max=end_year,
+                step=1,
+                value=year,
+                trigger=True,
+            ),
+            ui.text(ttext),
+        ],
+    )
+    await q.page.save()
 
 async def on_update_disease(q: Q):
     q.client.disease = q.args.disease
@@ -245,6 +281,7 @@ async def on_update_UF(q: Q):
 
     dump_results(q)
     await update_r0map(q)
+    await update_diff(q)
     await q.page.save()
 
 
@@ -349,6 +386,14 @@ def create_layout(q):
                                         zones=[
                                             ui.zone("R0_map", size="65%"),
                                             ui.zone("R0_table", size="35%"),
+                                        ]
+                                    ),
+                                    ui.zone(
+                                        name="diff",
+                                        direction=ui.ZoneDirection.ROW,
+                                        zones=[
+                                            ui.zone("diff_map", size="65%"),
+                                            ui.zone("diff_table", size="35%"),
                                         ]
                                     ),
                                     ui.zone(
