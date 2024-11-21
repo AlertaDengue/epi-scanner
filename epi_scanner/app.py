@@ -35,11 +35,12 @@ from epi_scanner.viz import (
     plot_series_altair,
     plot_state_map_altair,
     plot_pars_map_altair,
-    plot_diff_map_altair,
+    plot_model_evaluation_map_altair,
+    plot_model_evaluation_hist_altair,
     t_weeks,
     top_n_cities,
     top_n_R0,
-    top_n_diff,
+    table_model_evaluation,
     update_state_map,
 )
 from h2o_wave import Q, app, copy_expando, data, main, ui  # Noqa F401
@@ -121,8 +122,8 @@ async def serve(q: Q):
     if q.args.r0year:
         await update_r0map(q)
         await q.page.save()
-    if q.args.diffyear:
-        await update_diff(q)
+    if q.args.model_evaluation_year:
+        await update_model_evaluation(q)
         await q.page.save()
     if "slice_year" in q.args:
         await update_analysis(q)
@@ -199,26 +200,33 @@ async def update_r0map(q: Q):
     )
     await q.page.save()
 
-async def update_diff(q:Q):
+async def update_model_evaluation(q:Q):
     end_year = datetime.date.today().year
-    year = q.client.diffyear or (datetime.date.today().year-1)
-    fig_alt = await plot_diff_map_altair(
+    year = q.client.model_evaluation_year or (datetime.date.today().year-1)
+    fig_alt = await plot_model_evaluation_map_altair(
         q, q.client.statemap, [year],STATES[q.client.uf]
     )
     await q.page.save()
-    q.page["plot_alt_diff"] = ui.vega_card(
-        box = "diff_map",
+    q.page["map_alt_model_evaluation"] = ui.vega_card(
+        box = "model_evaluation_map",
         title = f"",
         specification = fig_alt.to_json()
     )
-    ttext = await top_n_diff(q, year, 10)
-    q.page["difftable"] = ui.form_card(
-        box="diff_table",
+    fig_alt = await plot_model_evaluation_hist_altair(
+        q, q.client.statemap, [year], STATES[q.client.uf]
+    )
+    await q.page.save()
+    q.page["hist_alt_model_evaluation"] = ui.vega_card(
+        box = "model_evaluation_hist",
+        title = f"",
+        specification = fig_alt.to_json()
+    )
+    q.page["timeslide_evaluation_model"] = ui.form_card(
+        box="model_evaluation_time",
         title="",
         items=[
-            ui.text("**Top 10 Differences**"),
             ui.slider(
-                name="diffyear",
+                name="model_evaluation_year",
                 label="Year",
                 min=2010,
                 max=end_year,
@@ -226,7 +234,13 @@ async def update_diff(q:Q):
                 value=year,
                 trigger=True,
             ),
-            ui.text(ttext),
+        ],
+    )
+    table = await table_model_evaluation(q, year)
+    q.page["table_model_evaluation"] = ui.form_card(
+        box="model_evaluation_table",
+        items=[
+        ui.text(table)
         ],
     )
     await q.page.save()
@@ -281,7 +295,7 @@ async def on_update_UF(q: Q):
 
     dump_results(q)
     await update_r0map(q)
-    await update_diff(q)
+    await update_model_evaluation(q)
     await q.page.save()
 
 
@@ -389,11 +403,20 @@ def create_layout(q):
                                         ]
                                     ),
                                     ui.zone(
-                                        name="diff",
+                                        name="model_evaluation",
                                         direction=ui.ZoneDirection.ROW,
                                         zones=[
-                                            ui.zone("diff_map", size="65%"),
-                                            ui.zone("diff_table", size="35%"),
+                                            ui.zone("model_evaluation_map", size="65%"),
+                                            ui.zone(
+                                                name = "model_evaluation_column", 
+                                                size="35%",
+                                                direction=ui.ZoneDirection.COLUMN,
+                                                zones = [
+                                                    ui.zone("model_evaluation_time"),
+                                                    ui.zone("model_evaluation_hist"),
+                                                    ui.zone("model_evaluation_table")
+                                                ]
+                                            ),
                                         ]
                                     ),
                                     ui.zone(

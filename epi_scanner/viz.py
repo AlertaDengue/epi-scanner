@@ -126,11 +126,11 @@ def get_year_map(
     )
     return map_pars.fillna(0)
 
-def get_diff_map(
-    years:list, statemap:gpd.GeoDataFrame, data:pd.DataFrame, pars:pd.DataFrame
+def get_rate_map(
+    years:list, statemap:gpd.GeoDataFrame, data:pd.DataFrame, pars:pd.DataFrame, 
 ) -> gpd.GeoDataFrame:
     """
-    Merge map with cases and stimated cases
+    Merge map with rate between cases and estimated cases
     Args:
         years: list of one or more years to be selected (???)
         statemap: map to be merged
@@ -140,16 +140,11 @@ def get_diff_map(
     Returns:
 
     """
-    
-    df = data[data.index.year == years[0]]
-    casos = df[['municipio_geocodigo','casos']].groupby('municipio_geocodigo').sum()
-    pop = df[['municipio_geocodigo','pop']].groupby('municipio_geocodigo').last()
+    year = years[0]
+    df = data[data["SE"].isin(range((year-1)*100+45,year*100+45))] 
+    casos = df[['municipio_geocodigo','casos']].groupby('municipio_geocodigo').sum().rename(columns={'casos':'observed_cases'})
 
-    map_diff = statemap.merge(casos,
-               left_on="code_muni",
-               right_index=True,
-               how="outer"
-        ).merge(pop,
+    map_rate = statemap.merge(casos,
                left_on="code_muni",
                right_index=True,
                how="outer"
@@ -157,11 +152,10 @@ def get_diff_map(
                 left_on="code_muni",
                 right_on="geocode",
                 how="outer",
-        )[['name_muni','geometry','casos','total_cases','pop']]
+        )[['name_muni','geometry','observed_cases','total_cases']]
 
-    map_diff['diff'] = map_diff['total_cases']-map_diff['casos']
-    map_diff['n_diff'] = map_diff['diff']/map_diff['pop']*1e5
-    return map_diff
+    map_rate['rate'] = map_rate['observed_cases']/map_rate['total_cases']
+    return map_rate
 
 
 async def plot_pars_map(
@@ -221,51 +215,110 @@ async def plot_pars_map_altair(
     )
     return spec
 
-async def plot_diff_map_altair(
-    q, statemap: gpd.GeoDataFrame, years: list, state: str, column="n_diff", title ="Difference between Estimated and Real Incidence(100k) by city in"
+async def plot_model_evaluation_map_altair(
+        q, statemap: gpd.GeoDataFrame, years: list, state: str, column="rate", title = "Observed Cases/Estimated Cases by city in", 
+        bins = [1/2,95/100,1.05,2], color_list = ['#006aea', '#00b4ca', '#48d085', '#dc7080', '#cb2b2b']
 ):
-    map_diff = get_diff_map(years, statemap, q.client.data_table, q.client.parameters)
-    spec = (
+    map_rate = get_rate_map(years, statemap, q.client.data_table, q.client.parameters)
+    legend_table = pd.DataFrame(
+        [
+            [0,1,0,bins[0],'a'],
+            [1,2,bins[0],bins[1],'b'],
+            [2,3,bins[1],bins[2],'c'],
+            [3,4,bins[2],bins[3],'d'],
+            [4,5,bins[3],bins[3]+1,'e']
+        ],
+        columns=['x1','x2','v1','v2','color'])
+
+    map = (
         alt.Chart(
-            data=map_diff,
-        )
-        .mark_geoshape(
-            fillOpacity = 0,
-            stroke='#666', 
+            data=map_rate,
+        ).mark_geoshape(
+            fillOpacity = 0.5,
+            fill = 'grey',
+            stroke='#000', 
             strokeOpacity=0.5
-        )+
-        alt.Chart(
-            data=map_diff,
-        )
-        .mark_geoshape(
-            stroke='#666', 
+        )+alt.Chart(
+            data=map_rate,
+        ).mark_geoshape(
+            stroke='#000', 
             strokeOpacity=0.5
-        )
-        .encode(
+        ).encode(
             color=alt.Color(
                 f"{column}:Q",
                 sort="ascending",
                 scale=alt.Scale(
                     type='threshold',
-                    domain = [-100,-25,25,100],
-                    range=['#cb2b2b', '#dc7080', '#48d085', '#00b4ca', '#006aea']
+                    domain = bins,
+                    range= color_list
                 ),
-                legend=alt.Legend(
-                    title="Estimated Incidense - Real Incidence",
-                    orient="bottom",
-                    tickCount=10,
-                    titleLimit=250,
-                ),
+                legend= None
             ),
-            tooltip=["name_muni", column + ":Q"],)
-        .properties(title={
-        "text": f"{title} {years[0]}",
-        "fontSize": 15,
-        "anchor": "start"}, 
-        width=500, height=400
+            tooltip=["name_muni", column + ":Q"],
+        ).properties(
+            title={
+                "text": f"{title} {years[0]}",
+                "fontSize": 15,
+                "anchor": "start"}, 
+            width=500,
+            height=400
         )
     )
+
+    legend = (
+        alt.Chart(legend_table,height=70).mark_rect().encode(
+            x=alt.X('x1',scale=alt.Scale(),axis=None),x2='x2',
+            y=alt.datum(0,scale=alt.Scale(),axis=None),y2=alt.datum(1),
+            color=alt.Color('color',legend=None, scale=alt.Scale(range= color_list))
+        )+alt.Chart(legend_table).mark_text(size=10).encode(
+            x='x1',text='v1',y=alt.datum(-.8)
+        )+alt.Chart(legend_table).mark_rule(opacity=0.6).encode(
+            x='x1',y=alt.datum(1),y2=alt.datum(-0.4)
+        )+alt.Chart().mark_rule().encode(x=alt.datum(0),x2=alt.datum(1.95),y=alt.datum(1.1)
+        )+alt.Chart().mark_rule().encode(x=alt.datum(2.05),x2=alt.datum(2.95),y=alt.datum(1.1)
+        )+alt.Chart().mark_rule().encode(x=alt.datum(3.05),x2=alt.datum(5),y=alt.datum(1.1)
+        )+alt.Chart().mark_text(size=10).encode(x=alt.datum(1),y=alt.datum(1.5),text=alt.datum('Underestimated')
+        )+alt.Chart().mark_text(size=10).encode(x=alt.datum(2.5),y=alt.datum(1.5),text=alt.datum('Good')
+        )+alt.Chart().mark_text(size=10).encode(x=alt.datum(4),y=alt.datum(1.5),text=alt.datum('Overestimated')
+        )+alt.Chart().mark_text(size=12,fontWeight='bold').encode(x=alt.datum(2.5),y=alt.datum(2.5),text=alt.datum('Model Evaluation')
+        )+alt.Chart().mark_text(size=11,fontWeight='bold').encode(x=alt.datum(2.5),y=alt.datum(-1.6),text=alt.datum("Observed Cases/Estimated Cases"))
+        )+alt.Chart().mark_text(
+            text="* Cities in gray didn't\nhave an epidemic.",size=12,color='grey', align='left', baseline='bottom'
+        ).encode(x=alt.datum(6),y=alt.datum(2.5))
+    
+
+    spec = map & legend
     return spec
+
+async def plot_model_evaluation_hist_altair(
+        q, statemap: gpd.GeoDataFrame, years: list, state: str, column="rate",
+        bins = [1/2,95/100,1.05,2], color_list = ['#006aea', '#00b4ca', '#48d085', '#dc7080', '#cb2b2b']
+):
+    map_rate = get_rate_map(years, statemap, q.client.data_table, q.client.parameters)
+
+    hist = (alt.Chart(map_rate, width = 250).mark_bar().encode(
+        x=alt.X(
+            'rate:Q',
+            title ="Observed Cases/Estimated Cases",
+            bin=alt.Bin(step=0.05,extent=[0,3]), 
+            axis=alt.Axis(values=bins)),
+        y=alt.Y(
+            'count()',
+            title='Count of cities', 
+            scale=alt.Scale(type='sqrt')),
+        color=alt.Color(
+            f"{column}:Q",
+            sort="ascending",
+            scale=alt.Scale(
+                type='threshold',
+                domain = bins,
+                range= color_list
+            ),
+        legend= None
+        ))
+    )
+    return hist
+
 
 
 async def top_n_cities(q: Q, n: int):
@@ -292,17 +345,31 @@ async def top_n_R0(q: Q, year: int, n: int):
         rows=table[["name", "R0"]].round(decimals=2).values.tolist(),
     )
 
-async def top_n_diff(q:Q, year: int, n:int):
-    table = get_diff_map([year], q.client.statemap, q.client.data_table, q.client.parameters)
-    table["abs"] = abs(table["n_diff"])
-    table = (
-        table.sort_values("abs",ascending=False)[['name_muni','n_diff','diff']].head(n)
+async def table_model_evaluation(q:Q, year: int, bins = [0, 0.5, 0.95, 1.05, 2, np.inf]):
+    df = q.client.data_table[q.client.data_table["SE"].isin(range((year-1)*100+45,year*100+45))] 
+    cases = df[['municipio_nome','municipio_geocodigo','casos']].groupby(['municipio_nome','municipio_geocodigo']).sum()
+    cases = cases.rename(columns={'casos':'observed_cases'}).reset_index()
+
+    map_rate = cases.merge(
+        q.client.parameters[q.client.parameters.year.astype(int).isin([year])],
+        left_on="municipio_geocodigo",
+        right_on="geocode",
+        how="outer",
+    )[['municipio_nome','observed_cases','total_cases']]
+
+    map_rate['rate'] = map_rate['observed_cases']/map_rate['total_cases']
+
+    groupby_rate = map_rate[['municipio_nome']].groupby(pd.cut(map_rate['rate'], bins=bins)).count().reset_index()
+    groupby_rate['perc'] = np.round(groupby_rate['municipio_nome']/groupby_rate.municipio_nome.sum()*100,2)
+
+    groupby_rate['text'] = groupby_rate.municipio_nome.astype(str) + "(" + groupby_rate.perc.astype(str)+'%)' 
+
+    table = make_markdown_table(
+        fields=["Range", "Range Counts(%)"],
+        rows=groupby_rate[["rate", "text"]].values.tolist(),
     )
-    return make_markdown_table(
-        fields=["Names", "Diff/Pop", "Diff"],
-        rows=table[["name_muni", "n_diff", "diff"]].round(decimals=0).values.tolist(),
-    )
-    
+
+    return table
 
 def make_markdown_row(values):
     return f"| {' | '.join([str(x) for x in values])} |"
