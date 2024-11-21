@@ -36,10 +36,11 @@ from epi_scanner.viz import (
     plot_state_map_altair,
     plot_pars_map_altair,
     plot_model_evaluation_map_altair,
+    plot_model_evaluation_hist_altair,
     t_weeks,
     top_n_cities,
     top_n_R0,
-    top_n_diff,
+    table_model_evaluation,
     update_state_map,
 )
 from h2o_wave import Q, app, copy_expando, data, main, ui  # Noqa F401
@@ -206,17 +207,21 @@ async def update_model_evaluation(q:Q):
         q, q.client.statemap, [year],STATES[q.client.uf]
     )
     await q.page.save()
-    q.page["plot_model_evaluationI"] = ui.vega_card(
+    q.page["map_alt_model_evaluation"] = ui.vega_card(
         box = "model_evaluation_map",
         title = f"",
-        specification = fig_alt[0].to_json()
+        specification = fig_alt.to_json()
     )
-    q.page["plot_model_evaluationII"] = ui.vega_card(
+    fig_alt = await plot_model_evaluation_hist_altair(
+        q, q.client.statemap, [year], STATES[q.client.uf]
+    )
+    await q.page.save()
+    q.page["hist_alt_model_evaluation"] = ui.vega_card(
         box = "model_evaluation_hist",
         title = f"",
-        specification = fig_alt[1].to_json()
+        specification = fig_alt.to_json()
     )
-    q.page["table_model_evaluationI"] = ui.form_card(
+    q.page["timeslide_evaluation_model"] = ui.form_card(
         box="model_evaluation_time",
         title="",
         items=[
@@ -231,10 +236,11 @@ async def update_model_evaluation(q:Q):
             ),
         ],
     )
-    q.page["table_model_evaluationII"] = ui.form_card(
+    table = await table_model_evaluation(q, year)
+    q.page["table_model_evaluation"] = ui.form_card(
         box="model_evaluation_table",
         items=[
-        ui.text(fig_alt[2])
+        ui.text(table)
         ],
     )
     await q.page.save()
@@ -397,15 +403,12 @@ def create_layout(q):
                                         ]
                                     ),
                                     ui.zone(
-                                        name="model_evaluation_I",
+                                        name="model_evaluation",
                                         direction=ui.ZoneDirection.ROW,
                                         zones=[
+                                            ui.zone("model_evaluation_map", size="65%"),
                                             ui.zone(
-                                                name="model_evaluation_map", 
-                                                size="65%",
-                                            ),
-                                            ui.zone(
-                                                name ="model_evaluation_", 
+                                                name = "model_evaluation_column", 
                                                 size="35%",
                                                 direction=ui.ZoneDirection.COLUMN,
                                                 zones = [
