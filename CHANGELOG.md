@@ -1,6 +1,12 @@
 Release Notes
 ---
 
+## [1.4.0](https://github.com/AlertaDengue/epi-scanner/compare/1.3.0...1.4.0) (2024-11-21)
+
+### Features
+
+* add peak week line in the dashboard ([13e91e4](https://github.com/AlertaDengue/epi-scanner/commit/13e91e4e5663cb33e649074d1e6b519ee51a50d6))
+
 ## [1.3.0](https://github.com/AlertaDengue/epi-scanner/compare/1.2.0...1.3.0) (2024-11-06)
 
 ### Features
