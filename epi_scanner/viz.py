@@ -393,6 +393,17 @@ async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
             dfcity["Model fit"] = richards(
                 L, a, b, np.arange(len(dfcity.index)), tj
             )
+
+        dfcity['model_legend'] = 'Model'
+
+        vertical_line = alt.Chart(pd.DataFrame({'x': [dfcity.index[int(round(tj,0))]],
+                                                'label':['Peak week']})).mark_rule(size=2).encode(
+        x='x:T', 
+        color = alt.Color('label:N', scale = alt.Scale(domain=['Peak week'], range=['orange']),  # Define specific color for 'Threshold'
+        legend=alt.Legend(title=" ", orient = 'left', offset=-130)
+        ))
+
+        
     ch1 = (
         alt.Chart( 
             dfcity.reset_index(),
@@ -410,7 +421,7 @@ async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
         
         .encode(
             x=alt.X("data_iniSE:T", axis=alt.Axis(title="")),
-            y=alt.Y("casos:Q", axis=alt.Axis(title="Cases", titleFontSize = 12)),
+            y=alt.Y("casos:Q", axis=alt.Axis(title="New Cases", titleFontSize = 12)),
             tooltip=["data_iniSE:T", "casos:Q"],
         )
     )
@@ -434,13 +445,21 @@ async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
     if 'epi_year' in q.client and sirp.any():
         model = (
             alt.Chart(dfcity.reset_index())
-            .mark_line(color="red")
+            .mark_line()
             .encode(
                 x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date")),
-                y=alt.Y("Model fit:Q", axis=alt.Axis(title="Model fit")),
+                y=alt.Y("Model fit:Q", axis=alt.Axis(title="")),
+                color=alt.Color('model_legend:N',
+                                scale = alt.Scale(domain=['Model'], range=['red']), 
+                                legend=alt.Legend(title="", orient="left",          # Position legend on the left
+                direction="vertical",    # Arrange items vertically
+                titleAnchor="middle",    # Center-align the title within the legend
+                offset=-130))
             )
         )
-        spec = alt.vconcat(ch1, ch2 + model)  # leaving this off for now
+        spec = alt.vconcat(ch1+vertical_line, (ch2 + vertical_line +model).resolve_scale(
+    color='independent')).resolve_scale(
+    color='independent')  # Keep color scales independent for separate legends)  # leaving this off for now
     else:
         spec = alt.vconcat(ch1, ch2)
     return spec

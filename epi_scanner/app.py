@@ -1,6 +1,6 @@
 """
 This app analyzes dengue incidence
- across space and time in the south of Brasil.
+across space and time in the south of Brasil.
 
 To facilitate customization, we list below key information about the code.
 To avoid reloading data from disk the app maintains the following
@@ -400,8 +400,8 @@ def create_layout(q):
                                         name="analysis",
                                         direction=ui.ZoneDirection.COLUMN,
                                         zones=[
-                                            ui.zone("Year"),
                                             ui.zone("SIR parameters"),
+                                            ui.zone("Year"),
                                             ui.zone("SIR curves", size="100%"),
                                         ]
                                     ),
