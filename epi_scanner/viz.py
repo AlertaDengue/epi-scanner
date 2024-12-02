@@ -315,36 +315,40 @@ async def plot_model_evaluation_map_altair(
         .mark_rule()
         .encode(x=datum(3.05), x2=datum(5), y=datum(1.1))
         + alt.Chart()
-        .mark_text(size=10)
-        .encode(x=datum(1), y=datum(1.5), text=datum("Underestimated"))
+        .mark_text(size=10, text="Underestimated")
+        .encode(x=datum(1), y=datum(1.5))
         + alt.Chart()
-        .mark_text(size=10)
-        .encode(x=datum(2.5), y=datum(1.5), text=datum("Good"))
+        .mark_text(size=10, text="Good")
+        .encode(x=datum(2.5), y=datum(1.5))
         + alt.Chart()
-        .mark_text(size=10)
-        .encode(x=datum(4), y=datum(1.5), text=datum("Overestimated"))
+        .mark_text(size=10, text="Overestimated")
+        .encode(x=datum(4), y=datum(1.5))
         + alt.Chart()
-        .mark_text(size=12, fontWeight="bold")
-        .encode(
-            x=datum(2.5),
-            y=datum(2.5),
-            text=datum("Model Evaluation"),
+        .mark_text(size=12, text="Model Evaluation")
+        .encode(x=datum(2.5), y=datum(2.5))
+        + alt.Chart()
+        .mark_text(size=11, text="Observed Cases/Estimated Cases")
+        .encode(x=datum(2.5), y=datum(-1.6))
+        + alt.Chart()
+        .mark_text(
+            text="* Cities in gray did not have an",
+            size=12,
+            color="grey",
+            align="left",
+            baseline="bottom",
+            dx=20,
         )
+        .encode(x=datum(5), y=datum(2.5))
         + alt.Chart()
-        .mark_text(size=11, fontWeight="bold")
-        .encode(
-            x=datum(2.5),
-            y=datum(-1.6),
-            text=datum("Observed Cases/Estimated Cases"),
+        .mark_text(
+            text="epidemic detected.",
+            size=12,
+            color="grey",
+            align="left",
+            baseline="bottom",
+            dx=30,
         )
-    ) + alt.Chart().mark_text(
-        text="* Cities in gray didn't\nhave an epidemic.",
-        size=12,
-        color="grey",
-        align="left",
-        baseline="bottom",
-    ).encode(
-        x=datum(5), y=datum(2.5)
+        .encode(x=datum(5), y=datum(1.5))
     )
 
     spec = map & legend
