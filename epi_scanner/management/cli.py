@@ -1,4 +1,5 @@
 import argparse
+
 from epi_scanner.management.fetch_data import data_to_parquet
 from epi_scanner.settings import EPISCANNER_DATA_DIR
 
@@ -9,13 +10,13 @@ def Command():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "disease",
-        help="disease name. Options: ['dengue', 'zika', 'chikungunya']"
+        help="disease name. Options: ['dengue', 'zika', 'chikungunya']",
     )
     parser.add_argument(
         "uf",
-        nargs='?',
+        nargs="?",
         default=None,
-        help="state abbreviation codes. None to all UFs"
+        help="state abbreviation codes. None to all UFs",
     )
 
     args = parser.parse_args()

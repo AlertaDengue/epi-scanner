@@ -17,25 +17,24 @@ To avoid reloading data from disk the app maintains the following
 - q.client.disease: name of the currently selected disease.
 - q.client.parameters: SIR parameters for every city/year in current state.
 """
-import os
 import datetime
+import os
 import warnings
-from typing import List
 from pathlib import Path
-from typing import Optional
-import pandas as pd
+from typing import List, Optional
+
 import duckdb
-from epi_scanner.settings import (
-    EPISCANNER_DATA_DIR,
-    EPISCANNER_DUCKDB_DIR,
-    STATES
-)
+import pandas as pd
+from epi_scanner.settings import EPISCANNER_DATA_DIR, EPISCANNER_DUCKDB_DIR, STATES
 from epi_scanner.viz import (
     load_map,
+    plot_model_evaluation_hist_altair,
+    plot_model_evaluation_map_altair,
+    plot_pars_map_altair,
     plot_series_altair,
     plot_state_map_altair,
-    plot_pars_map_altair,
     t_weeks,
+    table_model_evaluation,
     top_n_cities,
     top_n_R0,
     update_state_map,
@@ -46,8 +45,8 @@ from loguru import logger
 warnings.filterwarnings("ignore")
 
 DATA_TABLE = None
-DUCKDB_FILE = Path(os.path.join(
-    str(EPISCANNER_DUCKDB_DIR), "episcanner.duckdb")
+DUCKDB_FILE = Path(
+    os.path.join(str(EPISCANNER_DUCKDB_DIR), "episcanner.duckdb")
 )
 
 
@@ -78,7 +77,9 @@ async def initialize_app(q: Q):
     await q.page.save()
 
     q.page["state_header"] = ui.markdown_card(
-        box="pre", title=f"", content=f"## Epidemiological Report for {q.client.disease}"
+        box="pre",
+        title="",
+        content=f"## Epidemiological Report for {q.client.disease}",
     )
     add_sidebar(q)
     q.page["analysis_header"] = ui.markdown_card(
@@ -91,7 +92,7 @@ async def initialize_app(q: Q):
             f"(c) {year} [Infodengue](https://info.dengue.mat.br). "
             "All rights reserved.\n"
             "Powered by [Mosqlimate](https://mosqlimate.org) & [EpiGraphHub](https://epigraphhub.org/)"
-        )
+        ),
     )
     q.page["form"].items[0].dropdown.value = q.client.disease
 
@@ -119,6 +120,9 @@ async def serve(q: Q):
     if q.args.r0year:
         await update_r0map(q)
         await q.page.save()
+    if q.args.model_evaluation_year:
+        await update_model_evaluation(q)
+        await q.page.save()
     if "slice_year" in q.args:
         await update_analysis(q)
         await q.page.save()
@@ -126,9 +130,9 @@ async def serve(q: Q):
 
 async def update_sum_cases(
     q: Q,
-    start_date: str = '2024-01-01',
-    end_date: str = '2024-12-31',
-    city: Optional[int] = None
+    start_date: str = "2024-01-01",
+    end_date: str = "2024-12-31",
+    city: Optional[int] = None,
 ):
     df = q.client.data_table
     df.sort_index(inplace=True)
@@ -155,7 +159,7 @@ async def update_weeks(q: Q):
         q.page["wtable"] = ui.form_card(
             box="week_table",
             title="",
-            items=[ui.text('**Top 10 cities**'), ui.text(ttext)]
+            items=[ui.text("**Top 10 cities**"), ui.text(ttext)],
         )
 
 
@@ -179,7 +183,7 @@ async def update_r0map(q: Q):
         box="R0_table",
         title="",
         items=[
-            ui.text('**Top 10 R0s**'),
+            ui.text("**Top 10 R0s**"),
             ui.slider(
                 name="r0year",
                 label="Year",
@@ -191,6 +195,46 @@ async def update_r0map(q: Q):
             ),
             ui.text(ttext),
         ],
+    )
+    await q.page.save()
+
+
+async def update_model_evaluation(q: Q):
+    end_year = datetime.date.today().year
+    year = q.client.model_evaluation_year or (datetime.date.today().year - 1)
+    fig_alt = await plot_model_evaluation_map_altair(
+        q, q.client.statemap, [year], STATES[q.client.uf]
+    )
+    await q.page.save()
+    q.page["map_alt_model_evaluation"] = ui.vega_card(
+        box="model_evaluation_map", title="", specification=fig_alt.to_json()
+    )
+    fig_alt = await plot_model_evaluation_hist_altair(
+        q, q.client.statemap, [year], STATES[q.client.uf]
+    )
+    await q.page.save()
+    q.page["hist_alt_model_evaluation"] = ui.vega_card(
+        box="model_evaluation_hist", title="", specification=fig_alt.to_json()
+    )
+    q.page["timeslide_evaluation_model"] = ui.form_card(
+        box="model_evaluation_time",
+        title="",
+        items=[
+            ui.slider(
+                name="model_evaluation_year",
+                label="Year",
+                min=2010,
+                max=end_year,
+                step=1,
+                value=year,
+                trigger=True,
+            ),
+        ],
+    )
+    table = await table_model_evaluation(q, year)
+    q.page["table_model_evaluation"] = ui.form_card(
+        box="model_evaluation_table",
+        items=[ui.text(table)],
     )
     await q.page.save()
 
@@ -216,13 +260,12 @@ async def on_update_UF(q: Q):
     today_date = datetime.date.today()
 
     sum_cases = await update_sum_cases(
-        q,
-        f'{today_date.year}-01-01',
-        today_date.strftime('%Y-%m-%d'),
-        None
+        q, f"{today_date.year}-01-01", today_date.strftime("%Y-%m-%d"), None
     )
 
-    q.page["state_header"].content = f"## Epidemiological Report for {q.client.disease}\n ## {STATES[q.client.uf]}\nCumulative notified cases since Jan {datetime.date.today().year}: {sum_cases}"
+    q.page[
+        "state_header"
+    ].content = f"## Epidemiological Report for {q.client.disease}\n ## {STATES[q.client.uf]}\nCumulative notified cases since Jan {datetime.date.today().year}: {sum_cases}"
 
     await q.page.save()
     await update_state_map(q)
@@ -245,6 +288,7 @@ async def on_update_UF(q: Q):
 
     dump_results(q)
     await update_r0map(q)
+    await update_model_evaluation(q)
     await q.page.save()
 
 
@@ -272,7 +316,7 @@ async def on_update_city(q: Q):
             q.client.parameters.geocode == int(q.client.city)
         ].year
     ]
-    years.insert(0, ui.choice(name='all', label='All'))
+    years.insert(0, ui.choice(name="all", label="All"))
     q.page["years"].items[0].dropdown.choices = years
     await update_analysis(q)
     await q.page.save()
@@ -291,7 +335,7 @@ async def update_pars(q: Q):
             q,
             f"{int(res['year'])-1}-11-01",
             f"{int(res['year'])}-11-01",
-            int(q.client.city)
+            int(q.client.city),
         )
         table += (
             f"| {int(res['year'])} | {res['beta']:.2f} "
@@ -349,7 +393,33 @@ def create_layout(q):
                                         zones=[
                                             ui.zone("R0_map", size="65%"),
                                             ui.zone("R0_table", size="35%"),
-                                        ]
+                                        ],
+                                    ),
+                                    ui.zone(
+                                        name="model_evaluation",
+                                        direction=ui.ZoneDirection.ROW,
+                                        zones=[
+                                            ui.zone(
+                                                "model_evaluation_map",
+                                                size="65%",
+                                            ),
+                                            ui.zone(
+                                                name="model_evaluation_column",
+                                                size="35%",
+                                                direction=ui.ZoneDirection.COLUMN,
+                                                zones=[
+                                                    ui.zone(
+                                                        "model_evaluation_time"
+                                                    ),
+                                                    ui.zone(
+                                                        "model_evaluation_hist"
+                                                    ),
+                                                    ui.zone(
+                                                        "model_evaluation_table"
+                                                    ),
+                                                ],
+                                            ),
+                                        ],
                                     ),
                                     ui.zone(
                                         name="analysis",
@@ -358,7 +428,7 @@ def create_layout(q):
                                             ui.zone("SIR parameters"),
                                             ui.zone("Year"),
                                             ui.zone("SIR curves", size="100%"),
-                                        ]
+                                        ],
                                     ),
                                 ],
                             ),
@@ -397,8 +467,9 @@ async def load_table(q: Q):
                 city_name = q.client.brmap[
                     q.client.brmap.code_muni.astype(int) == int(gc)
                 ].name_muni.values
-                q.client.cities[int(gc)] = '' if not city_name.any(
-                ) else city_name[0]
+                q.client.cities[int(gc)] = (
+                    "" if not city_name.any() else city_name[0]
+                )
             except IndexError:
                 pass  # If city is missing in the map, ignore it
         choices = [
@@ -412,7 +483,7 @@ async def load_table(q: Q):
 
 
 async def update_analysis(q):
-    if (q.client.epi_year is None) or (q.client.epi_year == 'all'):
+    if (q.client.epi_year is None) or (q.client.epi_year == "all"):
         syear = 2011
         eyear = datetime.date.today().year
     else:
@@ -421,9 +492,7 @@ async def update_analysis(q):
         q, int(q.client.city), f"{int(syear)-1}-11-01", f"{eyear}-11-01"
     )
     q.page["ts_plot_alt"] = ui.vega_card(
-        box="SIR curves",
-        title='',
-        specification=altair_plot.to_json()
+        box="SIR curves", title="", specification=altair_plot.to_json()
     )
     await q.page.save()
     await update_pars(q)
@@ -444,7 +513,9 @@ def dump_results(q):
         report[
             q.client.cities[gc]
         ] = f"{len(citydf)} epidemic years: {list(sorted(citydf.year))}\n"
-    for n, linha in sorted(report.items(), key=lambda x: x[1], reverse=True)[:20]:
+    for n, linha in sorted(report.items(), key=lambda x: x[1], reverse=True)[
+        :20
+    ]:
         results += f"**{n}** :{linha}\n"
     q.page["results"].content = results
 
@@ -506,14 +577,17 @@ def add_sidebar(q):
                 choices=[],
                 trigger=True,
                 visible=False,
-                placeholder="Nothing selected"
+                placeholder="Nothing selected",
             ),
             ui.text(
-                'The parameters table can be downloaded in the [Mosqlimate API](https://api.mosqlimate.org/docs/datastore/GET/episcanner/).')
+                "The parameters table can be downloaded in the [Mosqlimate API](https://api.mosqlimate.org/docs/datastore/GET/episcanner/)."
+            ),
         ],
     )
     q.page["results"] = ui.markdown_card(
-        box="sidebar", title="", content="",
+        box="sidebar",
+        title="",
+        content="",
     )
 
 
@@ -532,9 +606,12 @@ def create_analysis_form(q):
     )
     q.page["sir_pars"] = ui.form_card(
         box="SIR parameters",
-        title='',
-        items=[ui.text_l(content=f'<h1 style="font-size:18px;">{title}</h1>'),
-               ui.text(
-                   content='A description of each parameter below is available in the [Mosqlimate API](https://api.mosqlimate.org/docs/datastore/GET/episcanner/).'),
-               ui.text(name="sirp_table", content="")],
+        title="",
+        items=[
+            ui.text_l(content=f'<h1 style="font-size:18px;">{title}</h1>'),
+            ui.text(
+                content="A description of each parameter below is available in the [Mosqlimate API](https://api.mosqlimate.org/docs/datastore/GET/episcanner/)."
+            ),
+            ui.text(name="sirp_table", content=""),
+        ],
     )
