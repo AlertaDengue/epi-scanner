@@ -69,7 +69,7 @@ async def initialize_app(q: Q):
     # Setup some client side variables
     q.client.cities = {}
     q.client.loaded = False
-    q.client.uf = "SC"
+    q.client.uf = "CE"
     q.client.disease = "dengue"
     q.client.weeks = False
     await load_map(q)
@@ -95,7 +95,16 @@ async def initialize_app(q: Q):
         ),
     )
     q.page["form"].items[0].dropdown.value = q.client.disease
+    q.page["form"].items[1].dropdown.value = q.client.uf
 
+    q.args.disease = q.client.disease
+    q.args.state = q.client.uf
+
+    await on_update_disease(q)
+    await q.page.save()
+    q.args.r0year = 2024
+    await update_r0map(q)
+    await q.page.save()
 
 @app("/", mode="unicast")
 async def serve(q: Q):
@@ -111,6 +120,7 @@ async def serve(q: Q):
         await on_update_disease(q)
         await q.page.save()
     if q.args.state:
+        q.page["form"].items[1].dropdown.value = q.client.uf
         await on_update_UF(q)
         await q.page.save()
     if q.args.city:
