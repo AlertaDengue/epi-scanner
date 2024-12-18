@@ -34,7 +34,7 @@ jobs:
       with:
         node-version: '14'
 
-    - uses: conda-incubator/setup-miniconda@v2
+    - uses: conda-incubator/setup-miniconda@v3
       with:
         miniconda-version: "latest"
         mamba-version: "*"
