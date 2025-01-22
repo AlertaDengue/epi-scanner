@@ -120,6 +120,7 @@ async def serve(q: Q):
         await on_update_disease(q)
         await q.page.save()
     if q.args.state:
+        q.client.uf = q.args.state
         q.page["form"].items[1].dropdown.value = q.client.uf
         await on_update_UF(q)
         await q.page.save()
@@ -587,6 +588,7 @@ def add_sidebar(q):
                 choices=[],
                 trigger=True,
                 visible=False,
+                popup='always',
                 placeholder="Nothing selected",
             ),
             ui.text(
