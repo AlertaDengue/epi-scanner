@@ -524,7 +524,7 @@ def dump_results(q):
         report[
             q.client.cities[gc]
         ] = f"{len(citydf)} epidemic years: {list(sorted(citydf.year))}\n"
-    for n, linha in sorted(report.items(), key=lambda x: x[1], reverse=True)[
+    for n, linha in sorted(report.items(), key=lambda x:  int(x[1][0:2]), reverse=True)[
         :20
     ]:
         results += f"**{n}** :{linha}\n"
