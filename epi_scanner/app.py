@@ -172,7 +172,10 @@ async def update_weeks(q: Q):
             title="",
             items=[ui.text("**Top 10 cities**"), ui.text(ttext)],
         )
+    else: 
+        ttext = None
 
+    return ttext
 
 async def update_r0map(q: Q):
     """
@@ -253,8 +256,11 @@ async def update_model_evaluation(q: Q):
 async def on_update_disease(q: Q):
     q.client.disease = q.args.disease
     await q.page.save()
-    await on_update_UF(q)
+    top_10_cities = await on_update_UF(q)
     if q.client.city is not None:
+        await on_update_city(q)
+    else: 
+        q.client.city = top_10_cities['name_muni'].values[0]
         await on_update_city(q)
 
 
@@ -281,7 +287,7 @@ async def on_update_UF(q: Q):
     await q.page.save()
     await update_state_map(q)
     q.client.weeks = False
-    await update_weeks(q)
+    ttext = await update_weeks(q)
     await q.page.save()
 
     if DUCKDB_FILE.exists():
@@ -301,6 +307,7 @@ async def on_update_UF(q: Q):
     await update_r0map(q)
     await update_model_evaluation(q)
     await q.page.save()
+    return ttext
 
 
 async def on_update_city(q: Q):
