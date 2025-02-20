@@ -400,12 +400,11 @@ async def top_n_cities(q: Q, n: int):
     wmap = q.client.weeks_map
     wmap["transmissao"] = wmap.transmissao.astype(int)
     df = wmap.sort_values("transmissao", ascending=False)[
-        ["name_muni", "transmissao"]
+        ["name_muni", "transmissao", "code_muni"]
     ].head(n)
     return make_markdown_table(
-        fields=["Names", "Epi Weeks"], rows=df.values.tolist()
-    )
-
+        fields=["Names", "Epi Weeks"], rows=df[["name_muni", "transmissao"]].values.tolist()
+    ), df['code_muni'].values[0]
 
 async def top_n_R0(q: Q, year: int, n: int):
     pars = q.client.parameters

@@ -166,16 +166,16 @@ async def update_weeks(q: Q):
             title="",
             specification=fig_alt.to_json(),
         )
-        ttext = await top_n_cities(q, 10)
+        ttext, top_act_city = await top_n_cities(q, 10)
         q.page["wtable"] = ui.form_card(
             box="week_table",
             title="",
             items=[ui.text("**Top 10 cities**"), ui.text(ttext)],
         )
     else: 
-        ttext = None
+        top_act_city = None
 
-    return ttext
+    return top_act_city
 
 async def update_r0map(q: Q):
     """
@@ -256,13 +256,12 @@ async def update_model_evaluation(q: Q):
 async def on_update_disease(q: Q):
     q.client.disease = q.args.disease
     await q.page.save()
-    top_10_cities = await on_update_UF(q)
+    top_act_city = await on_update_UF(q)
     if q.client.city is not None:
         await on_update_city(q)
     else: 
-        q.client.city = top_10_cities['name_muni'].values[0]
+        q.client.city = top_act_city
         await on_update_city(q)
-
 
 async def on_update_UF(q: Q):
     logger.info(
@@ -287,7 +286,7 @@ async def on_update_UF(q: Q):
     await q.page.save()
     await update_state_map(q)
     q.client.weeks = False
-    ttext = await update_weeks(q)
+    top_act_city = await update_weeks(q)
     await q.page.save()
 
     if DUCKDB_FILE.exists():
@@ -307,7 +306,7 @@ async def on_update_UF(q: Q):
     await update_r0map(q)
     await update_model_evaluation(q)
     await q.page.save()
-    return ttext
+    return top_act_city
 
 
 async def on_update_city(q: Q):
@@ -366,6 +365,47 @@ async def update_pars(q: Q):
     await q.page.save()
 
 
+async def epidemic_calculator(q: Q):
+    end_year = datetime.date.today().year
+    year = q.client.model_evaluation_year or (datetime.date.today().year - 1)
+
+
+    #fig_alt = await plot_model_evaluation_map_altair(
+    #    q, q.client.statemap, [year], STATES[q.client.uf]
+    #)
+    #await q.page.save()
+    #q.page["map_alt_model_evaluation"] = ui.vega_card(
+    #    box="model_evaluation_map", title="", specification=fig_alt.to_json()
+    #)
+    #fig_alt = await plot_model_evaluation_hist_altair(
+    #    q, q.client.statemap, [year], STATES[q.client.uf]
+    #)
+    #await q.page.save()
+    #q.page["hist_alt_model_evaluation"] = ui.vega_card(
+    #    box="model_evaluation_hist", title="", specification=fig_alt.to_json()
+    #)
+    ##q.page["timeslide_evaluation_model"] = ui.form_card(
+    #    box="model_evaluation_time",
+    #    title="",
+    #    items=[
+    #        ui.slider(
+    #            name="model_evaluation_year",
+    #            label="Year",
+   #             min=2010,
+   #             max=end_year,
+    #            step=1,
+     #           value=year,
+      #          trigger=True,
+       #     ),
+       # ],
+   # )
+    table = await table_model_evaluation(q, year)
+    q.page["table_model_evaluation"] = ui.form_card(
+        box="model_evaluation_table",
+        items=[ui.text(table)],
+    )
+    await q.page.save()
+
 def create_layout(q):
     """
     Creates the main layout of the app
@@ -390,6 +430,11 @@ def create_layout(q):
                             ui.zone(
                                 "sidebar",
                                 size="25%",
+                                direction=ui.ZoneDirection.COLUMN,
+                                zones = [ui.zone("sidebar_form"),
+                                        ui.zone("sidebar_results",size='1605px'),
+                                        ui.zone("sidebar_form_city")
+                                        ],
                             ),
                             ui.zone(
                                 "content",
@@ -496,6 +541,8 @@ async def load_table(q: Q):
         ]
         q.page["form"].items[2].dropdown.choices = choices
         q.page["form"].items[2].dropdown.visible = True
+        q.page["form_city"].items[0].dropdown.choices = choices
+        q.page["form_city"].items[0].dropdown.visible = True
 
     await q.page.save()
 
@@ -569,7 +616,7 @@ def add_sidebar(q):
         ui.choice("TO", "Tocantins"),
     ]
     q.page["form"] = ui.form_card(
-        box="sidebar",
+        box="sidebar_form",
         items=[
             ui.dropdown(
                 name="disease",
@@ -604,9 +651,25 @@ def add_sidebar(q):
         ],
     )
     q.page["results"] = ui.markdown_card(
-        box="sidebar",
+        box="sidebar_results",
         title="",
         content="",
+    )
+
+    q.page["form_city"] = ui.form_card(
+        box="sidebar_form_city",
+        items=[
+            ui.dropdown(
+                name="city",
+                label="Select city",
+                required=True,
+                choices=[],
+                trigger=True,
+                visible=False,
+                popup='always',
+                placeholder="Nothing selected",
+            ),
+        ]
     )
 
 
