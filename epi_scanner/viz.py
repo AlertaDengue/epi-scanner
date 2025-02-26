@@ -1,7 +1,7 @@
 import os
 import uuid
 from pathlib import Path
-
+import datetime
 import altair as alt
 import geopandas as gpd
 import gpdvega  # NOQA
@@ -665,6 +665,91 @@ async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
         spec = alt.vconcat(ch1, ch2)
     return spec
 
+async def plot_epidemic_calc_altair(q: Q, gc: int, pw:int, R0:float, total_cases:int ):
+
+    SCALE = alt.Scale(domain=["Data", "Model", "Peak week"],  # Adjust categories
+                                range=["#1f77b4", "#ff7f0e","red"])
+
+    eyear = datetime.date.today().year
+
+    start_date = f"{int(eyear)-1}-11-01"
+    end_date = f"{eyear}-11-01"
+
+    title = (
+            f"{q.client.disease.capitalize()} weekly cases "
+            f"in {eyear} for {q.client.cities[int(q.client.city)]}"
+        )
+
+    df = q.client.data_table
+    dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
+    dfcity.sort_index(inplace=True)
+    dfcity["casos_cum"] = dfcity.casos.cumsum()
+    dfcity = dfcity.reset_index().loc[:, ['data_iniSE', 'casos_cum']]
+
+    R = 1 - 1/R0
+    gamma = 0.3
+    b = R*gamma/(1-R)
+    a = b/(gamma + b)
+
+    dfcity2 = pd.DataFrame()
+    dfcity2['data_iniSE'] = pd.date_range(start=dfcity.data_iniSE.values[0], periods=52, freq='W-SUN')
+    dfcity2["model"] = richards( total_cases, a, b, np.arange(52), pw )
+
+    dfcity_end = dfcity.merge(dfcity2, left_on = 'data_iniSE', right_on = 'data_iniSE',
+                              how = 'outer')
+
+    df1 = dfcity_end.copy()
+    df1["legend"] = "Data"
+
+    df2 = dfcity_end.copy()
+    df2["legend"] = "Model"
+
+    # Create the first chart (Area for Cumulative Cases)
+    ch1 = alt.Chart(df1, width=650, height=350).mark_area(
+    opacity=0.3,
+    interpolate="step-after",
+    color = '#1f77b4', 
+    ).encode(
+    x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date", titleFontSize=12)),
+    y=alt.Y("casos_cum:Q", axis=alt.Axis(title="Cumulative Cases", titleFontSize=12)),
+    color=alt.Color("legend:N", title=" ", scale = SCALE
+                                ),  
+    tooltip=["data_iniSE:T", "casos_cum:Q", "model:Q"],
+    )
+
+    # Create the second chart (Line for Model Prediction)
+    ch2 = alt.Chart(df2, width=650, height=350).mark_line(color = 'red').encode(
+    x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date", titleFontSize=12)),
+    y=alt.Y("model:Q", axis=alt.Axis(title="Cumulative Cases", titleFontSize=12)),
+    color=alt.Color("legend:N", title=" ", scale = SCALE
+                    ),  
+    tooltip=["data_iniSE:T", "casos_cum:Q", "model:Q"])
+
+    ch2_points = alt.Chart(df2, width=650, height=350).mark_point(size = 60, filled = True, color = 'red').encode(
+    x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date", titleFontSize=12)),
+    y=alt.Y("model:Q", axis=alt.Axis(title="Cumulative Cases", titleFontSize=12)),
+    color=alt.Color("legend:N", title=" ", scale = SCALE
+                    ),  # Assign color based on legend, 
+    tooltip=["data_iniSE:T", "casos_cum:Q", "model:Q"]).properties(title = title)
+
+    vertical_line = alt.Chart(
+                pd.DataFrame(
+                    {
+                        "data_iniSE": [df2.data_iniSE[int(round(pw, 0))]],
+                        "label": ["Peak week"],
+                    }
+                )
+            ).mark_rule(size=2, color = 'orange').encode(
+                x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date", titleFontSize=12)),
+                color=alt.Color(
+                    "label:N", scale = SCALE, 
+                    legend=alt.Legend(title=" ", orient="left", offset=-130)
+                )
+            )
+    
+    spec =   ch1 + ch2 + ch2_points + vertical_line
+
+    return spec
 
 async def plot_series_px(q: Q, gc: int, start_date: str, end_date: str):
     """

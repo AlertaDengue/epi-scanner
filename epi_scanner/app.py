@@ -38,6 +38,7 @@ from epi_scanner.viz import (
     top_n_cities,
     top_n_R0,
     update_state_map,
+    plot_epidemic_calc_altair
 )
 from h2o_wave import Q, app, copy_expando, data, main, ui  # Noqa F401
 from loguru import logger
@@ -106,6 +107,24 @@ async def initialize_app(q: Q):
     await update_r0map(q)
     await q.page.save()
 
+    title = (
+        f"SIR Parameters for {q.client.disease} Epidemics in "
+        f"{q.client.cities[int(q.client.city)]}"
+    )
+
+    title = 'Epidemic calculator'
+
+    q.page["epidemic_calc_header_"] = ui.form_card(
+        box="epidemic_calc_header",
+        title="",
+        items=[
+            ui.text_l(content=f'<h1 style="font-size:18px;">{title}</h1>'),
+            ui.text(
+                content="The section below displays the cumulative cases for the selected city in blue, the Richards model in orange, and the peak week in red. The sliders allow you to adjust the peak week, reproduction number (R0), and total number of cases. The orange curve represents just one possible scenario for the evolution of the epidemic curve."
+            )
+            ],
+    )
+
 @app("/", mode="unicast")
 async def serve(q: Q):
     copy_expando(
@@ -137,7 +156,14 @@ async def serve(q: Q):
     if "slice_year" in q.args:
         await update_analysis(q)
         await q.page.save()
-
+    if q.args.ep_peak_week:
+        await epidemic_calculator(q)
+    if q.args.ep_R0:
+        await epidemic_calculator(q)
+        await q.page.save()
+    if q.args.ep_total:
+        await epidemic_calculator(q)
+        await q.page.save()
 
 async def update_sum_cases(
     q: Q,
@@ -259,9 +285,12 @@ async def on_update_disease(q: Q):
     top_act_city = await on_update_UF(q)
     if q.client.city is not None:
         await on_update_city(q)
+        await epidemic_calculator(q)
+
     else: 
         q.client.city = top_act_city
         await on_update_city(q)
+        await epidemic_calculator(q)
 
 async def on_update_UF(q: Q):
     logger.info(
@@ -366,44 +395,66 @@ async def update_pars(q: Q):
 
 
 async def epidemic_calculator(q: Q):
-    end_year = datetime.date.today().year
-    year = q.client.model_evaluation_year or (datetime.date.today().year - 1)
 
+    pw = q.client.ep_peak_week or 10
+    R0 = q.client.ep_R0 or 2
+    total_cases = q.client.ep_total or 1e3
 
-    #fig_alt = await plot_model_evaluation_map_altair(
-    #    q, q.client.statemap, [year], STATES[q.client.uf]
-    #)
-    #await q.page.save()
-    #q.page["map_alt_model_evaluation"] = ui.vega_card(
-    #    box="model_evaluation_map", title="", specification=fig_alt.to_json()
-    #)
-    #fig_alt = await plot_model_evaluation_hist_altair(
-    #    q, q.client.statemap, [year], STATES[q.client.uf]
-    #)
-    #await q.page.save()
-    #q.page["hist_alt_model_evaluation"] = ui.vega_card(
-    #    box="model_evaluation_hist", title="", specification=fig_alt.to_json()
-    #)
-    ##q.page["timeslide_evaluation_model"] = ui.form_card(
-    #    box="model_evaluation_time",
-    #    title="",
-    #    items=[
-    #        ui.slider(
-    #            name="model_evaluation_year",
-    #            label="Year",
-   #             min=2010,
-   #             max=end_year,
-    #            step=1,
-     #           value=year,
-      #          trigger=True,
-       #     ),
-       # ],
-   # )
-    table = await table_model_evaluation(q, year)
-    q.page["table_model_evaluation"] = ui.form_card(
-        box="model_evaluation_table",
-        items=[ui.text(table)],
+    altair_plot = await plot_epidemic_calc_altair(
+        q, int(q.client.city), pw, R0, total_cases)
+    
+    q.page["epidemic_calc"] = ui.vega_card(
+        box="epi_calc_alt", title="", specification=altair_plot.to_json()
     )
+
+    q.page["peak_model"] = ui.form_card(
+        box="ep_calc_peak",
+        title="",
+        items=[
+            ui.slider(
+                name="ep_peak_week",
+                label="Peak week",
+                min=5,
+                max=45,
+                step=1,
+                value=pw,
+                trigger=True,
+            ),
+        ],
+    )
+
+    q.page["r0_model"] = ui.form_card(
+        box="ep_calc_R0",
+        title="",
+        items=[
+            ui.slider(
+                name="ep_R0",
+                label="R0",
+                min=0.1,
+                max=5,
+                step=0.1,
+                value=R0,
+                trigger=True,
+            ),
+        ],
+    )
+
+    q.page["total_model"] = ui.form_card(
+        box="ep_calc_total",
+        title="",
+        items=[
+            ui.slider(
+                name="ep_total",
+                label="Total cases",
+                min=500,
+                max=1e4,
+                step=500,
+                value=total_cases,
+                trigger=True,
+            ),
+        ],
+    )
+
     await q.page.save()
 
 def create_layout(q):
@@ -490,7 +541,32 @@ def create_layout(q):
                                         zones=[
                                             ui.zone("SIR parameters"),
                                             ui.zone("Year"),
-                                            ui.zone("SIR curves", size="100%"),
+                                            ui.zone("SIR curves", size='600px'),
+                                    
+                                        ],
+                                    ),
+                                    ui.zone("epidemic_calc_header"),
+                                    ui.zone(
+                                        name="epidemic_calc",
+                                        direction=ui.ZoneDirection.ROW,
+                                        zones=[
+                                            ui.zone("epi_calc_alt", size='77%'),
+                                            ui.zone(
+                                                name="epic_calc_column",
+                                                size="23%",
+                                                direction=ui.ZoneDirection.COLUMN,
+                                                zones=[
+                                                    ui.zone(
+                                                        "ep_calc_peak"
+                                                    ),
+                                                    ui.zone(
+                                                        "ep_calc_R0"
+                                                    ),
+                                                    ui.zone(
+                                                        "ep_calc_total"
+                                                    ),
+                                                ],
+                                            ),
                                         ],
                                     ),
                                 ],
