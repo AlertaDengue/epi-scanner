@@ -14,7 +14,33 @@ from epi_scanner.settings import EPISCANNER_DATA_DIR
 from h2o_wave import Q
 from plotly import io as pio
 from plotly.subplots import make_subplots
+from epiweeks import Week 
 
+def get_ini_end_week(year:int, eyear = None):
+    """
+    Returns the start and end dates used in the optimization process in the 
+    'episcanner-downloader' repository.
+
+    Parameters:
+    year (int): The year for which the start and end dates are retrieved.
+
+    Returns:
+    Tuple[datetime, datetime]: The start and end dates of the specified year.
+    """
+    ini_week = Week(year-1,1).startdate()
+
+    dates = pd.date_range(start = ini_week, periods = 104, freq = 'W-SUN')
+
+    dates_ = dates[dates.year >= year-1][44 : 44 + 52]
+
+    ini_date = dates_[0].strftime("%Y-%m-%d")
+
+    if eyear is None: 
+        end_date =  dates_[-1].strftime("%Y-%m-%d")
+    else: 
+        end_date = f"{eyear}-11-01"
+
+    return ini_date, end_date 
 
 async def load_map(q: Q):
     file_gpkg = Path(f"{EPISCANNER_DATA_DIR}/muni_br.gpkg")
@@ -672,8 +698,7 @@ async def plot_epidemic_calc_altair(q: Q, gc: int, pw:int, R0:float, total_cases
 
     eyear = datetime.date.today().year
 
-    start_date = f"{int(eyear)-1}-11-01"
-    end_date = f"{eyear}-11-01"
+    start_date, end_date = get_ini_end_week(year=eyear)
 
     title = (
             f"{q.client.disease.capitalize()} weekly cases "

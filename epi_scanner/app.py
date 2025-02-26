@@ -38,7 +38,8 @@ from epi_scanner.viz import (
     top_n_cities,
     top_n_R0,
     update_state_map,
-    plot_epidemic_calc_altair
+    plot_epidemic_calc_altair, get_ini_end_week,
+    make_markdown_table
 )
 from h2o_wave import Q, app, copy_expando, data, main, ui  # Noqa F401
 from loguru import logger
@@ -365,6 +366,29 @@ async def on_update_city(q: Q):
     years.insert(0, ui.choice(name="all", label="All"))
     q.page["years"].items[0].dropdown.choices = years
     await update_analysis(q)
+
+    df_pars = q.client.parameters
+    df_pars = df_pars.loc[(df_pars.geocode == int(q.client.city)) & (df_pars.year == int(2025))]
+    
+    df_pars_ = pd.DataFrame()
+    df_pars_['pars'] = ['Peak week', 'R0', 'Total cases']
+    if df_pars.empty == True: 
+        df_pars_['values'] = ['---', '---', '---']
+
+    else:
+        df_pars_['values'] = [int(df_pars['peak_week'].values[0]),
+                              round(df_pars['R0'].values[0],2),
+                              int(df_pars['total_cases'].values[0])]
+
+    table = make_markdown_table(
+        fields=["Parameter", "Value"],
+        rows=df_pars_.values.tolist(),
+    )
+
+    q.page["table_ep_calc_pars"] = ui.form_card(
+        box="ep_calc_pars_table",
+        items=[ui.text(table)],
+    )
     await q.page.save()
 
 
@@ -377,10 +401,12 @@ async def update_pars(q: Q):
     for _, res in q.client.parameters[
         q.client.parameters.geocode == int(q.client.city)
     ].iterrows():
+        start_date, end_date = get_ini_end_week(int(res['year']))
+
         sum_cases = await update_sum_cases(
             q,
-            f"{int(res['year'])-1}-11-01",
-            f"{int(res['year'])}-11-01",
+            start_date, 
+            end_date,
             int(q.client.city),
         )
         table += (
@@ -454,6 +480,11 @@ async def epidemic_calculator(q: Q):
             ),
         ],
     )
+
+    #   table = make_markdown_table(
+    #   fields=["Range", "Range Counts(%)"],
+    #    rows=groupby_rate[["rate", "text"]].values.tolist(),
+    #)
 
     await q.page.save()
 
@@ -565,6 +596,9 @@ def create_layout(q):
                                                     ui.zone(
                                                         "ep_calc_total"
                                                     ),
+                                                    ui.zone(
+                                                        "ep_calc_pars_table"
+                                                    ),
                                                 ],
                                             ),
                                         ],
@@ -629,8 +663,11 @@ async def update_analysis(q):
         eyear = datetime.date.today().year
     else:
         syear = eyear = q.client.epi_year
+    
+    start_date, end_date = get_ini_end_week(int(syear), eyear)
+
     altair_plot = await plot_series_altair(
-        q, int(q.client.city), f"{int(syear)-1}-11-01", f"{eyear}-11-01"
+        q, int(q.client.city), start_date, end_date
     )
     q.page["ts_plot_alt"] = ui.vega_card(
         box="SIR curves", title="", specification=altair_plot.to_json()
