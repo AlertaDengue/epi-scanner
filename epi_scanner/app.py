@@ -520,9 +520,16 @@ async def on_update_ini_epi_calc(q:Q):
     
 async def epidemic_calculator(q: Q):
 
-    pw = q.client.ep_peak_week or 10
-    R0 = q.client.ep_R0 or 2
-    total_cases = q.client.ep_total or 1000
+    if q.client.ep_peak_wee is None: 
+        median_R0, median_peak, median_cases, min_cases, max_cases, step = await get_median_pars(q)
+        pw = median_peak
+        R0 = median_R0
+        total_cases = median_cases
+        
+    else: 
+        pw = q.client.ep_peak_week 
+        R0 = q.client.ep_R0 
+        total_cases = q.client.ep_total 
 
     altair_plot = await plot_epidemic_calc_altair(
         q, int(q.client.city), pw, R0, total_cases)
