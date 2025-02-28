@@ -154,7 +154,6 @@ async def serve(q: Q):
         q.page["non-existent"].items = []
         await on_update_city(q)
         await on_update_ini_epi_calc(q)
-        await epidemic_calculator(q)
         await q.page.save()
     if q.args.r0year:
         await update_r0map(q)
@@ -165,14 +164,7 @@ async def serve(q: Q):
     if "slice_year" in q.args:
         await update_analysis(q)
         await q.page.save()
-    if q.args.ep_peak_week:
-        await epidemic_calculator(q)
-    if q.args.ep_R0:
-        await epidemic_calculator(q)
-        await q.page.save()
-    if q.args.ep_total:
-        await epidemic_calculator(q)
-        await q.page.save()
+
 
 async def update_sum_cases(
     q: Q,
@@ -295,13 +287,11 @@ async def on_update_disease(q: Q):
     if q.client.city is not None:
         await on_update_city(q)
         await on_update_ini_epi_calc(q)
-        await epidemic_calculator(q)
 
     else: 
         q.client.city = top_act_city
         await on_update_city(q)
         await on_update_ini_epi_calc(q)
-        await epidemic_calculator(q)
 
 async def on_update_UF(q: Q):
     logger.info(
