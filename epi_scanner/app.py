@@ -458,7 +458,7 @@ async def get_median_pars(q:Q):
         
     min_cases = 0.85*sum_cases
 
-    max_cases = max(1.25*sum_cases, median_cases)
+    max_cases = max(1.25*sum_cases, 1.25*median_cases)
 
     step = int((max_cases - min_cases)/20)
 
@@ -520,16 +520,11 @@ async def on_update_ini_epi_calc(q:Q):
     
 async def epidemic_calculator(q: Q):
 
-    if q.client.ep_peak_wee is None: 
-        median_R0, median_peak, median_cases, min_cases, max_cases, step = await get_median_pars(q)
-        pw = median_peak
-        R0 = median_R0
-        total_cases = median_cases
-        
-    else: 
-        pw = q.client.ep_peak_week 
-        R0 = q.client.ep_R0 
-        total_cases = q.client.ep_total 
+    median_R0, median_peak, median_cases, min_cases, max_cases, step = await get_median_pars(q)
+
+    pw = q.client.ep_peak_week or median_peak
+    R0 = q.client.ep_R0 or median_R0
+    total_cases = q.client.ep_total or median_cases
 
     altair_plot = await plot_epidemic_calc_altair(
         q, int(q.client.city), pw, R0, total_cases)
@@ -538,9 +533,9 @@ async def epidemic_calculator(q: Q):
         box="epi_calc_alt", title="", specification=altair_plot.to_json()
     )
 
-    q.page['peak_model'].items[0].value = pw 
-    q.page['r0_model'].items[0].value = R0
-    q.page['total_model'].items[0].value = total_cases 
+    q.client.ep_peak_week = pw 
+    q.client.ep_R0 = R0
+    q.client.ep_total = total_cases 
 
     await q.page.save()
 
