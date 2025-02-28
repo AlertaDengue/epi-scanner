@@ -17,6 +17,7 @@ To avoid reloading data from disk the app maintains the following
 - q.client.disease: name of the currently selected disease.
 - q.client.parameters: SIR parameters for every city/year in current state.
 """
+import numpy as np 
 import datetime
 import os
 import warnings
@@ -104,7 +105,7 @@ async def initialize_app(q: Q):
 
     await on_update_disease(q)
     await q.page.save()
-    q.args.r0year = 2024
+    q.args.r0year = datetime.date.today().year
     await update_r0map(q)
     await q.page.save()
 
@@ -119,12 +120,17 @@ async def initialize_app(q: Q):
         box="epidemic_calc_header",
         title="",
         items=[
-            ui.text_l(content=f'<h1 style="font-size:18px;">{title}</h1>'),
+                ui.inline(items=[
+                    ui.text_l(content=f'<h1 style="font-size:18px;">{title}</h1>'),
+                    ui.button(name='help', icon='Info', tooltip="If no parameter values are displayed in the table, it means the series has not met the necessary requirements for value estimation.", label='', primary=False)
+
+                ]),
             ui.text(
                 content="The section below displays the cumulative cases for the selected city in blue, the Richards model in orange, and the peak week in red. The sliders allow you to adjust the peak week, reproduction number (R0), and total number of cases. The orange curve represents just one possible scenario for the evolution of the epidemic curve."
             )
             ],
     )
+
 
 @app("/", mode="unicast")
 async def serve(q: Q):
@@ -147,6 +153,8 @@ async def serve(q: Q):
     if q.args.city:
         q.page["non-existent"].items = []
         await on_update_city(q)
+        await on_update_ini_epi_calc(q)
+        await epidemic_calculator(q)
         await q.page.save()
     if q.args.r0year:
         await update_r0map(q)
@@ -286,11 +294,13 @@ async def on_update_disease(q: Q):
     top_act_city = await on_update_UF(q)
     if q.client.city is not None:
         await on_update_city(q)
+        await on_update_ini_epi_calc(q)
         await epidemic_calculator(q)
 
     else: 
         q.client.city = top_act_city
         await on_update_city(q)
+        await on_update_ini_epi_calc(q)
         await epidemic_calculator(q)
 
 async def on_update_UF(q: Q):
@@ -368,7 +378,7 @@ async def on_update_city(q: Q):
     await update_analysis(q)
 
     df_pars = q.client.parameters
-    df_pars = df_pars.loc[(df_pars.geocode == int(q.client.city)) & (df_pars.year == int(2025))]
+    df_pars = df_pars.loc[(df_pars.geocode == int(q.client.city)) & (df_pars.year == int(datetime.date.today().year))]
     
     df_pars_ = pd.DataFrame()
     df_pars_['pars'] = ['Peak week', 'R0', 'Total cases']
@@ -419,19 +429,44 @@ async def update_pars(q: Q):
     q.page["sir_pars"].items[2].text.content = table
     await q.page.save()
 
+async def get_median_pars(q:Q):
 
-async def epidemic_calculator(q: Q):
+    year = int(datetime.datetime.today().year)
 
-    pw = q.client.ep_peak_week or 10
-    R0 = q.client.ep_R0 or 2
-    total_cases = q.client.ep_total or 1e3
+    start_date, end_date = get_ini_end_week(year)
 
-    altair_plot = await plot_epidemic_calc_altair(
-        q, int(q.client.city), pw, R0, total_cases)
+    sum_cases = await update_sum_cases(
+            q,
+            start_date, 
+            end_date,
+            int(q.client.city),
+        )
     
-    q.page["epidemic_calc"] = ui.vega_card(
-        box="epi_calc_alt", title="", specification=altair_plot.to_json()
-    )
+    sum_cases = float(sum_cases)
+
+    df_pars = q.client.parameters
+    df_pars = df_pars.loc[(df_pars.geocode == int(q.client.city)) & (df_pars.year < year)]
+
+    if df_pars.empty == True:
+        median_R0= 2
+        median_peak =  10
+        median_cases =  sum_cases
+    else: 
+        median_R0 = round(np.median(df_pars['R0'].values),2)
+        median_peak = int(np.median(df_pars['peak_week'].values))
+        median_cases = int(np.median(df_pars['total_cases'].values))
+        
+    min_cases = 0.85*sum_cases
+
+    max_cases = max(1.25*sum_cases, median_cases)
+
+    step = int((max_cases - min_cases)/20)
+
+    return median_R0, median_peak, median_cases, min_cases, max_cases, step 
+
+async def on_update_ini_epi_calc(q:Q): 
+    
+    median_R0, median_peak, median_cases, min_cases, max_cases, step = await get_median_pars(q)
 
     q.page["peak_model"] = ui.form_card(
         box="ep_calc_peak",
@@ -443,7 +478,7 @@ async def epidemic_calculator(q: Q):
                 min=5,
                 max=45,
                 step=1,
-                value=pw,
+                value=median_peak,
                 trigger=True,
             ),
         ],
@@ -458,8 +493,8 @@ async def epidemic_calculator(q: Q):
                 label="R0",
                 min=0.1,
                 max=5,
-                step=0.1,
-                value=R0,
+                step=0.05,
+                value=median_R0,
                 trigger=True,
             ),
         ],
@@ -472,19 +507,33 @@ async def epidemic_calculator(q: Q):
             ui.slider(
                 name="ep_total",
                 label="Total cases",
-                min=500,
-                max=1e4,
-                step=500,
-                value=total_cases,
+                min=min_cases,
+                max=max_cases,
+                step=step,
+                value=median_cases,
                 trigger=True,
             ),
         ],
     )
 
-    #   table = make_markdown_table(
-    #   fields=["Range", "Range Counts(%)"],
-    #    rows=groupby_rate[["rate", "text"]].values.tolist(),
-    #)
+    await q.page.save()
+    
+async def epidemic_calculator(q: Q):
+
+    pw = q.client.ep_peak_week or 10
+    R0 = q.client.ep_R0 or 2
+    total_cases = q.client.ep_total or 1000
+
+    altair_plot = await plot_epidemic_calc_altair(
+        q, int(q.client.city), pw, R0, total_cases)
+    
+    q.page["epidemic_calc"] = ui.vega_card(
+        box="epi_calc_alt", title="", specification=altair_plot.to_json()
+    )
+
+    q.page['peak_model'].items[0].value = pw 
+    q.page['r0_model'].items[0].value = R0
+    q.page['total_model'].items[0].value = total_cases 
 
     await q.page.save()
 

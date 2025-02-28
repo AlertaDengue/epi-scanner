@@ -16,6 +16,7 @@ from plotly import io as pio
 from plotly.subplots import make_subplots
 from epiweeks import Week 
 
+
 def get_ini_end_week(year:int, eyear = None):
     """
     Returns the start and end dates used in the optimization process in the 
