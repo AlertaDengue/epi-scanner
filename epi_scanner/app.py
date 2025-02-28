@@ -516,6 +516,13 @@ async def on_update_ini_epi_calc(q:Q):
         ],
     )
 
+    altair_plot = await plot_epidemic_calc_altair(
+        q, int(q.client.city), median_peak, median_R0, median_cases)
+    
+    q.page["epidemic_calc"] = ui.vega_card(
+        box="epi_calc_alt", title="", specification=altair_plot.to_json()
+    )
+
     await q.page.save()
     
 async def epidemic_calculator(q: Q):
