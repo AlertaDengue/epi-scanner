@@ -52,7 +52,6 @@ DUCKDB_FILE = Path(
     os.path.join(str(EPISCANNER_DUCKDB_DIR), "episcanner.duckdb")
 )
 
-
 async def initialize_app(q: Q):
     """
     Set up UI elements
@@ -105,9 +104,6 @@ async def initialize_app(q: Q):
 
     await on_update_disease(q)
     await q.page.save()
-    q.args.r0year = datetime.date.today().year
-    await update_r0map(q)
-    await q.page.save()
 
     title = (
         f"SIR Parameters for {q.client.disease} Epidemics in "
@@ -122,11 +118,12 @@ async def initialize_app(q: Q):
         items=[
                 ui.inline(items=[
                     ui.text_l(content=f'<h1 style="font-size:18px;">{title}</h1>'),
-                    ui.button(name='help', icon='Info', tooltip="If no parameter values are displayed in the table, it means the series has not met the necessary requirements for value estimation.", label='', primary=False)
+                    #ui.button(name='help', icon='Info', tooltip="If no parameter values are displayed in the table, it means the series has not met the necessary requirements for value estimation.", label='', primary=False)
 
                 ]),
             ui.text(
-                content="The section below displays the cumulative cases for the selected city in blue, the Richards model in orange, and the peak week in red. The sliders allow you to adjust the peak week, reproduction number (R0), and total number of cases. The orange curve represents just one possible scenario for the evolution of the epidemic curve."
+                content="""The section below displays the cumulative cases for the selected city in blue, the Richards model in orange, and the peak week in red. The sliders allow you to adjust the peak week, reproduction number (R0), and total number of cases. The orange curve represents just one possible scenario for the evolution of the epidemic curve.
+                The table shows the parameters estimated for the current year. If no parameter values are displayed in the table, it means that the series has not met the necessary requirements for value estimation."""
             )
             ],
     )
@@ -153,7 +150,6 @@ async def serve(q: Q):
     if q.args.city:
         q.page["non-existent"].items = []
         await on_update_city(q)
-        await on_update_ini_epi_calc(q)
         await q.page.save()
     if q.args.r0year:
         await update_r0map(q)
@@ -163,6 +159,9 @@ async def serve(q: Q):
         await q.page.save()
     if "slice_year" in q.args:
         await update_analysis(q)
+        await q.page.save()
+    if (q.args.ep_peak_week or q.args.ep_R0 or q.args.ep_total):
+        await epidemic_calculator(q)
         await q.page.save()
 
 
@@ -283,24 +282,19 @@ async def update_model_evaluation(q: Q):
 async def on_update_disease(q: Q):
     q.client.disease = q.args.disease
     await q.page.save()
-    top_act_city = await on_update_UF(q)
-    if q.client.city is not None:
-        await on_update_city(q)
-        await on_update_ini_epi_calc(q)
-
-    else: 
-        q.client.city = top_act_city
-        await on_update_city(q)
-        await on_update_ini_epi_calc(q)
+    await on_update_UF(q)
 
 async def on_update_UF(q: Q):
+    if q.args.state is not None:
+        q.client.uf = q.args.state
+    await q.page.save()
+
     logger.info(
         f"\nclient.uf: {q.client.uf}"
         f"\nargs.state: {q.args.state}"
         f"\nargs.city: {q.args.city}"
     )
-    if q.args.state is not None:
-        q.client.uf = q.args.state
+
     await load_table(q)
 
     today_date = datetime.date.today()
@@ -333,10 +327,15 @@ async def on_update_UF(q: Q):
         db.close()
 
     dump_results(q)
+    q.args.r0year = datetime.date.today().year
     await update_r0map(q)
     await update_model_evaluation(q)
     await q.page.save()
-    return top_act_city
+    
+    q.client.city = top_act_city
+    await on_update_city(q)
+    
+    return 
 
 
 async def on_update_city(q: Q):
@@ -345,12 +344,6 @@ async def on_update_city(q: Q):
     Args:
         q:
     """
-    logger.info(
-        f"\nclient.uf: {q.client.uf}",
-        f"\nargs.state: {q.args.state}",
-        f"\nclient.city: {q.client.city}",
-        f"\nargs.city: {q.args.city}",
-    )
     if (q.client.city != q.args.city) and (q.args.city is not None):
         q.client.city = q.args.city
     q.page[
@@ -389,6 +382,9 @@ async def on_update_city(q: Q):
         box="ep_calc_pars_table",
         items=[ui.text(table)],
     )
+
+    q.page.save()
+    await on_update_ini_epi_calc(q)
     await q.page.save()
 
 
@@ -435,27 +431,35 @@ async def get_median_pars(q:Q):
     sum_cases = float(sum_cases)
 
     df_pars = q.client.parameters
-    df_pars = df_pars.loc[(df_pars.geocode == int(q.client.city)) & (df_pars.year < year)]
+    df_pars_ = df_pars.loc[(df_pars.geocode == int(q.client.city)) & (df_pars.year < year)]
+    df_pars_atual = df_pars.loc[(df_pars.geocode == int(q.client.city)) & (df_pars.year == year)]
 
-    if df_pars.empty == True:
+    if df_pars_.empty == True:
         median_R0= 2
         median_peak =  10
         median_cases =  sum_cases
     else: 
-        median_R0 = round(np.median(df_pars['R0'].values),2)
-        median_peak = int(np.median(df_pars['peak_week'].values))
-        median_cases = int(np.median(df_pars['total_cases'].values))
+        median_R0 = round(np.median(df_pars_['R0'].values),2)
+        median_peak = int(np.median(df_pars_['peak_week'].values))
+        median_cases = int(np.median(df_pars_['total_cases'].values))
         
     min_cases = 0.85*sum_cases
 
-    max_cases = max(1.25*sum_cases, 1.25*median_cases)
+    if df_pars_atual.empty == True:
+        max_cases = max(1.25*sum_cases, 1.25*median_cases)
+    else:
+        max_cases = max(1.25*sum_cases, 1.25*median_cases, df_pars_atual['total_cases'].values[0])
 
     step = int((max_cases - min_cases)/20)
 
     return median_R0, median_peak, median_cases, min_cases, max_cases, step 
 
 async def on_update_ini_epi_calc(q:Q): 
-    
+    print(f"\nclient.uf: {q.client.uf}",
+        f"\nargs.state: {q.args.state}",
+        f"\nclient.city: {q.client.city}",
+        f"\nargs.city: {q.args.city}",
+    )
     median_R0, median_peak, median_cases, min_cases, max_cases, step = await get_median_pars(q)
 
     q.page["peak_model"] = ui.form_card(
@@ -513,26 +517,31 @@ async def on_update_ini_epi_calc(q:Q):
         box="epi_calc_alt", title="", specification=altair_plot.to_json()
     )
 
+    q.args.ep_peak_week = False
+    q.args.ep_R0 = False
+    q.args.ep_total = False
+
     await q.page.save()
     
 async def epidemic_calculator(q: Q):
 
-    median_R0, median_peak, median_cases, min_cases, max_cases, step = await get_median_pars(q)
+    pw = q.client.ep_peak_week
+    R0 = q.client.ep_R0 
+    total_cases = q.client.ep_total
 
-    pw = q.client.ep_peak_week or median_peak
-    R0 = q.client.ep_R0 or median_R0
-    total_cases = q.client.ep_total or median_cases
+    if (pw is None) or (R0 is None) or (total_cases is None):
+        pass 
+    else: 
+        altair_plot = await plot_epidemic_calc_altair(
+            q, int(q.client.city), pw, R0, total_cases)
+        
+        q.page["epidemic_calc"] = ui.vega_card(
+            box="epi_calc_alt", title="", specification=altair_plot.to_json()
+        )
 
-    altair_plot = await plot_epidemic_calc_altair(
-        q, int(q.client.city), pw, R0, total_cases)
-    
-    q.page["epidemic_calc"] = ui.vega_card(
-        box="epi_calc_alt", title="", specification=altair_plot.to_json()
-    )
-
-    q.client.ep_peak_week = pw 
-    q.client.ep_R0 = R0
-    q.client.ep_total = total_cases 
+        q.client.ep_peak_week = pw 
+        q.client.ep_R0 = R0
+        q.client.ep_total = total_cases 
 
     await q.page.save()
 
@@ -562,9 +571,7 @@ def create_layout(q):
                                 size="25%",
                                 direction=ui.ZoneDirection.COLUMN,
                                 zones = [ui.zone("sidebar_form"),
-                                        ui.zone("sidebar_results",size='1605px'),
-                                        ui.zone("sidebar_form_city")
-                                        ],
+                                        ui.zone("sidebar_results",size='1605px')                                        ],
                             ),
                             ui.zone(
                                 "content",
@@ -815,22 +822,6 @@ def add_sidebar(q):
         box="sidebar_results",
         title="",
         content="",
-    )
-
-    q.page["form_city"] = ui.form_card(
-        box="sidebar_form_city",
-        items=[
-            ui.dropdown(
-                name="city",
-                label="Select city",
-                required=True,
-                choices=[],
-                trigger=True,
-                visible=False,
-                popup='always',
-                placeholder="Nothing selected",
-            ),
-        ]
     )
 
 
