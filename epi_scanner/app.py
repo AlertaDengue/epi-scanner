@@ -17,7 +17,6 @@ To avoid reloading data from disk the app maintains the following
 - q.client.disease: name of the currently selected disease.
 - q.client.parameters: SIR parameters for every city/year in current state.
 """
-import numpy as np 
 import datetime
 import os
 import warnings
@@ -25,10 +24,14 @@ from pathlib import Path
 from typing import List, Optional
 
 import duckdb
+import numpy as np
 import pandas as pd
 from epi_scanner.settings import EPISCANNER_DATA_DIR, EPISCANNER_DUCKDB_DIR, STATES
 from epi_scanner.viz import (
+    get_ini_end_week,
     load_map,
+    make_markdown_table,
+    plot_epidemic_calc_altair,
     plot_model_evaluation_hist_altair,
     plot_model_evaluation_map_altair,
     plot_pars_map_altair,
@@ -39,8 +42,6 @@ from epi_scanner.viz import (
     top_n_cities,
     top_n_R0,
     update_state_map,
-    plot_epidemic_calc_altair, get_ini_end_week,
-    make_markdown_table
 )
 from h2o_wave import Q, app, copy_expando, data, main, ui  # Noqa F401
 from loguru import logger
@@ -51,6 +52,7 @@ DATA_TABLE = None
 DUCKDB_FILE = Path(
     os.path.join(str(EPISCANNER_DUCKDB_DIR), "episcanner.duckdb")
 )
+
 
 async def initialize_app(q: Q):
     """
@@ -93,7 +95,8 @@ async def initialize_app(q: Q):
         caption=(
             f"(c) {year} [Infodengue](https://info.dengue.mat.br). "
             "All rights reserved.\n"
-            "Powered by [Mosqlimate](https://mosqlimate.org) & [EpiGraphHub](https://epigraphhub.org/)"
+            "Powered by [Mosqlimate](https://mosqlimate.org) & "
+            "[EpiGraphHub](https://epigraphhub.org/)"
         ),
     )
     q.page["form"].items[0].dropdown.value = q.client.disease
@@ -110,22 +113,34 @@ async def initialize_app(q: Q):
         f"{q.client.cities[int(q.client.city)]}"
     )
 
-    title = 'Epidemic calculator'
+    title = "Epidemic calculator"
 
     q.page["epidemic_calc_header_"] = ui.form_card(
         box="epidemic_calc_header",
         title="",
         items=[
-                ui.inline(items=[
-                    ui.text_l(content=f'<h1 style="font-size:18px;">{title}</h1>'),
-                    #ui.button(name='help', icon='Info', tooltip="If no parameter values are displayed in the table, it means the series has not met the necessary requirements for value estimation.", label='', primary=False)
-
-                ]),
+            ui.inline(
+                items=[
+                    ui.text_l(
+                        content=f'<h1 style="font-size:18px;">{title}</h1>'
+                    ),
+                ]
+            ),
             ui.text(
-                content="""The section below displays the cumulative cases for the selected city in blue, the Richards model in orange, and the peak week in red. The sliders allow you to adjust the peak week, reproduction number (R0), and total number of cases. The orange curve represents just one possible scenario for the evolution of the epidemic curve.
-                The table shows the parameters estimated for the current year. If no parameter values are displayed in the table, it means that the series has not met the necessary requirements for value estimation."""
-            )
-            ],
+                content=(
+                    "The section below displays the cumulative cases for the "
+                    "selected city in blue, the Richards model in orange, and "
+                    "the peak week in red. The sliders allow you to adjust "
+                    "the peak week, reproduction number (R0), and total "
+                    "number of cases. The orange curve represents just one "
+                    "possible scenario for the evolution of the epidemic curve."
+                    "The table shows the parameters estimated for the current "
+                    "year. If no parameter values are displayed in the table, "
+                    "it means that the series has not met the necessary "
+                    "requirements for value estimation."
+                )
+            ),
+        ],
     )
 
 
@@ -160,7 +175,7 @@ async def serve(q: Q):
     if "slice_year" in q.args:
         await update_analysis(q)
         await q.page.save()
-    if (q.args.ep_peak_week or q.args.ep_R0 or q.args.ep_total):
+    if q.args.ep_peak_week or q.args.ep_R0 or q.args.ep_total:
         await epidemic_calculator(q)
         await q.page.save()
 
@@ -198,10 +213,11 @@ async def update_weeks(q: Q):
             title="",
             items=[ui.text("**Top 10 cities**"), ui.text(ttext)],
         )
-    else: 
+    else:
         top_act_city = None
 
     return top_act_city
+
 
 async def update_r0map(q: Q):
     """
@@ -284,6 +300,7 @@ async def on_update_disease(q: Q):
     await q.page.save()
     await on_update_UF(q)
 
+
 async def on_update_UF(q: Q):
     if q.args.state is not None:
         q.client.uf = q.args.state
@@ -303,9 +320,11 @@ async def on_update_UF(q: Q):
         q, f"{today_date.year}-01-01", today_date.strftime("%Y-%m-%d"), None
     )
 
-    q.page[
-        "state_header"
-    ].content = f"## Epidemiological Report for {q.client.disease}\n ## {STATES[q.client.uf]}\nCumulative notified cases since Jan {datetime.date.today().year}: {sum_cases}"
+    q.page["state_header"].content = (
+        f"## Epidemiological Report for {q.client.disease}\n ## "
+        f"{STATES[q.client.uf]}\nCumulative notified cases since "
+        f"Jan {datetime.date.today().year}: {sum_cases}"
+    )
 
     await q.page.save()
     await update_state_map(q)
@@ -331,11 +350,11 @@ async def on_update_UF(q: Q):
     await update_r0map(q)
     await update_model_evaluation(q)
     await q.page.save()
-    
+
     q.client.city = top_act_city
     await on_update_city(q)
-    
-    return 
+
+    return
 
 
 async def on_update_city(q: Q):
@@ -361,17 +380,22 @@ async def on_update_city(q: Q):
     await update_analysis(q)
 
     df_pars = q.client.parameters
-    df_pars = df_pars.loc[(df_pars.geocode == int(q.client.city)) & (df_pars.year == int(datetime.date.today().year))]
-    
-    df_pars_ = pd.DataFrame()
-    df_pars_['pars'] = ['Peak week', 'R0', 'Total cases']
-    if df_pars.empty == True: 
-        df_pars_['values'] = ['---', '---', '---']
+    df_pars = df_pars.loc[
+        (df_pars.geocode == int(q.client.city))
+        & (df_pars.year == int(datetime.date.today().year))
+    ]
 
+    df_pars_ = pd.DataFrame()
+    df_pars_["pars"] = ["Peak week", "R0", "Total cases"]
+
+    if df_pars.empty:
+        df_pars_["values"] = ["---", "---", "---"]
     else:
-        df_pars_['values'] = [int(df_pars['peak_week'].values[0]),
-                              round(df_pars['R0'].values[0],2),
-                              int(df_pars['total_cases'].values[0])]
+        df_pars_["values"] = [
+            int(df_pars["peak_week"].values[0]),
+            round(df_pars["R0"].values[0], 2),
+            int(df_pars["total_cases"].values[0]),
+        ]
 
     table = make_markdown_table(
         fields=["Parameter", "Value"],
@@ -397,11 +421,11 @@ async def update_pars(q: Q):
     for _, res in q.client.parameters[
         q.client.parameters.geocode == int(q.client.city)
     ].iterrows():
-        start_date, end_date = get_ini_end_week(int(res['year']))
+        start_date, end_date = get_ini_end_week(int(res["year"]))
 
         sum_cases = await update_sum_cases(
             q,
-            start_date, 
+            start_date,
             end_date,
             int(q.client.city),
         )
@@ -415,52 +439,70 @@ async def update_pars(q: Q):
     q.page["sir_pars"].items[2].text.content = table
     await q.page.save()
 
-async def get_median_pars(q:Q):
+
+async def get_median_pars(q: Q):
 
     year = int(datetime.datetime.today().year)
 
     start_date, end_date = get_ini_end_week(year)
 
     sum_cases = await update_sum_cases(
-            q,
-            start_date, 
-            end_date,
-            int(q.client.city),
-        )
-    
+        q,
+        start_date,
+        end_date,
+        int(q.client.city),
+    )
+
     sum_cases = float(sum_cases)
 
     df_pars = q.client.parameters
-    df_pars_ = df_pars.loc[(df_pars.geocode == int(q.client.city)) & (df_pars.year < year)]
-    df_pars_atual = df_pars.loc[(df_pars.geocode == int(q.client.city)) & (df_pars.year == year)]
+    df_pars_ = df_pars.loc[
+        (df_pars.geocode == int(q.client.city)) & (df_pars.year < year)
+    ]
+    df_pars_atual = df_pars.loc[
+        (df_pars.geocode == int(q.client.city)) & (df_pars.year == year)
+    ]
 
     if df_pars_.empty == True:
-        median_R0= 2
-        median_peak =  10
-        median_cases =  sum_cases
-    else: 
-        median_R0 = round(np.median(df_pars_['R0'].values),2)
-        median_peak = int(np.median(df_pars_['peak_week'].values))
-        median_cases = int(np.median(df_pars_['total_cases'].values))
-        
-    min_cases = 0.85*sum_cases
+        median_R0 = 2
+        median_peak = 10
+        median_cases = sum_cases
+    else:
+        median_R0 = round(np.median(df_pars_["R0"].values), 2)
+        median_peak = int(np.median(df_pars_["peak_week"].values))
+        median_cases = int(np.median(df_pars_["total_cases"].values))
+
+    min_cases = 0.85 * sum_cases
 
     if df_pars_atual.empty == True:
-        max_cases = max(1.25*sum_cases, 1.25*median_cases)
+        max_cases = max(1.25 * sum_cases, 1.25 * median_cases)
     else:
-        max_cases = max(1.25*sum_cases, 1.25*median_cases, df_pars_atual['total_cases'].values[0])
+        max_cases = max(
+            1.25 * sum_cases,
+            1.25 * median_cases,
+            df_pars_atual["total_cases"].values[0],
+        )
 
-    step = int((max_cases - min_cases)/20)
+    step = int((max_cases - min_cases) / 20)
 
-    return median_R0, median_peak, median_cases, min_cases, max_cases, step 
+    return median_R0, median_peak, median_cases, min_cases, max_cases, step
 
-async def on_update_ini_epi_calc(q:Q): 
-    print(f"\nclient.uf: {q.client.uf}",
+
+async def on_update_ini_epi_calc(q: Q):
+    print(
+        f"\nclient.uf: {q.client.uf}",
         f"\nargs.state: {q.args.state}",
         f"\nclient.city: {q.client.city}",
         f"\nargs.city: {q.args.city}",
     )
-    median_R0, median_peak, median_cases, min_cases, max_cases, step = await get_median_pars(q)
+    (
+        median_R0,
+        median_peak,
+        median_cases,
+        min_cases,
+        max_cases,
+        step,
+    ) = await get_median_pars(q)
 
     q.page["peak_model"] = ui.form_card(
         box="ep_calc_peak",
@@ -511,8 +553,9 @@ async def on_update_ini_epi_calc(q:Q):
     )
 
     altair_plot = await plot_epidemic_calc_altair(
-        q, int(q.client.city), median_peak, median_R0, median_cases)
-    
+        q, int(q.client.city), median_peak, median_R0, median_cases
+    )
+
     q.page["epidemic_calc"] = ui.vega_card(
         box="epi_calc_alt", title="", specification=altair_plot.to_json()
     )
@@ -522,28 +565,31 @@ async def on_update_ini_epi_calc(q:Q):
     q.args.ep_total = False
 
     await q.page.save()
-    
+
+
 async def epidemic_calculator(q: Q):
 
     pw = q.client.ep_peak_week
-    R0 = q.client.ep_R0 
+    R0 = q.client.ep_R0
     total_cases = q.client.ep_total
 
     if (pw is None) or (R0 is None) or (total_cases is None):
-        pass 
-    else: 
+        pass
+    else:
         altair_plot = await plot_epidemic_calc_altair(
-            q, int(q.client.city), pw, R0, total_cases)
-        
+            q, int(q.client.city), pw, R0, total_cases
+        )
+
         q.page["epidemic_calc"] = ui.vega_card(
             box="epi_calc_alt", title="", specification=altair_plot.to_json()
         )
 
-        q.client.ep_peak_week = pw 
+        q.client.ep_peak_week = pw
         q.client.ep_R0 = R0
-        q.client.ep_total = total_cases 
+        q.client.ep_total = total_cases
 
     await q.page.save()
+
 
 def create_layout(q):
     """
@@ -570,8 +616,10 @@ def create_layout(q):
                                 "sidebar",
                                 size="25%",
                                 direction=ui.ZoneDirection.COLUMN,
-                                zones = [ui.zone("sidebar_form"),
-                                        ui.zone("sidebar_results",size='1605px')                                        ],
+                                zones=[
+                                    ui.zone("sidebar_form"),
+                                    ui.zone("sidebar_results", size="1605px"),
+                                ],
                             ),
                             ui.zone(
                                 "content",
@@ -627,8 +675,9 @@ def create_layout(q):
                                         zones=[
                                             ui.zone("SIR parameters"),
                                             ui.zone("Year"),
-                                            ui.zone("SIR curves", size='600px'),
-                                    
+                                            ui.zone(
+                                                "SIR curves", size="600px"
+                                            ),
                                         ],
                                     ),
                                     ui.zone("epidemic_calc_header"),
@@ -636,21 +685,17 @@ def create_layout(q):
                                         name="epidemic_calc",
                                         direction=ui.ZoneDirection.ROW,
                                         zones=[
-                                            ui.zone("epi_calc_alt", size='77%'),
+                                            ui.zone(
+                                                "epi_calc_alt", size="77%"
+                                            ),
                                             ui.zone(
                                                 name="epic_calc_column",
                                                 size="23%",
                                                 direction=ui.ZoneDirection.COLUMN,
                                                 zones=[
-                                                    ui.zone(
-                                                        "ep_calc_peak"
-                                                    ),
-                                                    ui.zone(
-                                                        "ep_calc_R0"
-                                                    ),
-                                                    ui.zone(
-                                                        "ep_calc_total"
-                                                    ),
+                                                    ui.zone("ep_calc_peak"),
+                                                    ui.zone("ep_calc_R0"),
+                                                    ui.zone("ep_calc_total"),
                                                     ui.zone(
                                                         "ep_calc_pars_table"
                                                     ),
@@ -668,13 +713,6 @@ def create_layout(q):
     )
 
 
-def df_to_table_rows(df: pd.DataFrame) -> List[ui.TableRow]:
-    return [
-        ui.table_row(name=str(r[0]), cells=[str(r[0]), r[1]])
-        for r in df.itertuples(index=False)
-    ]
-
-
 async def load_table(q: Q):
     global DATA_TABLE
     UF = q.client.uf
@@ -684,7 +722,6 @@ async def load_table(q: Q):
         disease = "chikungunya"
 
     if os.path.exists(f"{EPISCANNER_DATA_DIR}/{UF}_{disease}.parquet"):
-        logger.info("loading data...")
         DATA_TABLE = pd.read_parquet(
             f"{EPISCANNER_DATA_DIR}/{UF}_{disease}.parquet"
         )
@@ -718,7 +755,7 @@ async def update_analysis(q):
         eyear = datetime.date.today().year
     else:
         syear = eyear = q.client.epi_year
-    
+
     start_date, end_date = get_ini_end_week(int(syear), eyear)
 
     altair_plot = await plot_series_altair(
@@ -746,9 +783,9 @@ def dump_results(q):
         report[
             q.client.cities[gc]
         ] = f"{len(citydf)} epidemic years: {list(sorted(citydf.year))}\n"
-    for n, linha in sorted(report.items(), key=lambda x:  int(x[1][0:2]), reverse=True)[
-        :20
-    ]:
+    for n, linha in sorted(
+        report.items(), key=lambda x: int(x[1][0:2]), reverse=True
+    )[:20]:
         results += f"**{n}** :{linha}\n"
     q.page["results"].content = results
 
@@ -810,7 +847,7 @@ def add_sidebar(q):
                 choices=[],
                 trigger=True,
                 visible=False,
-                popup='always',
+                popup="always",
                 placeholder="Nothing selected",
             ),
             ui.text(
