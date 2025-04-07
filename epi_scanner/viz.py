@@ -33,7 +33,7 @@ def get_ini_end_week(year: int, eyear=None):
 
     dates = pd.date_range(start=ini_week, periods=104, freq="W-SUN")
 
-    dates_ = dates[dates.year >= year - 1][44 : 44 + 52]
+    dates_ = dates[dates.year >= year - 1][44: 44 + 52]
 
     ini_date = dates_[0].strftime("%Y-%m-%d")
 

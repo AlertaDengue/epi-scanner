@@ -33,6 +33,7 @@ duckdb = "^0.10.1"
 virtualenv = "^20.26.3"
 epiweeks = "^2.3.0"
 datetime = "^5.5"
+pydantic = "^2.11.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "*"

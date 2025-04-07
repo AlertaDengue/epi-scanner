@@ -21,12 +21,16 @@ import datetime
 import os
 import warnings
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 import duckdb
 import numpy as np
 import pandas as pd
+from h2o_wave import Q, app, copy_expando, data, main, ui  # Noqa F401
+from loguru import logger
+
 from epi_scanner.settings import EPISCANNER_DATA_DIR, EPISCANNER_DUCKDB_DIR, STATES
+from epi_scanner.elements import cards, charts
 from epi_scanner.viz import (
     get_ini_end_week,
     load_map,
@@ -43,8 +47,6 @@ from epi_scanner.viz import (
     top_n_R0,
     update_state_map,
 )
-from h2o_wave import Q, app, copy_expando, data, main, ui  # Noqa F401
-from loguru import logger
 
 warnings.filterwarnings("ignore")
 
@@ -197,7 +199,6 @@ async def update_sum_cases(
 async def update_weeks(q: Q):
     if (not q.client.weeks) and (q.client.data_table is not None):
         await t_weeks(q)
-        logger.info("plot weeks")
         fig_alt = await plot_state_map_altair(
             q, q.client.weeks_map, column="transmissao"
         )
@@ -306,12 +307,6 @@ async def on_update_UF(q: Q):
         q.client.uf = q.args.state
     await q.page.save()
 
-    logger.info(
-        f"\nclient.uf: {q.client.uf}"
-        f"\nargs.state: {q.args.state}"
-        f"\nargs.city: {q.args.city}"
-    )
-
     await load_table(q)
 
     today_date = datetime.date.today()
@@ -345,7 +340,7 @@ async def on_update_UF(q: Q):
     finally:
         db.close()
 
-    dump_results(q)
+    cards.Results.update(q)
     q.args.r0year = datetime.date.today().year
     await update_r0map(q)
     await update_model_evaluation(q)
@@ -489,12 +484,6 @@ async def get_median_pars(q: Q):
 
 
 async def on_update_ini_epi_calc(q: Q):
-    print(
-        f"\nclient.uf: {q.client.uf}",
-        f"\nargs.state: {q.args.state}",
-        f"\nclient.city: {q.client.city}",
-        f"\nargs.city: {q.args.city}",
-    )
     (
         median_R0,
         median_peak,
@@ -552,12 +541,18 @@ async def on_update_ini_epi_calc(q: Q):
         ],
     )
 
-    altair_plot = await plot_epidemic_calc_altair(
-        q, int(q.client.city), median_peak, median_R0, median_cases
+    altair_plot = charts.EpidemicCalculator(
+        disease=q.client.disease,
+        city=q.client.cities[int(q.client.city)],
+        df=q.client.data_table,
+        gc=int(q.client.city),
+        pw=median_peak,
+        R0=median_R0,
+        total_cases=median_cases
     )
 
     q.page["epidemic_calc"] = ui.vega_card(
-        box="epi_calc_alt", title="", specification=altair_plot.to_json()
+        box="epi_calc_alt", title="", specification=altair_plot.chart.to_json()
     )
 
     q.args.ep_peak_week = False
@@ -573,20 +568,19 @@ async def epidemic_calculator(q: Q):
     R0 = q.client.ep_R0
     total_cases = q.client.ep_total
 
-    if (pw is None) or (R0 is None) or (total_cases is None):
-        pass
-    else:
-        altair_plot = await plot_epidemic_calc_altair(
-            q, int(q.client.city), pw, R0, total_cases
-        )
+    altair_plot = charts.EpidemicCalculator(
+        disease=q.client.disease,
+        city=q.client.cities[int(q.client.city)],
+        # pw, R0, total_cases
+    )
 
-        q.page["epidemic_calc"] = ui.vega_card(
-            box="epi_calc_alt", title="", specification=altair_plot.to_json()
-        )
-
-        q.client.ep_peak_week = pw
-        q.client.ep_R0 = R0
-        q.client.ep_total = total_cases
+    cards.Vega(
+        q=q,
+        element_id="epidemic_calc",
+        box="epi_calc_alt",
+        title="",
+        chart=altair_plot
+    )
 
     await q.page.save()
 
@@ -768,28 +762,6 @@ async def update_analysis(q):
     await update_pars(q)
 
 
-def dump_results(q):
-    """
-    Dump top 20 cities to markdown list
-    Args:
-        q:
-    """
-    results = "**Top 20 most active cities** \n\n"
-    cities = q.client.parameters.groupby("geocode")
-    report = {}
-    for gc, citydf in cities:
-        if len(citydf) < 1:
-            continue
-        report[
-            q.client.cities[gc]
-        ] = f"{len(citydf)} epidemic years: {list(sorted(citydf.year))}\n"
-    for n, linha in sorted(
-        report.items(), key=lambda x: int(x[1][0:2]), reverse=True
-    )[:20]:
-        results += f"**{n}** :{linha}\n"
-    q.page["results"].content = results
-
-
 def add_sidebar(q):
     state_choices = [
         ui.choice("AC", "Acre"),
@@ -855,11 +827,7 @@ def add_sidebar(q):
             ),
         ],
     )
-    q.page["results"] = ui.markdown_card(
-        box="sidebar_results",
-        title="",
-        content="",
-    )
+    cards.Results(q)
 
 
 def create_analysis_form(q):
