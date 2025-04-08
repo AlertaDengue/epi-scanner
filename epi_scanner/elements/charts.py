@@ -1,10 +1,9 @@
 import datetime
 from typing import Optional
 
-import pandas as pd
 import altair as alt
 import numpy as np
-
+import pandas as pd
 from epi_scanner.elements import Chart
 from epi_scanner.viz import get_ini_end_week, richards
 
@@ -20,7 +19,7 @@ class EpidemicCalculator(Chart):
         gc: Optional[int] = None,
         pw: Optional[int] = None,
         R0: Optional[float] = None,
-        total_cases: Optional[int] = None
+        total_cases: Optional[int] = None,
     ):
         self.chart = self.do_chart(
             disease=disease,
@@ -30,7 +29,7 @@ class EpidemicCalculator(Chart):
             gc=gc,
             pw=pw,
             R0=R0,
-            total_cases=total_cases
+            total_cases=total_cases,
         )
 
     @staticmethod
@@ -42,7 +41,7 @@ class EpidemicCalculator(Chart):
         gc: Optional[int] = None,
         pw: Optional[int] = None,
         R0: Optional[float] = None,
-        total_cases: Optional[int] = None
+        total_cases: Optional[int] = None,
     ) -> alt.Chart:
         start_date, end_date = get_ini_end_week(year=year)
 
@@ -66,7 +65,7 @@ class EpidemicCalculator(Chart):
                 dfcity2,
                 left_on="data_iniSE",
                 right_on="data_iniSE",
-                how="outer"
+                how="outer",
             )
         else:
             dtypes = {
@@ -86,10 +85,6 @@ class EpidemicCalculator(Chart):
             domain=["Data", "Model", "Peak week"],
             range=["#1f77b4", "#ff7f0e", "red"],
         )
-        print(disease)
-        print(city)
-        print(R0)
-        print(df2)
 
         title = f"{disease.capitalize()} weekly cases in {year} for {city}"
 
@@ -102,7 +97,8 @@ class EpidemicCalculator(Chart):
             )
             .encode(
                 x=alt.X(
-                    "data_iniSE:T", axis=alt.Axis(title="Date", titleFontSize=12)
+                    "data_iniSE:T",
+                    axis=alt.Axis(title="Date", titleFontSize=12),
                 ),
                 y=alt.Y(
                     "casos_cum:Q",
@@ -118,7 +114,8 @@ class EpidemicCalculator(Chart):
             .mark_line(color="red")
             .encode(
                 x=alt.X(
-                    "data_iniSE:T", axis=alt.Axis(title="Date", titleFontSize=12)
+                    "data_iniSE:T",
+                    axis=alt.Axis(title="Date", titleFontSize=12),
                 ),
                 y=alt.Y(
                     "model:Q",
@@ -134,7 +131,8 @@ class EpidemicCalculator(Chart):
             .mark_point(size=60, filled=True, color="red")
             .encode(
                 x=alt.X(
-                    "data_iniSE:T", axis=alt.Axis(title="Date", titleFontSize=12)
+                    "data_iniSE:T",
+                    axis=alt.Axis(title="Date", titleFontSize=12),
                 ),
                 y=alt.Y(
                     "model:Q",
@@ -165,7 +163,8 @@ class EpidemicCalculator(Chart):
             .mark_rule(size=2, color="orange")
             .encode(
                 x=alt.X(
-                    "data_iniSE:T", axis=alt.Axis(title="Date", titleFontSize=12)
+                    "data_iniSE:T",
+                    axis=alt.Axis(title="Date", titleFontSize=12),
                 ),
                 color=alt.Color(
                     "label:N",

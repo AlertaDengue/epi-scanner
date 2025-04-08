@@ -1,64 +1,58 @@
 from epi_scanner.elements import Card, Chart
-
+from epi_scanner.settings import STATES
 from h2o_wave import Q, ui
 
 
 class Vega(Card):
     def __init__(
-        self,
-        q: Q,
-        element_id: str,
-        box: str,
-        title: str,
-        chart: Chart
+        self, q: Q, element_id: str, box: str, title: str, chart: Chart
     ):
         q.page[element_id] = ui.vega_card(
-            box=box,
-            title=title,
-            specification=chart.chart.to_json()
+            box=box, title=title, specification=chart.chart.to_json()
         )
 
 
 class Markdown(Card):
     def __init__(
-        self,
-        q: Q,
-        element_id: str,
-        box: str,
-        title: str,
-        content: str
+        self, q: Q, element_id: str, box: str, title: str, content: str
     ):
         q.page[element_id] = ui.markdown_card(
-            box=box,
-            title=title,
-            content=content
+            box=box, title=title, content=content
         )
+
+
+class StateHeader(Markdown):
+    def __init__(self, q: Q):
+        text = f"## Epidemiological Report for {q.client.disease}"
+        super().__init__(
+            q=q, element_id="state_header", box="pre", title="", content=text
+        )
+
+    @staticmethod
+    def update(q: Q, disease: str, uf: str, cases: int, year: int):
+        text = (
+            f"## Epidemiological Report for {disease}\n ## "
+            f"{STATES[uf]}\nCumulative notified cases since "
+            f"Jan {year}: {cases}"
+        )
+        q.page["state_header"].content = text
 
 
 class Results(Markdown):
     def __init__(self, q: Q):
-        results = "**Top 20 most active cities** \n\n"
+        text = "**Top 20 most active cities** \n\n"
         super().__init__(
             q=q,
             element_id="results",
             box="sidebar_results",
             title="",
-            content=results
+            content=text,
         )
 
     @staticmethod
-    def update(q: Q):
-        results = "**Top 20 most active cities** \n\n"
-        cities = q.client.parameters.groupby("geocode")
-        report = {}
-        for gc, citydf in cities:
-            if len(citydf) < 1:
-                continue
-            report[
-                q.client.cities[gc]
-            ] = f"{len(citydf)} epidemic years: {list(sorted(citydf.year))}\n"
-        for n, linha in sorted(
-            report.items(), key=lambda x: int(x[1][0:2]), reverse=True
-        )[:20]:
-            results += f"**{n}** :{linha}\n"
-        q.page["results"].content = results
+    def update(q: Q, results: list[tuple[[str, str]]]):
+        text = "**Top 20 most active cities** \n\n"
+        for result in results:
+            city, line = result
+            text += f"**{city}** :{line}\n"
+        q.page["results"].content = text

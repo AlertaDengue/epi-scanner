@@ -26,11 +26,8 @@ from typing import Optional
 import duckdb
 import numpy as np
 import pandas as pd
-from h2o_wave import Q, app, copy_expando, data, main, ui  # Noqa F401
-from loguru import logger
-
-from epi_scanner.settings import EPISCANNER_DATA_DIR, EPISCANNER_DUCKDB_DIR, STATES
 from epi_scanner.elements import cards, charts
+from epi_scanner.settings import EPISCANNER_DATA_DIR, EPISCANNER_DUCKDB_DIR, STATES
 from epi_scanner.viz import (
     get_ini_end_week,
     load_map,
@@ -47,10 +44,11 @@ from epi_scanner.viz import (
     top_n_R0,
     update_state_map,
 )
+from h2o_wave import Q, app, copy_expando, data, main, ui  # Noqa F401
+from loguru import logger
 
 warnings.filterwarnings("ignore")
 
-DATA_TABLE = None
 DUCKDB_FILE = Path(
     os.path.join(str(EPISCANNER_DUCKDB_DIR), "episcanner.duckdb")
 )
@@ -60,7 +58,6 @@ async def initialize_app(q: Q):
     """
     Set up UI elements
     """
-    create_layout(q)
     q.page["title"] = ui.header_card(
         box=ui.box("header"),
         title="Real-time Epidemic Scanner",
@@ -71,26 +68,15 @@ async def initialize_app(q: Q):
             "img/info-dengue-logo-multicidades.png"
         ),
     )
-    await q.page.save()
+
     # Setup some client side variables
-    q.client.cities = {}
-    q.client.loaded = False
-    q.client.uf = "CE"
-    q.client.disease = "dengue"
-    q.client.weeks = False
     await load_map(q)
 
     await q.page.save()
 
-    q.page["state_header"] = ui.markdown_card(
-        box="pre",
-        title="",
-        content=f"## Epidemiological Report for {q.client.disease}",
-    )
+    cards.StateHeader(q)
+
     add_sidebar(q)
-    q.page["analysis_header"] = ui.markdown_card(
-        box="analysis", title="City-level Analysis", content=""
-    )
     year = datetime.date.today().year
     q.page["footer"] = ui.footer_card(
         box="footer",
@@ -103,9 +89,6 @@ async def initialize_app(q: Q):
     )
     q.page["form"].items[0].dropdown.value = q.client.disease
     q.page["form"].items[1].dropdown.value = q.client.uf
-
-    q.args.disease = q.client.disease
-    q.args.state = q.client.uf
 
     await on_update_disease(q)
     await q.page.save()
@@ -148,38 +131,17 @@ async def initialize_app(q: Q):
 
 @app("/", mode="unicast")
 async def serve(q: Q):
-    copy_expando(
-        q.args, q.client
-    )  # Maintain updated copies of q.args in q.client
+    copy_expando(q.args, q.client)
+
+    q.client.cities = {}
+    q.client.uf = "CE"
+    q.client.disease = "dengue"
+    q.client.weeks = False
+
     if not q.client.initialized:
+        await create_layout(q)
         await initialize_app(q)
         q.client.initialized = True
-    await q.page.save()
-    if q.args.disease:
-        q.page["form"].items[0].dropdown.value = q.client.disease
-        await on_update_disease(q)
-        await q.page.save()
-    if q.args.state:
-        q.client.uf = q.args.state
-        q.page["form"].items[1].dropdown.value = q.client.uf
-        await on_update_UF(q)
-        await q.page.save()
-    if q.args.city:
-        q.page["non-existent"].items = []
-        await on_update_city(q)
-        await q.page.save()
-    if q.args.r0year:
-        await update_r0map(q)
-        await q.page.save()
-    if q.args.model_evaluation_year:
-        await update_model_evaluation(q)
-        await q.page.save()
-    if "slice_year" in q.args:
-        await update_analysis(q)
-        await q.page.save()
-    if q.args.ep_peak_week or q.args.ep_R0 or q.args.ep_total:
-        await epidemic_calculator(q)
-        await q.page.save()
 
 
 async def update_sum_cases(
@@ -297,16 +259,10 @@ async def update_model_evaluation(q: Q):
 
 
 async def on_update_disease(q: Q):
-    q.client.disease = q.args.disease
-    await q.page.save()
     await on_update_UF(q)
 
 
 async def on_update_UF(q: Q):
-    if q.args.state is not None:
-        q.client.uf = q.args.state
-    await q.page.save()
-
     await load_table(q)
 
     today_date = datetime.date.today()
@@ -315,10 +271,12 @@ async def on_update_UF(q: Q):
         q, f"{today_date.year}-01-01", today_date.strftime("%Y-%m-%d"), None
     )
 
-    q.page["state_header"].content = (
-        f"## Epidemiological Report for {q.client.disease}\n ## "
-        f"{STATES[q.client.uf]}\nCumulative notified cases since "
-        f"Jan {datetime.date.today().year}: {sum_cases}"
+    cards.StateHeader.update(
+        q=q,
+        disease=q.client.disease,
+        uf=q.client.uf,
+        cases=sum_cases,
+        year=today_date.year,
     )
 
     await q.page.save()
@@ -340,16 +298,26 @@ async def on_update_UF(q: Q):
     finally:
         db.close()
 
-    cards.Results.update(q)
-    q.args.r0year = datetime.date.today().year
+    report = {}
+    for gc, citydf in q.client.parameters.groupby("geocode"):
+        if len(citydf) < 1:
+            continue
+        report[
+            q.client.cities[gc]
+        ] = f"{len(citydf)} epidemic years: {list(sorted(citydf.year))}\n"
+    results = sorted(
+        report.items(),
+        key=lambda x: int(x[1][0:2]),
+        reverse=True
+    )[:20]
+    cards.Results.update(q, results=results)
+
     await update_r0map(q)
     await update_model_evaluation(q)
     await q.page.save()
 
     q.client.city = top_act_city
     await on_update_city(q)
-
-    return
 
 
 async def on_update_city(q: Q):
@@ -358,11 +326,6 @@ async def on_update_city(q: Q):
     Args:
         q:
     """
-    if (q.client.city != q.args.city) and (q.args.city is not None):
-        q.client.city = q.args.city
-    q.page[
-        "analysis_header"
-    ].content = f"## {q.client.cities[int(q.client.city)]}"
     create_analysis_form(q)
     years = [
         ui.choice(name=str(y), label=str(y))
@@ -548,7 +511,7 @@ async def on_update_ini_epi_calc(q: Q):
         gc=int(q.client.city),
         pw=median_peak,
         R0=median_R0,
-        total_cases=median_cases
+        total_cases=median_cases,
     )
 
     q.page["epidemic_calc"] = ui.vega_card(
@@ -562,30 +525,7 @@ async def on_update_ini_epi_calc(q: Q):
     await q.page.save()
 
 
-async def epidemic_calculator(q: Q):
-
-    pw = q.client.ep_peak_week
-    R0 = q.client.ep_R0
-    total_cases = q.client.ep_total
-
-    altair_plot = charts.EpidemicCalculator(
-        disease=q.client.disease,
-        city=q.client.cities[int(q.client.city)],
-        # pw, R0, total_cases
-    )
-
-    cards.Vega(
-        q=q,
-        element_id="epidemic_calc",
-        box="epi_calc_alt",
-        title="",
-        chart=altair_plot
-    )
-
-    await q.page.save()
-
-
-def create_layout(q):
+async def create_layout(q):
     """
     Creates the main layout of the app
     """
@@ -707,38 +647,39 @@ def create_layout(q):
     )
 
 
+def load_data(disease: str, uf: str) -> pd.DataFrame:
+    return pd.read_parquet(
+        f"{EPISCANNER_DATA_DIR}/{uf}_{disease}.parquet"
+    )
+
+
 async def load_table(q: Q):
-    global DATA_TABLE
-    UF = q.client.uf
-    disease = q.client.disease
+    disease = q.client.uf
 
     if disease == "chik":
         disease = "chikungunya"
 
-    if os.path.exists(f"{EPISCANNER_DATA_DIR}/{UF}_{disease}.parquet"):
-        DATA_TABLE = pd.read_parquet(
-            f"{EPISCANNER_DATA_DIR}/{UF}_{disease}.parquet"
-        )
-        q.client.data_table = DATA_TABLE
-        q.client.loaded = True
-        for gc in DATA_TABLE.municipio_geocodigo.unique():
-            try:  # FIXME: this is a hack to deal with missing cities in the map
-                city_name = q.client.brmap[
-                    q.client.brmap.code_muni.astype(int) == int(gc)
-                ].name_muni.values
-                q.client.cities[int(gc)] = (
-                    "" if not city_name.any() else city_name[0]
-                )
-            except IndexError:
-                pass  # If city is missing in the map, ignore it
-        choices = [
-            ui.choice(str(gc), q.client.cities[gc])
-            for gc in DATA_TABLE.municipio_geocodigo.unique()
-        ]
-        q.page["form"].items[2].dropdown.choices = choices
-        q.page["form"].items[2].dropdown.visible = True
-        q.page["form_city"].items[0].dropdown.choices = choices
-        q.page["form_city"].items[0].dropdown.visible = True
+    df = await q.run(load_data, q.client.disease, q.client.uf)
+    q.client.data_table = df
+
+    for gc in df.municipio_geocodigo.unique():
+        try:  # FIXME: this is a hack to deal with missing cities in the map
+            city_name = q.client.brmap[
+                q.client.brmap.code_muni.astype(int) == int(gc)
+            ].name_muni.values
+            q.client.cities[int(gc)] = (
+                "" if not city_name.any() else city_name[0]
+            )
+        except IndexError:
+            pass  # If city is missing in the map, ignore it
+    choices = [
+        ui.choice(str(gc), q.client.cities[gc])
+        for gc in df.municipio_geocodigo.unique()
+    ]
+    q.page["form"].items[2].dropdown.choices = choices
+    q.page["form"].items[2].dropdown.visible = True
+    q.page["form_city"].items[0].dropdown.choices = choices
+    q.page["form_city"].items[0].dropdown.visible = True
 
     await q.page.save()
 

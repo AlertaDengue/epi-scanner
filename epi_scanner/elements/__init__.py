@@ -4,7 +4,6 @@ from typing import TypeVar
 import altair as alt
 from h2o_wave import Q, ui
 
-
 ChartT = TypeVar("ChartT", bound="Chart")
 ElementT = TypeVar("ElementT", bound="Element")
 CardT = TypeVar("CardT", bound="Card")

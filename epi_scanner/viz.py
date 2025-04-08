@@ -33,7 +33,7 @@ def get_ini_end_week(year: int, eyear=None):
 
     dates = pd.date_range(start=ini_week, periods=104, freq="W-SUN")
 
-    dates_ = dates[dates.year >= year - 1][44: 44 + 52]
+    dates_ = dates[dates.year >= year - 1][44 : 44 + 52]
 
     ini_date = dates_[0].strftime("%Y-%m-%d")
 
@@ -506,10 +506,6 @@ async def table_model_evaluation(
     return table
 
 
-def make_markdown_row(values):
-    return f"| {' | '.join([str(x) for x in values])} |"
-
-
 def make_markdown_table(fields, rows):
     """
     Create markdown table
@@ -519,11 +515,15 @@ def make_markdown_table(fields, rows):
 
     Returns: Markdown table
     """
+
+    def row(values):
+        return f"| {' | '.join([str(x) for x in values])} |"
+
     return "\n".join(
         [
-            make_markdown_row(fields),
-            make_markdown_row("-" * len(fields)),
-            "\n".join([make_markdown_row(row) for row in rows]),
+            row(fields),
+            row("-" * len(fields)),
+            "\n".join([row(r) for r in rows]),
         ]
     )
 
