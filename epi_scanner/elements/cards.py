@@ -23,7 +23,7 @@ class Markdown(Card):
 
 class StateHeader(Markdown):
     def __init__(self, q: Q):
-        text = f"## Epidemiological Report for {q.client.disease}"
+        text = f"## Epidemiological Report for {q.client.disease.title()}"
         super().__init__(
             q=q, element_id="state_header", box="pre", title="", content=text
         )
@@ -31,7 +31,7 @@ class StateHeader(Markdown):
     @staticmethod
     def update(q: Q, disease: str, uf: str, cases: int, year: int):
         text = (
-            f"## Epidemiological Report for {disease}\n ## "
+            f"## Epidemiological Report for {disease.title()}\n ## "
             f"{STATES[uf]}\nCumulative notified cases since "
             f"Jan {year}: {cases}"
         )

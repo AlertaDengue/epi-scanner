@@ -21,7 +21,8 @@ import datetime
 import os
 import warnings
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Literal
+from functools import lru_cache
 
 import duckdb
 import numpy as np
@@ -42,7 +43,7 @@ from epi_scanner.viz import (
     table_model_evaluation,
     top_n_cities,
     top_n_R0,
-    update_state_map,
+    client_state_map,
 )
 from h2o_wave import Q, app, copy_expando, data, main, ui  # Noqa F401
 from loguru import logger
@@ -54,7 +55,7 @@ DUCKDB_FILE = Path(
 )
 
 
-async def initialize_app(q: Q):
+async def initialize_app(q: Q, disease: str, uf: str):
     """
     Set up UI elements
     """
@@ -70,13 +71,11 @@ async def initialize_app(q: Q):
     )
 
     # Setup some client side variables
-    await load_map(q)
-
-    await q.page.save()
+    brmap = await q.run(load_map)
+    q.client.brmap = brmap
 
     cards.StateHeader(q)
 
-    add_sidebar(q)
     year = datetime.date.today().year
     q.page["footer"] = ui.footer_card(
         box="footer",
@@ -87,18 +86,233 @@ async def initialize_app(q: Q):
             "[EpiGraphHub](https://epigraphhub.org/)"
         ),
     )
+
     q.page["form"].items[0].dropdown.value = q.client.disease
     q.page["form"].items[1].dropdown.value = q.client.uf
 
-    await on_update_disease(q)
+    await on_update_disease(q, disease=disease)
+    # await on_update_UF(q, uf=uf)
+
+
+@app("/", mode="unicast")
+async def serve(q: Q):
+    copy_expando(q.args, q.client)
+
+    q.client.cities = {}
+    q.client.uf = "CE"
+    q.client.disease = "dengue"
+    q.client.weeks = False
+
+    if not q.client.initialized:
+        await create_layout(q)
+        await add_sidebar(q)
+        await initialize_app(q, disease=q.client.disease, uf=q.client.uf)
+        q.client.initialized = True
+
+    if q.args.disease:
+        q.client.disease = q.args.disease
+        await on_update_disease(q, q.client.disease)
+
+    if q.args.state:
+        q.client.uf = q.args.state
+        await on_update_UF(q, q.client.uf)
+
     await q.page.save()
+
+
+async def sum_cases(
+    q: Q,
+    start_date: str = "2024-01-01",
+    end_date: str = "2024-12-31",
+    geocode: Optional[int] = None,
+):
+    print("update_sum_cases")
+    df = q.client.data_table
+    df.sort_index(inplace=True)
+    if geocode is not None:
+        df = df[df.municipio_geocodigo == geocode]
+    df = df.loc[start_date:end_date]
+    return df.casos.sum()
+
+
+async def update_weeks(q: Q):
+    print("update_weeks")
+    if (not q.client.weeks) and (q.client.data_table is not None):
+        await t_weeks(q)
+        fig_alt = await plot_state_map_altair(
+            q, q.client.weeks_map, column="transmissao"
+        )
+        q.page["plot_alt"] = ui.vega_card(
+            box="week_map",
+            title="",
+            specification=fig_alt.to_json(),
+        )
+        ttext, top_act_city = await top_n_cities(q, 10)
+        q.page["wtable"] = ui.form_card(
+            box="week_table",
+            title="",
+            items=[ui.text("**Top 10 cities**"), ui.text(ttext)],
+        )
+    else:
+        top_act_city = None
+
+    return top_act_city
+
+
+async def update_r0map(q: Q):
+    """
+    Updates R0 map and table
+    """
+    print("update_r0map")
+    end_year = datetime.date.today().year
+    year = q.client.r0year or datetime.date.today().year
+    fig_alt = await plot_pars_map_altair(
+        q, q.client.weeks_map, [year], STATES[q.client.uf]
+    )
+    q.page["plot_alt_R0"] = ui.vega_card(
+        box="R0_map",
+        title="",
+        specification=fig_alt.to_json(),
+    )
+    ttext = await top_n_R0(q, year, 10)
+    q.page["R0table"] = ui.form_card(
+        box="R0_table",
+        title="",
+        items=[
+            ui.text("**Top 10 R0s**"),
+            ui.slider(
+                name="r0year",
+                label="Year",
+                min=2010,
+                max=end_year,
+                step=1,
+                value=year,
+                trigger=True,
+            ),
+            ui.text(ttext),
+        ],
+    )
+
+
+async def update_model_evaluation(q: Q):
+    print("update_model_evaluation")
+    end_year = datetime.date.today().year
+    year = q.client.model_evaluation_year or (datetime.date.today().year - 1)
+    fig_alt = await plot_model_evaluation_map_altair(
+        q, q.client.statemap, [year], STATES[q.client.uf]
+    )
+    q.page["map_alt_model_evaluation"] = ui.vega_card(
+        box="model_evaluation_map", title="", specification=fig_alt.to_json()
+    )
+    fig_alt = await plot_model_evaluation_hist_altair(
+        q, q.client.statemap, [year], STATES[q.client.uf]
+    )
+    q.page["hist_alt_model_evaluation"] = ui.vega_card(
+        box="model_evaluation_hist", title="", specification=fig_alt.to_json()
+    )
+    q.page["timeslide_evaluation_model"] = ui.form_card(
+        box="model_evaluation_time",
+        title="",
+        items=[
+            ui.slider(
+                name="model_evaluation_year",
+                label="Year",
+                min=2010,
+                max=end_year,
+                step=1,
+                value=year,
+                trigger=True,
+            ),
+        ],
+    )
+    table = await table_model_evaluation(q, year)
+    q.page["table_model_evaluation"] = ui.form_card(
+        box="model_evaluation_table",
+        items=[ui.text(table)],
+    )
+
+
+async def on_update_disease(
+    q: Q,
+    disease: str,
+    date: datetime.date = datetime.date.today()
+):
+    uf = q.client.uf
+    await client_data_table(q, disease=disease, uf=uf)
+    await client_state_map(q, uf=uf)
+    await client_cities(q)
+
+    await update_sidebar(q, disease=disease, uf=uf)
+    await update_header(q, disease=disease, date=date)
+
+
+async def on_update_UF(
+    q: Q,
+    uf: str,
+    date: datetime.date = datetime.date.today()
+):
+    disease = q.client.disease
+    await client_data_table(q, disease=disease, uf=uf)
+    await client_state_map(q, uf=uf)
+    await client_cities(q)
+
+    await update_sidebar(q, disease=disease, uf=uf)
+    await update_header(q, disease=disease, date=date)
+    # q.client.weeks = False
+    # await update_weeks(q)
+    #
+    # if DUCKDB_FILE.exists():
+    #     db = duckdb.connect(str(DUCKDB_FILE), read_only=True)
+    # else:
+    #     raise FileNotFoundError("Duckdb file not found")
+    #
+    # try:
+    #     q.client.parameters = db.execute(
+    #         f"SELECT * FROM '{q.client.uf.upper()}' "
+    #         f"WHERE disease = '{q.client.disease}'"
+    #     ).fetchdf()
+    # finally:
+    #     db.close()
+    #
+    # report = {}
+    # for gc, citydf in q.client.parameters.groupby("geocode"):
+    #     if len(citydf) < 1:
+    #         continue
+    #     report[
+    #         q.client.cities[gc]
+    #     ] = f"{len(citydf)} epidemic years: {list(sorted(citydf.year))}\n"
+    # results = sorted(
+    #     report.items(),
+    #     key=lambda x: int(x[1][0:2]),
+    #     reverse=True
+    # )[:20]
+    # cards.Results.update(q, results=results)
+    #
+    # await update_r0map(q)
+    # await update_model_evaluation(q)
+
+
+async def on_update_city(q: Q):
+    """
+    Prepares the city visualizations
+    Args:
+        q:
+    """
+    create_analysis_form(q)
+    years = [
+        ui.choice(name=str(y), label=str(y))
+        for y in q.client.parameters[
+            q.client.parameters.geocode == int(q.client.city)
+        ].year
+    ]
+    years.insert(0, ui.choice(name="all", label="All"))
+    q.page["years"].items[0].dropdown.choices = years
+    await update_analysis(q)
 
     title = (
         f"SIR Parameters for {q.client.disease} Epidemics in "
         f"{q.client.cities[int(q.client.city)]}"
     )
-
-    title = "Epidemic calculator"
 
     q.page["epidemic_calc_header_"] = ui.form_card(
         box="epidemic_calc_header",
@@ -128,215 +342,6 @@ async def initialize_app(q: Q):
         ],
     )
 
-
-@app("/", mode="unicast")
-async def serve(q: Q):
-    copy_expando(q.args, q.client)
-
-    q.client.cities = {}
-    q.client.uf = "CE"
-    q.client.disease = "dengue"
-    q.client.weeks = False
-
-    if not q.client.initialized:
-        await create_layout(q)
-        await initialize_app(q)
-        q.client.initialized = True
-
-
-async def update_sum_cases(
-    q: Q,
-    start_date: str = "2024-01-01",
-    end_date: str = "2024-12-31",
-    city: Optional[int] = None,
-):
-    df = q.client.data_table
-    df.sort_index(inplace=True)
-    if city is not None:
-        df = df[df.municipio_geocodigo == city]
-    df = df.loc[start_date:end_date]
-    return df.casos.sum()
-
-
-async def update_weeks(q: Q):
-    if (not q.client.weeks) and (q.client.data_table is not None):
-        await t_weeks(q)
-        fig_alt = await plot_state_map_altair(
-            q, q.client.weeks_map, column="transmissao"
-        )
-        await q.page.save()
-        q.page["plot_alt"] = ui.vega_card(
-            box="week_map",
-            title="",
-            specification=fig_alt.to_json(),
-        )
-        ttext, top_act_city = await top_n_cities(q, 10)
-        q.page["wtable"] = ui.form_card(
-            box="week_table",
-            title="",
-            items=[ui.text("**Top 10 cities**"), ui.text(ttext)],
-        )
-    else:
-        top_act_city = None
-
-    return top_act_city
-
-
-async def update_r0map(q: Q):
-    """
-    Updates R0 map and table
-    """
-    end_year = datetime.date.today().year
-    year = q.client.r0year or datetime.date.today().year
-    fig_alt = await plot_pars_map_altair(
-        q, q.client.weeks_map, [year], STATES[q.client.uf]
-    )
-    await q.page.save()
-    q.page["plot_alt_R0"] = ui.vega_card(
-        box="R0_map",
-        title="",
-        specification=fig_alt.to_json(),
-    )
-    ttext = await top_n_R0(q, year, 10)
-    q.page["R0table"] = ui.form_card(
-        box="R0_table",
-        title="",
-        items=[
-            ui.text("**Top 10 R0s**"),
-            ui.slider(
-                name="r0year",
-                label="Year",
-                min=2010,
-                max=end_year,
-                step=1,
-                value=year,
-                trigger=True,
-            ),
-            ui.text(ttext),
-        ],
-    )
-    await q.page.save()
-
-
-async def update_model_evaluation(q: Q):
-    end_year = datetime.date.today().year
-    year = q.client.model_evaluation_year or (datetime.date.today().year - 1)
-    fig_alt = await plot_model_evaluation_map_altair(
-        q, q.client.statemap, [year], STATES[q.client.uf]
-    )
-    await q.page.save()
-    q.page["map_alt_model_evaluation"] = ui.vega_card(
-        box="model_evaluation_map", title="", specification=fig_alt.to_json()
-    )
-    fig_alt = await plot_model_evaluation_hist_altair(
-        q, q.client.statemap, [year], STATES[q.client.uf]
-    )
-    await q.page.save()
-    q.page["hist_alt_model_evaluation"] = ui.vega_card(
-        box="model_evaluation_hist", title="", specification=fig_alt.to_json()
-    )
-    q.page["timeslide_evaluation_model"] = ui.form_card(
-        box="model_evaluation_time",
-        title="",
-        items=[
-            ui.slider(
-                name="model_evaluation_year",
-                label="Year",
-                min=2010,
-                max=end_year,
-                step=1,
-                value=year,
-                trigger=True,
-            ),
-        ],
-    )
-    table = await table_model_evaluation(q, year)
-    q.page["table_model_evaluation"] = ui.form_card(
-        box="model_evaluation_table",
-        items=[ui.text(table)],
-    )
-    await q.page.save()
-
-
-async def on_update_disease(q: Q):
-    await on_update_UF(q)
-
-
-async def on_update_UF(q: Q):
-    await load_table(q)
-
-    today_date = datetime.date.today()
-
-    sum_cases = await update_sum_cases(
-        q, f"{today_date.year}-01-01", today_date.strftime("%Y-%m-%d"), None
-    )
-
-    cards.StateHeader.update(
-        q=q,
-        disease=q.client.disease,
-        uf=q.client.uf,
-        cases=sum_cases,
-        year=today_date.year,
-    )
-
-    await q.page.save()
-    await update_state_map(q)
-    q.client.weeks = False
-    top_act_city = await update_weeks(q)
-    await q.page.save()
-
-    if DUCKDB_FILE.exists():
-        db = duckdb.connect(str(DUCKDB_FILE), read_only=True)
-    else:
-        raise FileNotFoundError("Duckdb file not found")
-
-    try:
-        q.client.parameters = db.execute(
-            f"SELECT * FROM '{q.client.uf.upper()}' "
-            f"WHERE disease = '{q.client.disease}'"
-        ).fetchdf()
-    finally:
-        db.close()
-
-    report = {}
-    for gc, citydf in q.client.parameters.groupby("geocode"):
-        if len(citydf) < 1:
-            continue
-        report[
-            q.client.cities[gc]
-        ] = f"{len(citydf)} epidemic years: {list(sorted(citydf.year))}\n"
-    results = sorted(
-        report.items(),
-        key=lambda x: int(x[1][0:2]),
-        reverse=True
-    )[:20]
-    cards.Results.update(q, results=results)
-
-    await update_r0map(q)
-    await update_model_evaluation(q)
-    await q.page.save()
-
-    q.client.city = top_act_city
-    await on_update_city(q)
-
-
-async def on_update_city(q: Q):
-    """
-    Prepares the city visualizations
-    Args:
-        q:
-    """
-    create_analysis_form(q)
-    years = [
-        ui.choice(name=str(y), label=str(y))
-        for y in q.client.parameters[
-            q.client.parameters.geocode == int(q.client.city)
-        ].year
-    ]
-    years.insert(0, ui.choice(name="all", label="All"))
-    q.page["years"].items[0].dropdown.choices = years
-    await update_analysis(q)
-
     df_pars = q.client.parameters
     df_pars = df_pars.loc[
         (df_pars.geocode == int(q.client.city))
@@ -365,9 +370,7 @@ async def on_update_city(q: Q):
         items=[ui.text(table)],
     )
 
-    q.page.save()
     await on_update_ini_epi_calc(q)
-    await q.page.save()
 
 
 async def update_pars(q: Q):
@@ -381,7 +384,7 @@ async def update_pars(q: Q):
     ].iterrows():
         start_date, end_date = get_ini_end_week(int(res["year"]))
 
-        sum_cases = await update_sum_cases(
+        cases = await sum_cases(
             q,
             start_date,
             end_date,
@@ -392,10 +395,9 @@ async def update_pars(q: Q):
             f"| {res['gamma']:.2f} | {res['R0']:.2f} "
             f"| {int(res['ep_pw'])} | {int(res['ep_ini'])} "
             f"| {int(res['ep_end'])} | {int(res['ep_dur'])} "
-            f"| {int(res['total_cases'])} | {sum_cases} | \n"
+            f"| {int(res['total_cases'])} | {cases} | \n"
         )
     q.page["sir_pars"].items[2].text.content = table
-    await q.page.save()
 
 
 async def get_median_pars(q: Q):
@@ -404,14 +406,14 @@ async def get_median_pars(q: Q):
 
     start_date, end_date = get_ini_end_week(year)
 
-    sum_cases = await update_sum_cases(
+    cases = await sum_cases(
         q,
         start_date,
         end_date,
         int(q.client.city),
     )
 
-    sum_cases = float(sum_cases)
+    cases = float(cases)
 
     df_pars = q.client.parameters
     df_pars_ = df_pars.loc[
@@ -424,19 +426,19 @@ async def get_median_pars(q: Q):
     if df_pars_.empty == True:
         median_R0 = 2
         median_peak = 10
-        median_cases = sum_cases
+        median_cases = cases
     else:
         median_R0 = round(np.median(df_pars_["R0"].values), 2)
         median_peak = int(np.median(df_pars_["peak_week"].values))
         median_cases = int(np.median(df_pars_["total_cases"].values))
 
-    min_cases = 0.85 * sum_cases
+    min_cases = 0.85 * cases
 
     if df_pars_atual.empty == True:
-        max_cases = max(1.25 * sum_cases, 1.25 * median_cases)
+        max_cases = max(1.25 * cases, 1.25 * median_cases)
     else:
         max_cases = max(
-            1.25 * sum_cases,
+            1.25 * cases,
             1.25 * median_cases,
             df_pars_atual["total_cases"].values[0],
         )
@@ -521,8 +523,6 @@ async def on_update_ini_epi_calc(q: Q):
     q.args.ep_peak_week = False
     q.args.ep_R0 = False
     q.args.ep_total = False
-
-    await q.page.save()
 
 
 async def create_layout(q):
@@ -647,41 +647,18 @@ async def create_layout(q):
     )
 
 
-def load_data(disease: str, uf: str) -> pd.DataFrame:
+@lru_cache
+def read_data(disease: str, uf: str) -> pd.DataFrame:
     return pd.read_parquet(
         f"{EPISCANNER_DATA_DIR}/{uf}_{disease}.parquet"
     )
 
 
-async def load_table(q: Q):
-    disease = q.client.uf
-
+async def client_data_table(q: Q, disease: Literal["dengue", "chik"], uf: str):
     if disease == "chik":
         disease = "chikungunya"
-
-    df = await q.run(load_data, q.client.disease, q.client.uf)
+    df = await q.run(read_data, disease, uf)
     q.client.data_table = df
-
-    for gc in df.municipio_geocodigo.unique():
-        try:  # FIXME: this is a hack to deal with missing cities in the map
-            city_name = q.client.brmap[
-                q.client.brmap.code_muni.astype(int) == int(gc)
-            ].name_muni.values
-            q.client.cities[int(gc)] = (
-                "" if not city_name.any() else city_name[0]
-            )
-        except IndexError:
-            pass  # If city is missing in the map, ignore it
-    choices = [
-        ui.choice(str(gc), q.client.cities[gc])
-        for gc in df.municipio_geocodigo.unique()
-    ]
-    q.page["form"].items[2].dropdown.choices = choices
-    q.page["form"].items[2].dropdown.visible = True
-    q.page["form_city"].items[0].dropdown.choices = choices
-    q.page["form_city"].items[0].dropdown.visible = True
-
-    await q.page.save()
 
 
 async def update_analysis(q):
@@ -699,11 +676,10 @@ async def update_analysis(q):
     q.page["ts_plot_alt"] = ui.vega_card(
         box="SIR curves", title="", specification=altair_plot.to_json()
     )
-    await q.page.save()
     await update_pars(q)
 
 
-def add_sidebar(q):
+async def add_sidebar(q):
     state_choices = [
         ui.choice("AC", "Acre"),
         ui.choice("AL", "Alagoas"),
@@ -769,6 +745,42 @@ def add_sidebar(q):
         ],
     )
     cards.Results(q)
+
+
+async def client_cities(q: Q):
+    geocodes = set(q.client.data_table.municipio_geocodigo.unique())
+    for gc in geocodes:
+        city_data = q.client.brmap[
+            q.client.brmap.code_muni.astype(int) == int(gc)
+        ]
+        if city_data.empty:
+            q.client.cities[int(gc)] = ""
+        else:
+            q.client.cities[int(gc)] = city_data.name_muni.values[0]
+
+
+async def update_sidebar(q: Q, disease: str, uf: str):
+    geocodes = set(q.client.data_table.municipio_geocodigo.unique())
+    q.page["form"].items[0].dropdown.value = disease
+    q.page["form"].items[1].dropdown.value = uf
+
+    choices = [ui.choice(str(gc), q.client.cities[gc]) for gc in geocodes]
+    q.page["form"].items[2].dropdown.choices = choices
+    q.page["form"].items[2].dropdown.visible = True
+    q.page["form_city"].items[0].dropdown.choices = choices
+    q.page["form_city"].items[0].dropdown.visible = True
+
+
+async def update_header(q: Q, disease: str, date: datetime.date):
+    cases = await sum_cases(q, f"{date.year}-01-01", date.strftime("%Y-%m-%d"))
+    disease = "chikungunya" if disease == "chik" else disease
+    cards.StateHeader.update(
+        q=q,
+        disease=disease,
+        uf=q.client.uf,
+        cases=cases,
+        year=date.year,
+    )
 
 
 def create_analysis_form(q):

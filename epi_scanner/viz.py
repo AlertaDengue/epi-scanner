@@ -33,7 +33,7 @@ def get_ini_end_week(year: int, eyear=None):
 
     dates = pd.date_range(start=ini_week, periods=104, freq="W-SUN")
 
-    dates_ = dates[dates.year >= year - 1][44 : 44 + 52]
+    dates_ = dates[dates.year >= year - 1][44: 44 + 52]
 
     ini_date = dates_[0].strftime("%Y-%m-%d")
 
@@ -45,16 +45,13 @@ def get_ini_end_week(year: int, eyear=None):
     return ini_date, end_date
 
 
-async def load_map(q: Q):
+def load_map() -> gpd.GeoDataFrame:
     file_gpkg = Path(f"{EPISCANNER_DATA_DIR}/muni_br.gpkg")
-
-    brmap = gpd.read_file(file_gpkg, driver="GPKG")
-    q.client.brmap = brmap
+    return gpd.read_file(file_gpkg, driver="GPKG")
 
 
-async def update_state_map(q: Q):
-    statemap = q.client.brmap[q.client.brmap.abbrev_state == q.client.uf]
-    q.client.statemap = statemap
+async def client_state_map(q: Q, uf: str):
+    q.client.statemap = q.client.brmap[q.client.brmap.abbrev_state == uf]
 
 
 async def t_weeks(q: Q):
