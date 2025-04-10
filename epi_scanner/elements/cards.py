@@ -1,14 +1,46 @@
+from typing import Optional
+
+import altair as alt
+from h2o_wave import Q, ui
+
 from epi_scanner.elements import Card, Chart
 from epi_scanner.settings import STATES
-from h2o_wave import Q, ui
 
 
 class Vega(Card):
+    element_id: str
+    box: str
+    title: str
+    chart: alt.Chart = None
+
     def __init__(
-        self, q: Q, element_id: str, box: str, title: str, chart: Chart
+        self,
+        q: Q,
+        element_id: str,
+        box: str,
+        title: str,
+        chart: Optional[Chart] = None
     ):
-        q.page[element_id] = ui.vega_card(
-            box=box, title=title, specification=chart.chart.to_json()
+        self.element_id = element_id
+        self.box = box
+        self.title = title
+        self.chart = chart
+
+        if not chart:
+            q.page[element_id] = ui.image_card(
+                box=box,
+                title="",
+                path="https://api.mosqlimate.org/static/img/loading-dots.gif",
+                type="gif",
+            )
+        else:
+            q.page[element_id] = ui.vega_card(
+                box=box, title=title, specification=chart.chart.to_json()
+            )
+
+    def update(self, q: Q, chart: Chart):
+        q.page[self.element_id] = ui.vega_card(
+            box=self.box, title=self.title, specification=chart.chart.to_json()
         )
 
 

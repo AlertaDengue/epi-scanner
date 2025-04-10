@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import os
 import uuid
@@ -50,49 +51,36 @@ def load_map() -> gpd.GeoDataFrame:
     return gpd.read_file(file_gpkg, driver="GPKG")
 
 
+def weeks_map_df(
+    data_table: pd.DataFrame,
+    statemap: gpd.GeoDataFrame
+) -> gpd.GeoDataFrame:
+    weeks = data_table.groupby(by="municipio_geocodigo").sum(
+        numeric_only=True
+    )[["transmissao"]]
+    return statemap.merge(weeks, left_on="code_muni", right_index=True)
+
+
 async def client_state_map(q: Q, uf: str):
     q.client.statemap = q.client.brmap[q.client.brmap.abbrev_state == uf]
 
 
-async def t_weeks(q: Q):
-    """
-    Merge weeks table with map
-    """
-    weeks = q.client.data_table.groupby(by="municipio_geocodigo").sum(
-        numeric_only=True
-    )[["transmissao"]]
-    wmap = q.client.statemap.merge(
-        weeks, left_on="code_muni", right_index=True
-    )
-    q.client.weeks_map = wmap
-    q.client.weeks = True
-    await q.page.save()
-
-
-async def plot_state_map(q, themap: gpd.GeoDataFrame, column=None):
-    ax = themap.plot(
-        column=column,
-        legend=True,
-        scheme="natural_breaks",
-        legend_kwds={
-            "loc": "lower center",
-            "ncols": 5,
-            "fontsize": "x-small",
-        },
-    )
-    ax.set_axis_off()
-    image_path = await get_mpl_img(q)
-    return image_path
-
-
-async def plot_state_map_altair(
+async def client_weeks_map(
     q: Q,
-    themap: gpd.GeoDataFrame,
+    data_table: pd.DataFrame,
+    statemap: gpd.GeoDataFrame
+):
+    q.client.weeks_map = weeks_map_df(data_table, statemap)
+
+
+def state_map_chart(
+    weeks_map: gpd.GeoDataFrame,
+    loop: asyncio.AbstractEventLoop,
     column=None,
     title="Number of weeks of Rt > 1 since 2010",
-):
+) -> alt.Chart:
     spec = (
-        alt.Chart(themap)
+        alt.Chart(weeks_map)
         .mark_geoshape()
         .encode(
             color=alt.Color(
@@ -116,24 +104,6 @@ async def plot_state_map_altair(
         )
     )
     return spec
-
-
-async def get_mpl_img(q):
-    """
-    saves current matplotlib figures to a temporary file
-     and uploads it to the site.
-    Args:
-        q: App
-
-    Returns: path in the site.
-    """
-    image_filename = f"{str(uuid.uuid4())}.png"
-    plt.savefig(image_filename)
-    # Upload
-    (image_path,) = await q.site.upload([image_filename])
-    # Clean up
-    os.remove(image_filename)
-    return image_path
 
 
 def get_year_map(
@@ -197,28 +167,6 @@ def get_rate_map(
 
     map_rate["rate"] = map_rate["observed_cases"] / map_rate["total_cases"]
     return map_rate
-
-
-async def plot_pars_map(
-    q, themap: gpd.GeoDataFrame, year: int, state: str, column="R0"
-):
-    map_pars = get_year_map([year], q.client.weeks_map, q.client.parameters)
-    ax = themap.plot(alpha=0.3)
-    if len(map_pars) == 0:
-        pass
-    else:
-        map_pars.plot(
-            ax=ax,
-            column=column,
-            legend=True,
-            scheme="User_Defined",
-            classification_kwds=dict(bins=[1.5, 2, 2.3, 2.7]),
-            legend_kwds={"loc": "lower center", "ncols": 5},
-        )
-    ax.set_title(f"{state} {year}")
-    ax.set_axis_off()
-    image_path = await get_mpl_img(q)
-    return image_path
 
 
 async def plot_pars_map_altair(
@@ -422,18 +370,17 @@ async def plot_model_evaluation_hist_altair(
     return hist
 
 
-async def top_n_cities(q: Q, n: int):
-    wmap = q.client.weeks_map
-    wmap["transmissao"] = wmap.transmissao.astype(int)
-    df = wmap.sort_values("transmissao", ascending=False)[
+def top_n_cities(weeks_map: gpd.GeoDataFrame, n: int) -> pd.DataFrame:
+    weeks_map["transmissao"] = weeks_map.transmissao.astype(int)
+    return weeks_map.sort_values("transmissao", ascending=False)[
         ["name_muni", "transmissao", "code_muni"]
     ].head(n)
-    return (
-        make_markdown_table(
-            fields=["Names", "Epi Weeks"],
-            rows=df[["name_muni", "transmissao"]].values.tolist(),
-        ),
-        df["code_muni"].values[0],
+
+
+def top_n_cities_md(df: pd.DataFrame) -> str:
+    return markdown_table(
+        fields=["Names", "Epi Weeks"],
+        rows=df[["name_muni", "transmissao"]].values.tolist(),
     )
 
 
@@ -445,7 +392,7 @@ async def top_n_R0(q: Q, year: int, n: int):
         .head(n)
     )
     table["name"] = [q.client.cities[gc] for gc in table.geocode]
-    return make_markdown_table(
+    return markdown_table(
         fields=["Names", "R0"],
         rows=table[["name", "R0"]].round(decimals=2).values.tolist(),
     )
@@ -495,7 +442,7 @@ async def table_model_evaluation(
         + "%)"
     )
 
-    table = make_markdown_table(
+    table = markdown_table(
         fields=["Range", "Range Counts(%)"],
         rows=groupby_rate[["rate", "text"]].values.tolist(),
     )
@@ -503,7 +450,7 @@ async def table_model_evaluation(
     return table
 
 
-def make_markdown_table(fields, rows):
+def markdown_table(fields, rows):
     """
     Create markdown table
     Args:
@@ -523,33 +470,6 @@ def make_markdown_table(fields, rows):
             "\n".join([row(r) for r in rows]),
         ]
     )
-
-
-async def plot_series(q: Q, gc: int, start_date: str, end_date: str):
-    """
-    Plot timeseries between two dates of city
-    Args:
-        q:
-        gc: geocode of the city
-        start_date:
-        end_date:
-
-    Returns:
-    image path
-    """
-    df = q.client.data_table
-    dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
-    dfcity.sort_index(inplace=True)
-    dfcity["casos_cum"] = dfcity.casos.cumsum()
-    fig, [ax1, ax2] = plt.subplots(2, 1)
-    dfcity.casos.plot.area(ax=ax1, label="Cases", grid=True, alpha=0.4)
-    ax1.legend()
-    dfcity.casos_cum.plot.area(
-        ax=ax2, label="Cumulative cases", grid=True, alpha=0.4
-    )
-    ax2.legend()
-    image_path = await get_mpl_img(q)
-    return image_path
 
 
 @np.vectorize
