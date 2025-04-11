@@ -86,6 +86,10 @@ async def client_rate_map(
     )
 
 
+async def client_city(q: Q, geocode: int):
+    q.client.city = geocode
+
+
 def state_map_chart(
     q: Q,
     weeks_map: gpd.GeoDataFrame,
@@ -346,11 +350,11 @@ async def model_evaluation_hist_chart(rate_map: gpd.GeoDataFrame) -> alt.Chart:
     )
 
 
-def top_n_cities(weeks_map: gpd.GeoDataFrame, n: int) -> pd.DataFrame:
+def top_cities(weeks_map: gpd.GeoDataFrame) -> pd.DataFrame:
     weeks_map["transmissao"] = weeks_map.transmissao.astype(int)
     return weeks_map.sort_values("transmissao", ascending=False)[
         ["name_muni", "transmissao", "code_muni"]
-    ].head(n)
+    ]
 
 
 def top_n_cities_md(df: pd.DataFrame) -> str:

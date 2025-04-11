@@ -13,12 +13,13 @@ class EpidemicCalculator(Chart):
         self,
         disease: str,
         city: str,
-        df: pd.DataFrame,
-        gc: int,
-        pw: int,
-        R0: float,
-        total_cases: int,
         year: int = datetime.date.today().year,
+        #
+        df: Optional[pd.DataFrame] = None,
+        gc: Optional[int] = None,
+        pw: Optional[int] = None,
+        R0: Optional[float] = None,
+        total_cases: Optional[int] = None,
     ):
         self.chart = self.do_chart(
             disease=disease,
@@ -36,34 +37,46 @@ class EpidemicCalculator(Chart):
         disease: str,
         city: str,
         year: int,
-        df: pd.DataFrame,
-        gc: int,
-        pw: int,
-        R0: float,
-        total_cases: int,
+        df: Optional[pd.DataFrame] = None,
+        gc: Optional[int] = None,
+        pw: Optional[int] = None,
+        R0: Optional[float] = None,
+        total_cases: Optional[int] = None,
     ) -> alt.Chart:
         start_date, end_date = get_ini_end_week(year=year)
-        df = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
-        df.sort_index(inplace=True)
-        df["casos_cum"] = df.casos.cumsum()
-        df = df.reset_index().loc[:, ["data_iniSE", "casos_cum"]]
 
-        r = 1 - 1 / R0
-        gamma = 0.3
-        b = r * gamma / (1 - r)
-        a = b / (gamma + b)
+        if df is not None:
+            print(df)
+            print(gc)
+            df = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
+            print(df)
+            df.sort_index(inplace=True)
+            df["casos_cum"] = df.casos.cumsum()
+            df = df.reset_index().loc[:, ["data_iniSE", "casos_cum"]]
 
-        dfcity2 = pd.DataFrame()
-        dfcity2["data_iniSE"] = pd.date_range(
-            start=df.data_iniSE.values[0], periods=52, freq="W-SUN"
-        )
-        dfcity2["model"] = richards(total_cases, a, b, np.arange(52), pw)
-        df = df.merge(
-            dfcity2,
-            left_on="data_iniSE",
-            right_on="data_iniSE",
-            how="outer",
-        )
+            r = 1 - 1 / R0
+            gamma = 0.3
+            b = r * gamma / (1 - r)
+            a = b / (gamma + b)
+
+            dfcity2 = pd.DataFrame()
+            dfcity2["data_iniSE"] = pd.date_range(
+                start=df.data_iniSE.values[0], periods=52, freq="W-SUN"
+            )
+            dfcity2["model"] = richards(total_cases, a, b, np.arange(52), pw)
+            df = df.merge(
+                dfcity2,
+                left_on="data_iniSE",
+                right_on="data_iniSE",
+                how="outer",
+            )
+        else:
+            dtypes = {
+                "data_iniSE": "datetime64[ns]",
+                "casos_cum": "int64",
+                "model": "float64",
+            }
+            df = pd.DataFrame(columns=dtypes.keys()).astype(dtypes)
 
         df1 = df.copy()
         df1["legend"] = "Data"
