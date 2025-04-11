@@ -77,17 +77,20 @@ async def serve(q: Q):
         q.client.initialized = True
 
     if q.args.disease:
-        q.client.set()
+        if q.client and q.client.set:
+            q.client.set()
         q.client.disease = q.args.disease
         await on_update_disease(q, q.client.disease)
 
     if q.args.state:
-        q.client.set()
+        if q.client and q.client.set:
+            q.client.set()
         q.client.uf = q.args.state
         await on_update_UF(q, q.client.uf)
 
     if q.args.city:
-        q.client.set()
+        if q.client and q.client.set:
+            q.client.set()
         q.client.city = q.args.city
         # await on_update_city(q, q.client.city)
 
@@ -225,26 +228,20 @@ async def update_weeks_map(q: Q, weeks_map: gpd.GeoDataFrame):
         ],
     )
 
-    loop = asyncio.get_event_loop()
+    if q.client.event.is_set():
+        return
 
-    # with concurrent.futures.ThreadPoolExecutor() as pool:
-    #     chart = await q.exec(pool, state_map_chart, q.client.weeks_map, loop)
+    chart = state_map_chart(q, weeks_map)
+    plot_alt.update(q, chart)
 
-    # fig_alt = await plot_state_map_altair(q, weeks_map, column="transmissao")
-    #
-    # q.page["plot_alt"] = ui.vega_card(
-    #     box="week_map",
-    #     title="",
-    #     specification=fig_alt.to_json(),
-    # )
-    # q.page["wtable"] = ui.form_card(
-    #     box="week_table",
-    #     title="",
-    #     items=[
-    #         ui.text("**Top 10 cities**"),
-    #         ui.text(top_n_cities_md(top_n_cities(q.client.weeks_map, 10)))
-    #     ],
-    # )
+    q.page["wtable"] = ui.form_card(
+        box="week_table",
+        title="",
+        items=[
+            ui.text("**Top 10 cities**"),
+            ui.text(top_n_cities_md(top_n_cities(weeks_map, 10)))
+        ],
+    )
 
 
 async def update_r0map(q: Q):

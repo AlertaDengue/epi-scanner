@@ -74,17 +74,18 @@ async def client_weeks_map(
 
 
 def state_map_chart(
+    q: Q,
     weeks_map: gpd.GeoDataFrame,
-    loop: asyncio.AbstractEventLoop,
-    column=None,
-    title="Number of weeks of Rt > 1 since 2010",
 ) -> alt.Chart:
+    if q.client.event.is_set():
+        return
+
     spec = (
         alt.Chart(weeks_map)
         .mark_geoshape()
         .encode(
             color=alt.Color(
-                f"{column}:Q",
+                "transmissao:Q",
                 sort="ascending",
                 scale=alt.Scale(
                     scheme="bluepurple"
@@ -95,10 +96,15 @@ def state_map_chart(
                     tickCount=10,
                 ),
             ),
-            tooltip=["name_muni", column + ":Q"],
+            tooltip=["name_muni", "transmissao:Q"],
         )
         .properties(
-            title={"text": f"{title}", "fontSize": 15, "anchor": "start"},
+            title={
+                "text":
+                "Number of weeks of Rt > 1 since 2010",
+                "fontSize": 15,
+                "anchor": "start"
+            },
             width=500,
             height=400,
         )

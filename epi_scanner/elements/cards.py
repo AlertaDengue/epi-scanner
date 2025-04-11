@@ -34,13 +34,23 @@ class Vega(Card):
                 type="gif",
             )
         else:
+            if isinstance(chart, alt.Chart):
+                data = chart.to_json()
+            else:
+                data = chart.chart.to_json()
+
             q.page[element_id] = ui.vega_card(
-                box=box, title=title, specification=chart.chart.to_json()
+                box=box, title=title, specification=data
             )
 
     def update(self, q: Q, chart: Chart):
+        if isinstance(chart, alt.Chart):
+            data = chart.to_json()
+        else:
+            data = chart.chart.to_json()
+
         q.page[self.element_id] = ui.vega_card(
-            box=self.box, title=self.title, specification=chart.chart.to_json()
+            box=self.box, title=self.title, specification=data
         )
 
 
