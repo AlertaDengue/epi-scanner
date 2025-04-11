@@ -96,5 +96,5 @@ class Results(Markdown):
         text = "**Top 20 most active cities** \n\n"
         for result in results:
             city, line = result
-            text += f"**{city}** :{line}\n"
+            text += f"**{city}**: {line}\n"
         q.page["results"].content = text

@@ -13,7 +13,7 @@ To avoid reloading data from disk the app maintains the following
 - q.client.cities: dictionary of city names by geocode.
 - q.client.scanner: EpiScanner object
 - q.client.city: geocode of the currently selected city.
-- q.client.uf: two-letter code for the currently selected state.
+- q.client.state: two-letter code for the currently selected state.
 - q.client.disease: name of the currently selected disease.
 - q.client.parameters: SIR parameters for every city/year in current state.
 """
@@ -38,13 +38,14 @@ from epi_scanner.viz import (
     load_map,
     markdown_table,
     plot_epidemic_calc_altair,
-    plot_model_evaluation_hist_altair,
-    plot_model_evaluation_map_altair,
+    model_evaluation_hist_chart,
+    model_evaluation_chart,
     pars_map_chart,
     plot_series_altair,
     state_map_chart,
     client_weeks_map,
-    table_model_evaluation,
+    client_rate_map,
+    table_model_evaluation_md,
     top_n_cities,
     top_n_cities_md,
     top_n_R0_md,
@@ -64,40 +65,69 @@ DUCKDB_FILE = Path(
 async def serve(q: Q):
     if not q.client.initialized:
         q.client.cities = {}
-        q.client.uf = "CE"
+        q.client.state = "CE"
         q.client.disease = "dengue"
         q.client.weeks = False
         q.client.event = Event()
         q.client.r0year = datetime.date.today().year
+        q.client.model_evaluation_year = datetime.date.today().year
+        copy_expando(q.client, q.args)
 
         await create_layout(q)
         await add_sidebar(q)
-        await initialize_app(q, disease=q.client.disease, uf=q.client.uf)
+        await initialize_app(q, disease=q.client.disease, uf=q.client.state)
         q.client.initialized = True
 
+    print("if q.args.disease and q.args.disease != q.client.disease:")
+    print(q.args.disease and q.args.disease != q.client.disease)
     if q.args.disease and q.args.disease != q.client.disease:
         if q.client and q.client.set:
             q.client.set()
         q.client.disease = q.args.disease
         await on_update_disease(q, q.client.disease)
 
+    print("if q.args.state and q.args.state != q.client.state:")
+    print(type(q.args.state))
+    print(type(q.client.state))
+    print(q.args.state and q.args.state != q.client.state)
     if q.args.state and q.args.state != q.client.state:
         if q.client and q.client.set:
             q.client.set()
-        q.client.uf = q.args.state
-        await on_update_UF(q, q.client.uf)
+        q.client.state = q.args.state
+        await on_update_UF(q, q.client.state)
 
-    if q.args.city:
+    print("if q.args.city and q.args.city != q.client.city:")
+    print(q.args.city and q.args.city != q.client.city)
+    if q.args.city and q.args.city != q.client.city:
         if q.client and q.client.set:
             q.client.set()
         q.client.city = q.args.city
         # await on_update_city(q, q.client.city)
 
+    print("if q.args.r0year and int(q.args.r0year or 0) != q.client.r0year:")
+    print(q.args.r0year and int(q.args.r0year or 0) != q.client.r0year)
     if q.args.r0year and int(q.args.r0year or 0) != q.client.r0year:
         if q.client and q.client.set:
             q.client.set()
         q.client.r0year = int(q.args.r0year)
         await update_r0map(q, year=q.client.r0year)
+
+    if (
+        q.args.model_evaluation_year and
+        int(q.args.model_evaluation_year or 0) != q.client.model_evaluation_year
+    ):
+        if q.client and q.client.set:
+            q.client.set()
+        q.client.model_evaluation_year = int(q.args.model_evaluation_year)
+
+        await client_rate_map(
+            q,
+            years=[q.client.model_evaluation_year],
+            statemap=q.client.statemap,
+            data_table=q.client.data_table,
+            pars=q.client.parameters
+        )
+        await update_model_evaluation(q, q.client.model_evaluation_year)
 
     await q.page.save()
 
@@ -132,7 +162,7 @@ async def initialize_app(q: Q, disease: str, uf: str):
 
     q.page["form"].items[0].dropdown.value = disease
     q.page["form"].items[1].dropdown.value = uf
-    q.page["form"].items[2].dropdown.value = q.client.uf
+    q.page["form"].items[2].dropdown.value = q.client.state
 
     await on_update_UF(q, uf=uf)
     await on_update_city(q, geocode=0)
@@ -143,21 +173,26 @@ async def on_update_disease(
     disease: str,
     date: datetime.date = datetime.date.today()
 ):
-    uf = q.client.uf
-
-    # fetch client variables
+    uf = q.client.state
     await client_data_table(q, disease=disease, uf=uf)
     await client_state_map(q, uf=uf)
     await client_cities(q)
     await client_weeks_map(q, q.client.data_table, q.client.statemap)
     await client_parameters(q, disease=disease, uf=uf)
+    await client_rate_map(
+        q,
+        years=[date.year],
+        statemap=q.client.statemap,
+        data_table=q.client.data_table,
+        pars=q.client.parameters
+    )
 
-    # update layout
     await update_sidebar(q, disease=disease, uf=uf)
     await update_header(q, disease=disease, date=date)
     await update_weeks_map(q, weeks_map=q.client.weeks_map)
     await update_results(q, parameters=q.client.parameters)
     await update_r0map(q, year=q.client.r0year)
+    await update_model_evaluation(q, q.client.model_evaluation_year)
 
 
 async def on_update_UF(
@@ -172,14 +207,20 @@ async def on_update_UF(
     await client_weeks_map(q, q.client.data_table, q.client.statemap)
     await client_cities(q)
     await client_parameters(q, disease=disease, uf=uf)
+    await client_rate_map(
+        q,
+        years=[date.year],
+        statemap=q.client.statemap,
+        data_table=q.client.data_table,
+        pars=q.client.parameters
+    )
 
     await update_sidebar(q, disease=disease, uf=uf)
     await update_header(q, disease=disease, date=date)
     await update_weeks_map(q, weeks_map=q.client.weeks_map)
     await update_results(q, parameters=q.client.parameters)
     await update_r0map(q, year=q.client.r0year)
-
-    # await update_model_evaluation(q)
+    await update_model_evaluation(q, q.client.model_evaluation_year)
 
 
 async def sum_cases(
@@ -266,21 +307,19 @@ async def update_r0map(q: Q, year: int = datetime.date.today().year):
     )
 
 
-async def update_model_evaluation(q: Q):
+async def update_model_evaluation(q: Q, year: int):
     end_year = datetime.date.today().year
-    year = q.client.model_evaluation_year or (datetime.date.today().year - 1)
-    fig_alt = await plot_model_evaluation_map_altair(
-        q, q.client.statemap, [year], STATES[q.client.uf]
-    )
+
+    fig_alt = await model_evaluation_chart(q.client.rate_map, year)
     q.page["map_alt_model_evaluation"] = ui.vega_card(
         box="model_evaluation_map", title="", specification=fig_alt.to_json()
     )
-    fig_alt = await plot_model_evaluation_hist_altair(
-        q, q.client.statemap, [year], STATES[q.client.uf]
-    )
+
+    fig_alt = await model_evaluation_hist_chart(q.client.rate_map)
     q.page["hist_alt_model_evaluation"] = ui.vega_card(
         box="model_evaluation_hist", title="", specification=fig_alt.to_json()
     )
+
     q.page["timeslide_evaluation_model"] = ui.form_card(
         box="model_evaluation_time",
         title="",
@@ -296,7 +335,8 @@ async def update_model_evaluation(q: Q):
             ),
         ],
     )
-    table = await table_model_evaluation(q, year)
+
+    table = table_model_evaluation_md(q, year)
     q.page["table_model_evaluation"] = ui.form_card(
         box="model_evaluation_table",
         items=[ui.text(table)],
@@ -656,14 +696,14 @@ async def create_layout(q):
     )
 
 
-@lru_cache
+@lru_cache(maxsize=None)
 def read_data(disease: str, uf: str) -> pd.DataFrame:
     return pd.read_parquet(
         f"{EPISCANNER_DATA_DIR}/{uf}_{disease}.parquet"
     )
 
 
-@lru_cache
+@lru_cache(maxsize=None)
 def read_duckdb(disease: str, uf: str) -> pd.DataFrame:
     if DUCKDB_FILE.exists():
         db = duckdb.connect(str(DUCKDB_FILE), read_only=True)
@@ -808,7 +848,7 @@ async def update_header(q: Q, disease: str, date: datetime.date):
     cards.StateHeader.update(
         q=q,
         disease=disease,
-        uf=q.client.uf,
+        uf=q.client.state,
         cases=cases,
         year=date.year,
     )

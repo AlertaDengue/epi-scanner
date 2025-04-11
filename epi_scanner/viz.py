@@ -74,6 +74,18 @@ async def client_weeks_map(
     q.client.weeks_map = weeks_map_df(data_table, statemap)
 
 
+async def client_rate_map(
+    q: Q,
+    years: list,
+    statemap: gpd.GeoDataFrame,
+    data_table: pd.DataFrame,
+    pars: pd.DataFrame,
+):
+    q.client.rate_map = rate_map(
+        years=years, statemap=statemap, data_table=data_table, pars=pars
+    )
+
+
 def state_map_chart(
     q: Q,
     weeks_map: gpd.GeoDataFrame,
@@ -113,10 +125,10 @@ def state_map_chart(
     return spec
 
 
-def get_rate_map(
+def rate_map(
     years: list,
     statemap: gpd.GeoDataFrame,
-    data: pd.DataFrame,
+    data_table: pd.DataFrame,
     pars: pd.DataFrame,
 ) -> gpd.GeoDataFrame:
     """
@@ -131,7 +143,9 @@ def get_rate_map(
 
     """
     year = years[0]
-    df = data[data["SE"].isin(range((year - 1) * 100 + 45, year * 100 + 45))]
+    df = data_table[data_table["SE"].isin(
+        range((year - 1) * 100 + 45, year * 100 + 45)
+    )]
     casos = (
         df[["municipio_geocodigo", "casos"]]
         .groupby("municipio_geocodigo")
@@ -195,19 +209,13 @@ def pars_map_chart(
     )
 
 
-async def plot_model_evaluation_map_altair(
-    q,
-    statemap: gpd.GeoDataFrame,
-    years: list,
-    state: str,
-    column="rate",
-    title="Observed Cases/Estimated Cases by city in",
-    bins=[1 / 2, 95 / 100, 1.05, 2],
-    color_list=["#006aea", "#00b4ca", "#48d085", "#dc7080", "#cb2b2b"],
-):
-    map_rate = get_rate_map(
-        years, statemap, q.client.data_table, q.client.parameters
-    )
+async def model_evaluation_chart(
+    rate_map: gpd.GeoDataFrame,
+    year: int
+) -> alt.Chart:
+    bins = [1 / 2, 95 / 100, 1.05, 2]
+    color_list = ["#006aea", "#00b4ca", "#48d085", "#dc7080", "#cb2b2b"]
+
     legend_table = pd.DataFrame(
         [
             [0, 1, 0, bins[0], "a"],
@@ -219,21 +227,21 @@ async def plot_model_evaluation_map_altair(
         columns=["x1", "x2", "v1", "v2", "color"],
     )
 
-    map = alt.Chart(data=map_rate,).mark_geoshape(
+    chart = alt.Chart(data=rate_map).mark_geoshape(
         fillOpacity=0.5, fill="grey", stroke="#000", strokeOpacity=0.5
-    ) + alt.Chart(data=map_rate,).mark_geoshape(
+    ) + alt.Chart(data=rate_map,).mark_geoshape(
         stroke="#000", strokeOpacity=0.5
     ).encode(
         color=alt.Color(
-            f"{column}:Q",
+            "rate:Q",
             sort="ascending",
             scale=alt.Scale(type="threshold", domain=bins, range=color_list),
             legend=None,
         ),
-        tooltip=["name_muni", column + ":Q"],
+        tooltip=["name_muni", "rate:Q"],
     ).properties(
         title={
-            "text": f"{title} {years[0]}",
+            "text": f"Observed Cases/Estimated Cases by city in {year}",
             "fontSize": 15,
             "anchor": "start",
         },
@@ -305,25 +313,14 @@ async def plot_model_evaluation_map_altair(
         .encode(x=datum(5), y=datum(1.5))
     )
 
-    spec = map & legend
-    return spec
+    return chart & legend
 
 
-async def plot_model_evaluation_hist_altair(
-    q,
-    statemap: gpd.GeoDataFrame,
-    years: list,
-    state: str,
-    column="rate",
-    bins=[1 / 2, 95 / 100, 1.05, 2],
-    color_list=["#006aea", "#00b4ca", "#48d085", "#dc7080", "#cb2b2b"],
-):
-    map_rate = get_rate_map(
-        years, statemap, q.client.data_table, q.client.parameters
-    )
-
-    hist = (
-        alt.Chart(map_rate, width=250)
+async def model_evaluation_hist_chart(rate_map: gpd.GeoDataFrame) -> alt.Chart:
+    bins = [1 / 2, 95 / 100, 1.05, 2]
+    color_list = ["#006aea", "#00b4ca", "#48d085", "#dc7080", "#cb2b2b"]
+    return (
+        alt.Chart(rate_map, width=250)
         .mark_bar()
         .encode(
             x=alt.X(
@@ -338,7 +335,7 @@ async def plot_model_evaluation_hist_altair(
                 scale=alt.Scale(type="sqrt"),
             ),
             color=alt.Color(
-                f"{column}:Q",
+                "rate:Q",
                 sort="ascending",
                 scale=alt.Scale(
                     type="threshold", domain=bins, range=color_list
@@ -347,7 +344,6 @@ async def plot_model_evaluation_hist_altair(
             ),
         )
     )
-    return hist
 
 
 def top_n_cities(weeks_map: gpd.GeoDataFrame, n: int) -> pd.DataFrame:
@@ -364,7 +360,7 @@ def top_n_cities_md(df: pd.DataFrame) -> str:
     )
 
 
-@lru_cache
+@lru_cache(maxsize=None)
 def top_n_R0_md(q: Q, year: int, n: int) -> str:
     pars = q.client.parameters
     df = (
@@ -379,9 +375,8 @@ def top_n_R0_md(q: Q, year: int, n: int) -> str:
     )
 
 
-async def table_model_evaluation(
-    q: Q, year: int, bins=[0, 0.5, 0.95, 1.05, 2, np.inf]
-):
+def table_model_evaluation_md(q: Q, year: int) -> str:
+    bins = [0, 0.5, 0.95, 1.05, 2, np.inf]
     df = q.client.data_table[
         q.client.data_table["SE"].isin(
             range((year - 1) * 100 + 45, year * 100 + 45)
@@ -423,12 +418,10 @@ async def table_model_evaluation(
         + "%)"
     )
 
-    table = markdown_table(
+    return markdown_table(
         fields=["Range", "Range Counts(%)"],
         rows=groupby_rate[["rate", "text"]].values.tolist(),
     )
-
-    return table
 
 
 def markdown_table(fields: list[str], rows: list) -> str:
