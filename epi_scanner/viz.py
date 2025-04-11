@@ -3,6 +3,7 @@ import datetime
 import os
 import uuid
 from pathlib import Path
+from functools import lru_cache
 
 import altair as alt
 import geopandas as gpd
@@ -112,28 +113,6 @@ def state_map_chart(
     return spec
 
 
-def get_year_map(
-    years: list, themap: gpd.GeoDataFrame, pars: pd.DataFrame
-) -> gpd.GeoDataFrame:
-    """
-    Merge map with parameters for a given year
-    Args:
-        years: list of one or more years to be selected
-        themap: map to be merged
-        pars: parameters table
-
-    Returns:
-
-    """
-    map_pars = themap.merge(
-        pars[pars.year.astype(int).isin(years)],
-        left_on="code_muni",
-        right_on="geocode",
-        how="outer",
-    )
-    return map_pars.fillna(0)
-
-
 def get_rate_map(
     years: list,
     statemap: gpd.GeoDataFrame,
@@ -175,50 +154,45 @@ def get_rate_map(
     return map_rate
 
 
-async def plot_pars_map_altair(
-    q,
+def pars_map_chart(
     themap: gpd.GeoDataFrame,
-    years: list,
-    state: str,
-    column="R0",
-    title="R0 by city in",
-):
-    map_pars = get_year_map(years, themap, q.client.parameters)[
-        ["geometry", "year", "name_muni", "R0"]
-    ]
-    spec = (
-        alt.Chart(
-            data=map_pars,
-            padding={"left": 0, "top": 0, "right": 0, "bottom": 0},
-        )
-        .mark_geoshape()
-        .encode(
-            color=alt.Color(
-                f"{column}:Q",
-                sort="ascending",
-                scale=alt.Scale(
-                    scheme="bluepurple",
-                    domainMin=0,
-                ),
-                legend=alt.Legend(
-                    title="R0",
-                    orient="bottom",
-                    tickCount=10,
-                ),
+    parameters: pd.DataFrame,
+    year: int,
+) -> alt.Chart:
+    map_pars = themap.merge(
+        parameters[parameters.year.astype(int).isin([year])],
+        left_on="code_muni",
+        right_on="geocode",
+        how="outer",
+    ).fillna(0)[["geometry", "year", "name_muni", "R0"]]
+
+    return alt.Chart(
+        data=map_pars,
+        padding={"left": 0, "top": 0, "right": 0, "bottom": 0},
+    ).mark_geoshape().encode(
+        color=alt.Color(
+            "R0:Q",
+            sort="ascending",
+            scale=alt.Scale(
+                scheme="bluepurple",
+                domainMin=0,
             ),
-            tooltip=["name_muni", column + ":Q"],
-        )
-        .properties(
-            title={
-                "text": f"{title} {years[0]}",
-                "fontSize": 15,
-                "anchor": "start",
-            },
-            width=500,
-            height=400,
-        )
+            legend=alt.Legend(
+                title="R0",
+                orient="bottom",
+                tickCount=10,
+            ),
+        ),
+        tooltip=["name_muni", "R0:Q"],
+    ).properties(
+        title={
+            "text": f"R0 by city in {year}",
+            "fontSize": 15,
+            "anchor": "start",
+        },
+        width=500,
+        height=400,
     )
-    return spec
 
 
 async def plot_model_evaluation_map_altair(
@@ -390,17 +364,18 @@ def top_n_cities_md(df: pd.DataFrame) -> str:
     )
 
 
-async def top_n_R0(q: Q, year: int, n: int):
+@lru_cache
+def top_n_R0_md(q: Q, year: int, n: int) -> str:
     pars = q.client.parameters
-    table = (
+    df = (
         pars[pars.year == year]
         .sort_values("R0", ascending=False)[["geocode", "R0"]]
         .head(n)
     )
-    table["name"] = [q.client.cities[gc] for gc in table.geocode]
+    df["name"] = [q.client.cities[gc] for gc in df.geocode]
     return markdown_table(
         fields=["Names", "R0"],
-        rows=table[["name", "R0"]].round(decimals=2).values.tolist(),
+        rows=df[["name", "R0"]].round(decimals=2).values.tolist(),
     )
 
 
@@ -456,7 +431,7 @@ async def table_model_evaluation(
     return table
 
 
-def markdown_table(fields, rows):
+def markdown_table(fields: list[str], rows: list) -> str:
     """
     Create markdown table
     Args:

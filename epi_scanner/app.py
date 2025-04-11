@@ -40,14 +40,14 @@ from epi_scanner.viz import (
     plot_epidemic_calc_altair,
     plot_model_evaluation_hist_altair,
     plot_model_evaluation_map_altair,
-    plot_pars_map_altair,
+    pars_map_chart,
     plot_series_altair,
     state_map_chart,
     client_weeks_map,
     table_model_evaluation,
     top_n_cities,
     top_n_cities_md,
-    top_n_R0,
+    top_n_R0_md,
     client_state_map,
 )
 from h2o_wave import Q, app, copy_expando, data, main, ui  # Noqa F401
@@ -62,27 +62,26 @@ DUCKDB_FILE = Path(
 
 @app("/", mode="unicast")
 async def serve(q: Q):
-    copy_expando(q.args, q.client)
-
     if not q.client.initialized:
         q.client.cities = {}
         q.client.uf = "CE"
         q.client.disease = "dengue"
         q.client.weeks = False
         q.client.event = Event()
+        q.client.r0year = datetime.date.today().year
 
         await create_layout(q)
         await add_sidebar(q)
         await initialize_app(q, disease=q.client.disease, uf=q.client.uf)
         q.client.initialized = True
 
-    if q.args.disease:
+    if q.args.disease and q.args.disease != q.client.disease:
         if q.client and q.client.set:
             q.client.set()
         q.client.disease = q.args.disease
         await on_update_disease(q, q.client.disease)
 
-    if q.args.state:
+    if q.args.state and q.args.state != q.client.state:
         if q.client and q.client.set:
             q.client.set()
         q.client.uf = q.args.state
@@ -93,6 +92,12 @@ async def serve(q: Q):
             q.client.set()
         q.client.city = q.args.city
         # await on_update_city(q, q.client.city)
+
+    if q.args.r0year and int(q.args.r0year or 0) != q.client.r0year:
+        if q.client and q.client.set:
+            q.client.set()
+        q.client.r0year = int(q.args.r0year)
+        await update_r0map(q, year=q.client.r0year)
 
     await q.page.save()
 
@@ -139,18 +144,20 @@ async def on_update_disease(
     date: datetime.date = datetime.date.today()
 ):
     uf = q.client.uf
+
     # fetch client variables
     await client_data_table(q, disease=disease, uf=uf)
     await client_state_map(q, uf=uf)
     await client_cities(q)
     await client_weeks_map(q, q.client.data_table, q.client.statemap)
-    #
+    await client_parameters(q, disease=disease, uf=uf)
 
     # update layout
     await update_sidebar(q, disease=disease, uf=uf)
     await update_header(q, disease=disease, date=date)
     await update_weeks_map(q, weeks_map=q.client.weeks_map)
-    #
+    await update_results(q, parameters=q.client.parameters)
+    await update_r0map(q, year=q.client.r0year)
 
 
 async def on_update_UF(
@@ -164,40 +171,14 @@ async def on_update_UF(
     await client_cities(q)
     await client_weeks_map(q, q.client.data_table, q.client.statemap)
     await client_cities(q)
+    await client_parameters(q, disease=disease, uf=uf)
 
     await update_sidebar(q, disease=disease, uf=uf)
     await update_header(q, disease=disease, date=date)
     await update_weeks_map(q, weeks_map=q.client.weeks_map)
+    await update_results(q, parameters=q.client.parameters)
+    await update_r0map(q, year=q.client.r0year)
 
-    #
-    # if DUCKDB_FILE.exists():
-    #     db = duckdb.connect(str(DUCKDB_FILE), read_only=True)
-    # else:
-    #     raise FileNotFoundError("Duckdb file not found")
-    #
-    # try:
-    #     q.client.parameters = db.execute(
-    #         f"SELECT * FROM '{q.client.uf.upper()}' "
-    #         f"WHERE disease = '{q.client.disease}'"
-    #     ).fetchdf()
-    # finally:
-    #     db.close()
-    #
-    # report = {}
-    # for gc, citydf in q.client.parameters.groupby("geocode"):
-    #     if len(citydf) < 1:
-    #         continue
-    #     report[
-    #         q.client.cities[gc]
-    #     ] = f"{len(citydf)} epidemic years: {list(sorted(citydf.year))}\n"
-    # results = sorted(
-    #     report.items(),
-    #     key=lambda x: int(x[1][0:2]),
-    #     reverse=True
-    # )[:20]
-    # cards.Results.update(q, results=results)
-    #
-    # await update_r0map(q)
     # await update_model_evaluation(q)
 
 
@@ -207,7 +188,6 @@ async def sum_cases(
     end_date: str = "2024-12-31",
     geocode: Optional[int] = None,
 ):
-    print("update_sum_cases")
     df = q.client.data_table
     df.sort_index(inplace=True)
     if geocode is not None:
@@ -217,7 +197,6 @@ async def sum_cases(
 
 
 async def update_weeks_map(q: Q, weeks_map: gpd.GeoDataFrame):
-    print("update_weeks")
     plot_alt = cards.Vega(q, "plot_alt", "week_map", title="")
 
     q.page["wtable"] = ui.form_card(
@@ -244,22 +223,30 @@ async def update_weeks_map(q: Q, weeks_map: gpd.GeoDataFrame):
     )
 
 
-async def update_r0map(q: Q):
+async def update_results(q: Q, parameters: pd.DataFrame):
+    report = {}
+    for gc, citydf in parameters.groupby("geocode"):
+        if len(citydf) < 1:
+            continue
+        report[
+            q.client.cities[gc]
+        ] = f"{len(citydf)} epidemic years: {list(sorted(citydf.year))}\n"
+    results = sorted(
+        report.items(),
+        key=lambda x: int(x[1][0:2]),
+        reverse=True
+    )[:20]
+    cards.Results.update(q, results=results)
+
+
+async def update_r0map(q: Q, year: int = datetime.date.today().year):
     """
     Updates R0 map and table
     """
-    print("update_r0map")
     end_year = datetime.date.today().year
-    year = q.client.r0year or datetime.date.today().year
-    fig_alt = await plot_pars_map_altair(
-        q, q.client.weeks_map, [year], STATES[q.client.uf]
-    )
-    q.page["plot_alt_R0"] = ui.vega_card(
-        box="R0_map",
-        title="",
-        specification=fig_alt.to_json(),
-    )
-    ttext = await top_n_R0(q, year, 10)
+    chart = pars_map_chart(q.client.weeks_map, q.client.parameters, year)
+    cards.Vega(q, "plot_alt_R0", "R0_map", title="", chart=chart)
+
     q.page["R0table"] = ui.form_card(
         box="R0_table",
         title="",
@@ -274,13 +261,12 @@ async def update_r0map(q: Q):
                 value=year,
                 trigger=True,
             ),
-            ui.text(ttext),
+            ui.text(top_n_R0_md(q, year, 10)),
         ],
     )
 
 
 async def update_model_evaluation(q: Q):
-    print("update_model_evaluation")
     end_year = datetime.date.today().year
     year = q.client.model_evaluation_year or (datetime.date.today().year - 1)
     fig_alt = await plot_model_evaluation_map_altair(
@@ -677,11 +663,33 @@ def read_data(disease: str, uf: str) -> pd.DataFrame:
     )
 
 
+@lru_cache
+def read_duckdb(disease: str, uf: str) -> pd.DataFrame:
+    if DUCKDB_FILE.exists():
+        db = duckdb.connect(str(DUCKDB_FILE), read_only=True)
+    else:
+        raise FileNotFoundError("Duckdb file not found")
+    try:
+        return db.execute(
+            f"SELECT * FROM '{uf.upper()}' "
+            f"WHERE disease = '{disease}'"
+        ).fetchdf()
+    finally:
+        db.close()
+
+
 async def client_data_table(q: Q, disease: Literal["dengue", "chik"], uf: str):
     if disease == "chik":
         disease = "chikungunya"
     df = await q.run(read_data, disease, uf)
     q.client.data_table = df
+
+
+async def client_parameters(q: Q, disease: Literal["dengue", "chik"], uf: str):
+    if disease == "chik":
+        disease = "chikungunya"
+    df = await q.run(read_duckdb, disease, uf)
+    q.client.parameters = df
 
 
 async def update_analysis(q):
