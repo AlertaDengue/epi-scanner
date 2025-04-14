@@ -17,11 +17,9 @@ To avoid reloading data from disk the app maintains the following
 - q.client.disease: name of the currently selected disease.
 - q.client.parameters: SIR parameters for every city/year in current state.
 """
-import asyncio
 import datetime
 import os
 import warnings
-import concurrent.futures
 from pathlib import Path
 from typing import Optional, Literal
 from functools import lru_cache
@@ -32,7 +30,7 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 from epi_scanner.elements import cards, charts
-from epi_scanner.settings import EPISCANNER_DATA_DIR, EPISCANNER_DUCKDB_DIR, STATES
+from epi_scanner.settings import EPISCANNER_DATA_DIR, EPISCANNER_DUCKDB_DIR
 from epi_scanner.viz import (
     client_weeks_map,
     client_rate_map,
@@ -40,7 +38,6 @@ from epi_scanner.viz import (
     get_ini_end_week,
     load_map,
     markdown_table,
-    plot_epidemic_calc_altair,
     model_evaluation_hist_chart,
     model_evaluation_chart,
     pars_map_chart,
@@ -52,7 +49,6 @@ from epi_scanner.viz import (
     top_n_R0_md,
 )
 from h2o_wave import Q, app, copy_expando, data, main, ui  # Noqa F401
-from loguru import logger
 
 warnings.filterwarnings("ignore")
 
@@ -99,6 +95,7 @@ async def serve(q: Q):
         q.client.disease = "dengue"
         q.client.weeks = False
         q.client.event = Event()
+        q.client.epi_year = "all"
         q.client.r0year = datetime.date.today().year
         q.client.model_evaluation_year = datetime.date.today().year
 
@@ -121,6 +118,10 @@ async def serve(q: Q):
         q.client.state = q.args.state
         await on_update_UF(q, q.client.state)
 
+    if q.args.epi_year and str(q.args.epi_year) != str(q.client.epi_year):
+        q.client.epi_year = q.args.epi_year
+        await update_analysis(q, q.client.epi_year)
+
     if q.args.city:
         if not str(q.args.city).isnumeric():
             _cities = {n: g for g, n in q.client.cities}
@@ -142,7 +143,8 @@ async def serve(q: Q):
 
     if (
         q.args.model_evaluation_year and
-        int(q.args.model_evaluation_year or 0) != q.client.model_evaluation_year
+        int(q.args.model_evaluation_year or 0) !=
+        q.client.model_evaluation_year
     ):
         if q.client and q.client.set:
             q.client.set()
@@ -157,6 +159,50 @@ async def serve(q: Q):
         )
         await update_model_evaluation(q, q.client.model_evaluation_year)
 
+    if (
+        q.args.ep_peak_week and
+        int(q.args.ep_peak_week) != q.client.ep_peak_week
+    ):
+        if q.client and q.client.set:
+            q.client.set()
+        q.client.ep_peak_week = q.args.ep_peak_week
+        await on_update_ini_epi_calc(
+            q,
+            disease=q.client.disease,
+            geocode=q.client.city,
+            ep_peak_week=q.client.ep_peak_week,
+            r0=q.client.R0,
+            total_cases=q.client.total_cases
+        )
+
+    if (q.args.ep_R0 and float(q.args.ep_R0) != float(q.client.R0)):
+        if q.client and q.client.set:
+            q.client.set()
+        q.client.R0 = float(q.args.ep_R0)
+        await on_update_ini_epi_calc(
+            q,
+            disease=q.client.disease,
+            geocode=q.client.city,
+            ep_peak_week=q.client.ep_peak_week,
+            r0=q.client.R0,
+            total_cases=q.client.total_cases
+        )
+
+    if (q.args.ep_total and int(q.args.ep_total) != int(q.client.total_cases)):
+        if q.client and q.client.set:
+            q.client.set()
+        q.client.total_cases = int(q.args.ep_total)
+        await on_update_ini_epi_calc(
+            q,
+            disease=q.client.disease,
+            geocode=q.client.city,
+            ep_peak_week=q.client.ep_peak_week,
+            r0=q.client.R0,
+            total_cases=q.client.total_cases
+        )
+
+    # prevents no changes to block the loop
+    await update_header(q, q.client.disease, datetime.date.today())
     await q.page.save()
 
 
@@ -277,6 +323,33 @@ async def on_update_city(q: Q, geocode: int, date=datetime.date.today()):
         year=date.year,
         geocode=geocode,
         parameters=q.client.parameters
+    )
+    await update_ini_epi_calc(q, geocode, date.year)
+
+
+async def on_update_ini_epi_calc(
+    q: Q,
+    disease: str,
+    geocode: int,
+    ep_peak_week: int,
+    r0: float,
+    total_cases: int
+):
+    chart = charts.EpidemicCalculator(
+        disease=disease,
+        city=q.client.cities[geocode],
+        df=q.client.data_table,
+        gc=geocode,
+        pw=ep_peak_week,
+        R0=r0,
+        total_cases=total_cases,
+    )
+    cards.Vega(
+        q,
+        element_id="epidemic_calc",
+        box="epi_calc_alt",
+        title="",
+        chart=chart
     )
 
 
@@ -443,27 +516,18 @@ async def update_pars(q: Q):
     q.page["sir_pars"].items[2].text.content = table
 
 
-async def get_median_pars(q: Q):
-
-    year = int(datetime.datetime.today().year)
-
+async def get_median_pars(q: Q, geocode: int, year: int):
     start_date, end_date = get_ini_end_week(year)
 
-    cases = await sum_cases(
-        q,
-        start_date,
-        end_date,
-        int(q.client.city),
-    )
-
+    cases = await sum_cases(q, start_date, end_date, geocode)
     cases = float(cases)
 
     df_pars = q.client.parameters
     df_pars_ = df_pars.loc[
-        (df_pars.geocode == int(q.client.city)) & (df_pars.year < year)
+        (df_pars.geocode == geocode) & (df_pars.year < year)
     ]
     df_pars_atual = df_pars.loc[
-        (df_pars.geocode == int(q.client.city)) & (df_pars.year == year)
+        (df_pars.geocode == geocode) & (df_pars.year == year)
     ]
 
     if df_pars_.empty == True:
@@ -491,15 +555,19 @@ async def get_median_pars(q: Q):
     return median_R0, median_peak, median_cases, min_cases, max_cases, step
 
 
-async def on_update_ini_epi_calc(q: Q, geocode: int):
+async def update_ini_epi_calc(
+    q: Q,
+    geocode: int,
+    year: int,
+):
     (
-        median_R0,
-        median_peak,
-        median_cases,
+        q.client.R0,
+        q.client.ep_peak_week,
+        q.client.total_cases,
         min_cases,
         max_cases,
         step,
-    ) = await get_median_pars(q)
+    ) = await get_median_pars(q, geocode, year)
 
     q.page["peak_model"] = ui.form_card(
         box="ep_calc_peak",
@@ -511,7 +579,7 @@ async def on_update_ini_epi_calc(q: Q, geocode: int):
                 min=5,
                 max=45,
                 step=1,
-                value=median_peak,
+                value=q.client.ep_peak_week,
                 trigger=True,
             ),
         ],
@@ -527,7 +595,7 @@ async def on_update_ini_epi_calc(q: Q, geocode: int):
                 min=0.1,
                 max=5,
                 step=0.05,
-                value=median_R0,
+                value=q.client.R0,
                 trigger=True,
             ),
         ],
@@ -543,29 +611,29 @@ async def on_update_ini_epi_calc(q: Q, geocode: int):
                 min=min_cases,
                 max=max_cases,
                 step=step,
-                value=median_cases,
+                value=q.client.total_cases,
                 trigger=True,
             ),
         ],
     )
 
-    altair_plot = charts.EpidemicCalculator(
+    chart = charts.EpidemicCalculator(
         disease=q.client.disease,
         city=q.client.cities[geocode],
         df=q.client.data_table,
-        gc=geocode,
-        pw=median_peak,
-        R0=median_R0,
-        total_cases=median_cases,
+        gc=q.client.city,
+        pw=q.client.ep_peak_week,
+        R0=q.client.R0,
+        total_cases=q.client.total_cases,
     )
 
-    q.page["epidemic_calc"] = ui.vega_card(
-        box="epi_calc_alt", title="", specification=altair_plot.chart.to_json()
+    cards.Vega(
+        q,
+        element_id="epidemic_calc",
+        box="epi_calc_alt",
+        title="",
+        chart=chart
     )
-
-    q.args.ep_peak_week = False
-    q.args.ep_R0 = False
-    q.args.ep_total = False
 
 
 async def update_city(q: Q, year: int, geocode: int, parameters: pd.DataFrame):
@@ -580,7 +648,7 @@ async def update_city(q: Q, year: int, geocode: int, parameters: pd.DataFrame):
     ]
     years.insert(0, ui.choice(name="all", label="All"))
     q.page["years"].items[0].dropdown.choices = years
-    await update_analysis(q)
+    await update_analysis(q, q.client.epi_year)
 
     title = (
         f"SIR Parameters for {q.client.disease} Epidemics in "
@@ -641,7 +709,11 @@ async def update_city(q: Q, year: int, geocode: int, parameters: pd.DataFrame):
         items=[ui.text(table)],
     )
 
-    await on_update_ini_epi_calc(q, geocode)
+    await update_ini_epi_calc(
+        q,
+        geocode=geocode,
+        year=year
+    )
 
 
 async def create_layout(q):
@@ -802,14 +874,28 @@ async def client_parameters(q: Q, disease: Literal["dengue", "chik"], uf: str):
     q.client.parameters = df
 
 
-async def update_analysis(q):
-    if (q.client.epi_year is None) or (q.client.epi_year == "all"):
-        syear = 2011
-        eyear = datetime.date.today().year
-    else:
-        syear = eyear = q.client.epi_year
+async def client_cities(
+    q: Q,
+    data_table: pd.DataFrame,
+    brmap: gpd.GeoDataFrame
+):
+    geocodes = set(data_table.municipio_geocodigo.unique())
+    for gc in geocodes:
+        city_data = brmap[brmap.code_muni.astype(int) == int(gc)]
+        if city_data.empty:
+            q.client.cities[int(gc)] = ""
+        else:
+            q.client.cities[int(gc)] = city_data.name_muni.values[0]
 
-    start_date, end_date = get_ini_end_week(int(syear), eyear)
+
+async def update_analysis(q, year: str | int = "all"):
+    if year == "all":
+        start_year = 2011
+        end_year = datetime.date.today().year
+    else:
+        start_year = end_year = int(year)
+
+    start_date, end_date = get_ini_end_week(int(start_year), end_year)
 
     altair_plot = await plot_series_altair(
         q, int(q.client.city), start_date, end_date
@@ -857,20 +943,6 @@ async def add_sidebar(q):
         ],
     )
     cards.Results(q)
-
-
-async def client_cities(
-    q: Q,
-    data_table: pd.DataFrame,
-    brmap: gpd.GeoDataFrame
-):
-    geocodes = set(data_table.municipio_geocodigo.unique())
-    for gc in geocodes:
-        city_data = brmap[brmap.code_muni.astype(int) == int(gc)]
-        if city_data.empty:
-            q.client.cities[int(gc)] = ""
-        else:
-            q.client.cities[int(gc)] = city_data.name_muni.values[0]
 
 
 async def update_sidebar(q: Q, disease: str, uf: str, geocode: int):
