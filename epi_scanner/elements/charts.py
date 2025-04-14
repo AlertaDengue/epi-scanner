@@ -46,10 +46,7 @@ class EpidemicCalculator(Chart):
         start_date, end_date = get_ini_end_week(year=year)
 
         if df is not None:
-            print(df)
-            print(gc)
             df = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
-            print(df)
             df.sort_index(inplace=True)
             df["casos_cum"] = df.casos.cumsum()
             df = df.reset_index().loc[:, ["data_iniSE", "casos_cum"]]

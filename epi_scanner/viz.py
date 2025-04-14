@@ -86,10 +86,6 @@ async def client_rate_map(
     )
 
 
-async def client_city(q: Q, geocode: int):
-    q.client.city = geocode
-
-
 def state_map_chart(
     q: Q,
     weeks_map: gpd.GeoDataFrame,

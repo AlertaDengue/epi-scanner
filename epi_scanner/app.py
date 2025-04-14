@@ -34,7 +34,6 @@ import geopandas as gpd
 from epi_scanner.elements import cards, charts
 from epi_scanner.settings import EPISCANNER_DATA_DIR, EPISCANNER_DUCKDB_DIR, STATES
 from epi_scanner.viz import (
-    client_city,
     client_weeks_map,
     client_rate_map,
     client_state_map,
@@ -60,6 +59,36 @@ warnings.filterwarnings("ignore")
 DUCKDB_FILE = Path(
     os.path.join(str(EPISCANNER_DUCKDB_DIR), "episcanner.duckdb")
 )
+
+uf_choices = [
+    ui.choice("AC", "Acre"),
+    ui.choice("AL", "Alagoas"),
+    ui.choice("AM", "Amazonas"),
+    ui.choice("AP", "Amapá"),
+    ui.choice("BA", "Bahia"),
+    ui.choice("CE", "Ceará"),
+    ui.choice("DF", "Distrito Federal"),
+    ui.choice("ES", "Espírito Santo"),
+    ui.choice("GO", "Goiás"),
+    ui.choice("MA", "Maranhão"),
+    ui.choice("MG", "Minas Gerais"),
+    ui.choice("MS", "Mato Grosso do Sul"),
+    ui.choice("MT", "Mato Grosso"),
+    ui.choice("PA", "Pará"),
+    ui.choice("PB", "Paraíba"),
+    ui.choice("PE", "Pernambuco"),
+    ui.choice("PI", "Piauí"),
+    ui.choice("PR", "Paraná"),
+    ui.choice("RJ", "Rio de Janeiro"),
+    ui.choice("RN", "Rio Grande do Norte"),
+    ui.choice("RO", "Rondônia"),
+    ui.choice("RR", "Roraima"),
+    ui.choice("RS", "Rio Grande do Sul"),
+    ui.choice("SC", "Santa Catarina"),
+    ui.choice("SE", "Sergipe"),
+    ui.choice("SP", "São Paulo"),
+    ui.choice("TO", "Tocantins"),
+]
 
 
 @app("/", mode="unicast")
@@ -99,7 +128,7 @@ async def serve(q: Q):
         else:
             geocode = int(q.args.city)
 
-        if geocode != q.client.city:
+        if geocode != int(q.client.city):
             if q.client and q.client.set:
                 q.client.set()
             q.client.city = geocode
@@ -184,15 +213,21 @@ async def on_update_disease(
         pars=q.client.parameters
     )
     top_cities_df = top_cities(q.client.weeks_map)
-    await client_city(q, int(top_cities_df['code_muni'].values[0]))
+    top_city = int(top_cities_df['code_muni'].values[0])
+    q.client.city = top_city
 
-    await update_sidebar(q, disease=disease, uf=uf)
+    await update_sidebar(q, disease=disease, uf=uf, geocode=top_city)
     await update_header(q, disease=disease, date=date)
     await update_weeks_map(q, q.client.weeks_map, top_cities_df.head(10))
     await update_results(q, parameters=q.client.parameters)
     await update_r0map(q, year=q.client.r0year)
     await update_model_evaluation(q, q.client.model_evaluation_year)
-    # await update_city(q, q.client.city)
+    await update_city(
+        q,
+        year=date.year,
+        geocode=top_city,
+        parameters=q.client.parameters
+    )
 
 
 async def on_update_UF(
@@ -214,24 +249,35 @@ async def on_update_UF(
         pars=q.client.parameters
     )
     top_cities_df = top_cities(q.client.weeks_map)
-    await client_city(q, int(top_cities_df['code_muni'].values[0]))
+    top_city = int(top_cities_df['code_muni'].values[0])
+    q.client.city = top_city
 
-    await update_sidebar(q, disease=disease, uf=uf)
+    await update_sidebar(q, disease=disease, uf=uf, geocode=top_city)
     await update_header(q, disease=disease, date=date)
     await update_weeks_map(q, q.client.weeks_map, top_cities_df.head(10))
     await update_results(q, parameters=q.client.parameters)
     await update_r0map(q, year=q.client.r0year)
     await update_model_evaluation(q, q.client.model_evaluation_year)
-    # await update_city(q, q.client.city)
+    await update_city(
+        q,
+        year=date.year,
+        geocode=top_city,
+        parameters=q.client.parameters
+    )
 
 
-async def on_update_city(q: Q, geocode: int):
+async def on_update_city(q: Q, geocode: int, date=datetime.date.today()):
     """
     Prepares the city visualizations
     Args:
         q:
     """
-    await update_city(q, geocode)
+    await update_city(
+        q,
+        year=date.year,
+        geocode=geocode,
+        parameters=q.client.parameters
+    )
 
 
 async def sum_cases(
@@ -522,14 +568,15 @@ async def on_update_ini_epi_calc(q: Q, geocode: int):
     q.args.ep_total = False
 
 
-async def update_city(q: Q, geocode: int):
-    print(q.client.cities[geocode])
+async def update_city(q: Q, year: int, geocode: int, parameters: pd.DataFrame):
+    q.client.city = geocode
+    q.args.city = geocode
     q.page["form"].items[2].dropdown.value = str(geocode)
 
     create_analysis_form(q)
     years = [
         ui.choice(name=str(y), label=str(y)) for y
-        in q.client.parameters[q.client.parameters.geocode == geocode].year
+        in parameters[parameters.geocode == geocode].year
     ]
     years.insert(0, ui.choice(name="all", label="All"))
     q.page["years"].items[0].dropdown.choices = years
@@ -568,10 +615,8 @@ async def update_city(q: Q, geocode: int):
         ],
     )
 
-    df_pars = q.client.parameters
-    df_pars = df_pars.loc[
-        (df_pars.geocode == geocode)
-        & (df_pars.year == int(datetime.date.today().year))
+    df_pars = parameters.loc[
+        (parameters.geocode == geocode) & (parameters.year == year)
     ]
 
     df_pars_ = pd.DataFrame()
@@ -776,35 +821,6 @@ async def update_analysis(q):
 
 
 async def add_sidebar(q):
-    state_choices = [
-        ui.choice("AC", "Acre"),
-        ui.choice("AL", "Alagoas"),
-        ui.choice("AM", "Amazonas"),
-        ui.choice("AP", "Amapá"),
-        ui.choice("BA", "Bahia"),
-        ui.choice("CE", "Ceará"),
-        ui.choice("DF", "Distrito Federal"),
-        ui.choice("ES", "Espírito Santo"),
-        ui.choice("GO", "Goiás"),
-        ui.choice("MA", "Maranhão"),
-        ui.choice("MG", "Minas Gerais"),
-        ui.choice("MS", "Mato Grosso do Sul"),
-        ui.choice("MT", "Mato Grosso"),
-        ui.choice("PA", "Pará"),
-        ui.choice("PB", "Paraíba"),
-        ui.choice("PE", "Pernambuco"),
-        ui.choice("PI", "Piauí"),
-        ui.choice("PR", "Paraná"),
-        ui.choice("RJ", "Rio de Janeiro"),
-        ui.choice("RN", "Rio Grande do Norte"),
-        ui.choice("RO", "Rondônia"),
-        ui.choice("RR", "Roraima"),
-        ui.choice("RS", "Rio Grande do Sul"),
-        ui.choice("SC", "Santa Catarina"),
-        ui.choice("SE", "Sergipe"),
-        ui.choice("SP", "São Paulo"),
-        ui.choice("TO", "Tocantins"),
-    ]
     q.page["form"] = ui.form_card(
         box="sidebar_form",
         items=[
@@ -822,7 +838,7 @@ async def add_sidebar(q):
                 name="state",
                 label="Select state",
                 required=True,
-                choices=state_choices,
+                choices=uf_choices,
                 trigger=True,
             ),
             ui.dropdown(
@@ -831,7 +847,7 @@ async def add_sidebar(q):
                 required=True,
                 choices=[],
                 trigger=True,
-                visible=False,
+                visible=True,
                 popup="always",
                 placeholder="Nothing selected",
             ),
@@ -857,14 +873,49 @@ async def client_cities(
             q.client.cities[int(gc)] = city_data.name_muni.values[0]
 
 
-async def update_sidebar(q: Q, disease: str, uf: str):
+async def update_sidebar(q: Q, disease: str, uf: str, geocode: int):
     geocodes = set(q.client.data_table.municipio_geocodigo.unique())
-    q.page["form"].items[0].dropdown.value = disease
-    q.page["form"].items[1].dropdown.value = uf
 
-    choices = [ui.choice(str(gc), q.client.cities[gc]) for gc in geocodes]
-    q.page["form"].items[2].dropdown.choices = choices
-    q.page["form"].items[2].dropdown.visible = True
+    q.page["form"] = ui.form_card(
+        box="sidebar_form",
+        items=[
+            ui.dropdown(
+                name="disease",
+                label="Select disease",
+                required=True,
+                choices=[
+                    ui.choice("dengue", "Dengue"),
+                    ui.choice("chik", "Chikungunya"),
+                ],
+                trigger=True,
+                value=disease
+            ),
+            ui.dropdown(
+                name="state",
+                label="Select state",
+                required=True,
+                choices=uf_choices,
+                trigger=True,
+                value=uf,
+            ),
+            ui.dropdown(
+                name="city",
+                label="Select city",
+                required=True,
+                choices=[
+                    ui.choice(str(gc), q.client.cities[gc])
+                    for gc in geocodes
+                ],
+                trigger=True,
+                visible=True,
+                popup="always",
+                value=str(geocode)
+            ),
+            ui.text(
+                "The parameters table can be downloaded in the [Mosqlimate API](https://api.mosqlimate.org/docs/datastore/GET/episcanner/)."
+            ),
+        ],
+    )
 
 
 async def update_header(q: Q, disease: str, date: datetime.date):
