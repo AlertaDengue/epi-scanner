@@ -1,5 +1,8 @@
 services:
   wave:
+    entrypoint: ["wave", "run", "--no-autostart", "epi_scanner.app"]
+    volumes:
+      - ${HOST_EPISCANNER_ROOT}:${PROJECT_ROOT}
     networks:
       - infodengue-dev_infodengue
 

@@ -19,7 +19,7 @@ services:
       - H2O_WAVE_BASE_URL=/epi-scanner/
       - H2O_WAVE_LISTEN=:10101
       - H2O_WAVE_ADDRESS=http://wave:10101
-      - H2O_WAVE_MAX_REQUEST_SIZE=15MB
+      - H2O_WAVE_MAX_REQUEST_SIZE=100MB
     entrypoint: ["wave", "run", "--no-reload", "--no-autostart", "epi_scanner.app"]
     ports:
       - '10101:10101'

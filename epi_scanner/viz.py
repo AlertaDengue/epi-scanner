@@ -1,7 +1,10 @@
+import asyncio
+import datetime
 import os
 import uuid
 from pathlib import Path
-import datetime
+from functools import lru_cache
+
 import altair as alt
 import geopandas as gpd
 import gpdvega  # NOQA
@@ -11,15 +14,15 @@ import pandas as pd
 import plotly.graph_objects as go
 from altair import datum
 from epi_scanner.settings import EPISCANNER_DATA_DIR
+from epiweeks import Week
 from h2o_wave import Q
 from plotly import io as pio
 from plotly.subplots import make_subplots
-from epiweeks import Week 
 
 
-def get_ini_end_week(year:int, eyear = None):
+def get_ini_end_week(year: int, eyear=None):
     """
-    Returns the start and end dates used in the optimization process in the 
+    Returns the start and end dates used in the optimization process in the
     'episcanner-downloader' repository.
 
     Parameters:
@@ -28,76 +31,74 @@ def get_ini_end_week(year:int, eyear = None):
     Returns:
     Tuple[datetime, datetime]: The start and end dates of the specified year.
     """
-    ini_week = Week(year-1,1).startdate()
+    ini_week = Week(year - 1, 1).startdate()
 
-    dates = pd.date_range(start = ini_week, periods = 104, freq = 'W-SUN')
+    dates = pd.date_range(start=ini_week, periods=104, freq="W-SUN")
 
-    dates_ = dates[dates.year >= year-1][44 : 44 + 52]
+    dates_ = dates[dates.year >= year - 1][44: 44 + 52]
 
     ini_date = dates_[0].strftime("%Y-%m-%d")
 
-    if eyear is None: 
-        end_date =  dates_[-1].strftime("%Y-%m-%d")
-    else: 
+    if eyear is None:
+        end_date = dates_[-1].strftime("%Y-%m-%d")
+    else:
         end_date = f"{eyear}-11-01"
 
-    return ini_date, end_date 
+    return ini_date, end_date
 
-async def load_map(q: Q):
+
+def load_map() -> gpd.GeoDataFrame:
     file_gpkg = Path(f"{EPISCANNER_DATA_DIR}/muni_br.gpkg")
-
-    brmap = gpd.read_file(file_gpkg, driver="GPKG")
-    q.client.brmap = brmap
+    return gpd.read_file(file_gpkg, driver="GPKG")
 
 
-async def update_state_map(q: Q):
-    statemap = q.client.brmap[q.client.brmap.abbrev_state == q.client.uf]
-    q.client.statemap = statemap
-
-
-async def t_weeks(q: Q):
-    """
-    Merge weeks table with map
-    """
-    weeks = q.client.data_table.groupby(by="municipio_geocodigo").sum(
+def weeks_map_df(
+    data_table: pd.DataFrame,
+    statemap: gpd.GeoDataFrame
+) -> gpd.GeoDataFrame:
+    weeks = data_table.groupby(by="municipio_geocodigo").sum(
         numeric_only=True
     )[["transmissao"]]
-    wmap = q.client.statemap.merge(
-        weeks, left_on="code_muni", right_index=True
-    )
-    q.client.weeks_map = wmap
-    q.client.weeks = True
-    await q.page.save()
+    return statemap.merge(weeks, left_on="code_muni", right_index=True)
 
 
-async def plot_state_map(q, themap: gpd.GeoDataFrame, column=None):
-    ax = themap.plot(
-        column=column,
-        legend=True,
-        scheme="natural_breaks",
-        legend_kwds={
-            "loc": "lower center",
-            "ncols": 5,
-            "fontsize": "x-small",
-        },
-    )
-    ax.set_axis_off()
-    image_path = await get_mpl_img(q)
-    return image_path
+async def client_state_map(q: Q, uf: str):
+    q.client.statemap = q.client.brmap[q.client.brmap.abbrev_state == uf]
 
 
-async def plot_state_map_altair(
+async def client_weeks_map(
     q: Q,
-    themap: gpd.GeoDataFrame,
-    column=None,
-    title="Number of weeks of Rt > 1 since 2010",
+    data_table: pd.DataFrame,
+    statemap: gpd.GeoDataFrame
 ):
+    q.client.weeks_map = weeks_map_df(data_table, statemap)
+
+
+async def client_rate_map(
+    q: Q,
+    years: list,
+    statemap: gpd.GeoDataFrame,
+    data_table: pd.DataFrame,
+    pars: pd.DataFrame,
+):
+    q.client.rate_map = rate_map(
+        years=years, statemap=statemap, data_table=data_table, pars=pars
+    )
+
+
+def state_map_chart(
+    q: Q,
+    weeks_map: gpd.GeoDataFrame,
+) -> alt.Chart:
+    if q.client.event.is_set():
+        return
+
     spec = (
-        alt.Chart(themap)
+        alt.Chart(weeks_map)
         .mark_geoshape()
         .encode(
             color=alt.Color(
-                f"{column}:Q",
+                "transmissao:Q",
                 sort="ascending",
                 scale=alt.Scale(
                     scheme="bluepurple"
@@ -108,10 +109,15 @@ async def plot_state_map_altair(
                     tickCount=10,
                 ),
             ),
-            tooltip=["name_muni", column + ":Q"],
+            tooltip=["name_muni", "transmissao:Q"],
         )
         .properties(
-            title={"text": f"{title}", "fontSize": 15, "anchor": "start"},
+            title={
+                "text":
+                "Number of weeks of Rt > 1 since 2010",
+                "fontSize": 15,
+                "anchor": "start"
+            },
             width=500,
             height=400,
         )
@@ -119,50 +125,10 @@ async def plot_state_map_altair(
     return spec
 
 
-async def get_mpl_img(q):
-    """
-    saves current matplotlib figures to a temporary file
-     and uploads it to the site.
-    Args:
-        q: App
-
-    Returns: path in the site.
-    """
-    image_filename = f"{str(uuid.uuid4())}.png"
-    plt.savefig(image_filename)
-    # Upload
-    (image_path,) = await q.site.upload([image_filename])
-    # Clean up
-    os.remove(image_filename)
-    return image_path
-
-
-def get_year_map(
-    years: list, themap: gpd.GeoDataFrame, pars: pd.DataFrame
-) -> gpd.GeoDataFrame:
-    """
-    Merge map with parameters for a given year
-    Args:
-        years: list of one or more years to be selected
-        themap: map to be merged
-        pars: parameters table
-
-    Returns:
-
-    """
-    map_pars = themap.merge(
-        pars[pars.year.astype(int).isin(years)],
-        left_on="code_muni",
-        right_on="geocode",
-        how="outer",
-    )
-    return map_pars.fillna(0)
-
-
-def get_rate_map(
+def rate_map(
     years: list,
     statemap: gpd.GeoDataFrame,
-    data: pd.DataFrame,
+    data_table: pd.DataFrame,
     pars: pd.DataFrame,
 ) -> gpd.GeoDataFrame:
     """
@@ -177,7 +143,9 @@ def get_rate_map(
 
     """
     year = years[0]
-    df = data[data["SE"].isin(range((year - 1) * 100 + 45, year * 100 + 45))]
+    df = data_table[data_table["SE"].isin(
+        range((year - 1) * 100 + 45, year * 100 + 45)
+    )]
     casos = (
         df[["municipio_geocodigo", "casos"]]
         .groupby("municipio_geocodigo")
@@ -200,87 +168,54 @@ def get_rate_map(
     return map_rate
 
 
-async def plot_pars_map(
-    q, themap: gpd.GeoDataFrame, year: int, state: str, column="R0"
-):
-    map_pars = get_year_map([year], q.client.weeks_map, q.client.parameters)
-    ax = themap.plot(alpha=0.3)
-    if len(map_pars) == 0:
-        pass
-    else:
-        map_pars.plot(
-            ax=ax,
-            column=column,
-            legend=True,
-            scheme="User_Defined",
-            classification_kwds=dict(bins=[1.5, 2, 2.3, 2.7]),
-            legend_kwds={"loc": "lower center", "ncols": 5},
-        )
-    ax.set_title(f"{state} {year}")
-    ax.set_axis_off()
-    image_path = await get_mpl_img(q)
-    return image_path
-
-
-async def plot_pars_map_altair(
-    q,
+def pars_map_chart(
     themap: gpd.GeoDataFrame,
-    years: list,
-    state: str,
-    column="R0",
-    title="R0 by city in",
-):
-    map_pars = get_year_map(years, themap, q.client.parameters)[
-        ["geometry", "year", "name_muni", "R0"]
-    ]
-    spec = (
-        alt.Chart(
-            data=map_pars,
-            padding={"left": 0, "top": 0, "right": 0, "bottom": 0},
-        )
-        .mark_geoshape()
-        .encode(
-            color=alt.Color(
-                f"{column}:Q",
-                sort="ascending",
-                scale=alt.Scale(
-                    scheme="bluepurple",
-                    domainMin=0,
-                ),
-                legend=alt.Legend(
-                    title="R0",
-                    orient="bottom",
-                    tickCount=10,
-                ),
+    parameters: pd.DataFrame,
+    year: int,
+) -> alt.Chart:
+    map_pars = themap.merge(
+        parameters[parameters.year.astype(int).isin([year])],
+        left_on="code_muni",
+        right_on="geocode",
+        how="outer",
+    ).fillna(0)[["geometry", "year", "name_muni", "R0"]]
+
+    return alt.Chart(
+        data=map_pars,
+        padding={"left": 0, "top": 0, "right": 0, "bottom": 0},
+    ).mark_geoshape().encode(
+        color=alt.Color(
+            "R0:Q",
+            sort="ascending",
+            scale=alt.Scale(
+                scheme="bluepurple",
+                domainMin=0,
             ),
-            tooltip=["name_muni", column + ":Q"],
-        )
-        .properties(
-            title={
-                "text": f"{title} {years[0]}",
-                "fontSize": 15,
-                "anchor": "start",
-            },
-            width=500,
-            height=400,
-        )
+            legend=alt.Legend(
+                title="R0",
+                orient="bottom",
+                tickCount=10,
+            ),
+        ),
+        tooltip=["name_muni", "R0:Q"],
+    ).properties(
+        title={
+            "text": f"R0 by city in {year}",
+            "fontSize": 15,
+            "anchor": "start",
+        },
+        width=500,
+        height=400,
     )
-    return spec
 
 
-async def plot_model_evaluation_map_altair(
-    q,
-    statemap: gpd.GeoDataFrame,
-    years: list,
-    state: str,
-    column="rate",
-    title="Observed Cases/Estimated Cases by city in",
-    bins=[1 / 2, 95 / 100, 1.05, 2],
-    color_list=["#006aea", "#00b4ca", "#48d085", "#dc7080", "#cb2b2b"],
-):
-    map_rate = get_rate_map(
-        years, statemap, q.client.data_table, q.client.parameters
-    )
+async def model_evaluation_chart(
+    rate_map: gpd.GeoDataFrame,
+    year: int
+) -> alt.Chart:
+    bins = [1 / 2, 95 / 100, 1.05, 2]
+    color_list = ["#006aea", "#00b4ca", "#48d085", "#dc7080", "#cb2b2b"]
+
     legend_table = pd.DataFrame(
         [
             [0, 1, 0, bins[0], "a"],
@@ -292,21 +227,21 @@ async def plot_model_evaluation_map_altair(
         columns=["x1", "x2", "v1", "v2", "color"],
     )
 
-    map = alt.Chart(data=map_rate,).mark_geoshape(
+    chart = alt.Chart(data=rate_map).mark_geoshape(
         fillOpacity=0.5, fill="grey", stroke="#000", strokeOpacity=0.5
-    ) + alt.Chart(data=map_rate,).mark_geoshape(
+    ) + alt.Chart(data=rate_map,).mark_geoshape(
         stroke="#000", strokeOpacity=0.5
     ).encode(
         color=alt.Color(
-            f"{column}:Q",
+            "rate:Q",
             sort="ascending",
             scale=alt.Scale(type="threshold", domain=bins, range=color_list),
             legend=None,
         ),
-        tooltip=["name_muni", column + ":Q"],
+        tooltip=["name_muni", "rate:Q"],
     ).properties(
         title={
-            "text": f"{title} {years[0]}",
+            "text": f"Observed Cases/Estimated Cases by city in {year}",
             "fontSize": 15,
             "anchor": "start",
         },
@@ -378,25 +313,14 @@ async def plot_model_evaluation_map_altair(
         .encode(x=datum(5), y=datum(1.5))
     )
 
-    spec = map & legend
-    return spec
+    return chart & legend
 
 
-async def plot_model_evaluation_hist_altair(
-    q,
-    statemap: gpd.GeoDataFrame,
-    years: list,
-    state: str,
-    column="rate",
-    bins=[1 / 2, 95 / 100, 1.05, 2],
-    color_list=["#006aea", "#00b4ca", "#48d085", "#dc7080", "#cb2b2b"],
-):
-    map_rate = get_rate_map(
-        years, statemap, q.client.data_table, q.client.parameters
-    )
-
-    hist = (
-        alt.Chart(map_rate, width=250)
+async def model_evaluation_hist_chart(rate_map: gpd.GeoDataFrame) -> alt.Chart:
+    bins = [1 / 2, 95 / 100, 1.05, 2]
+    color_list = ["#006aea", "#00b4ca", "#48d085", "#dc7080", "#cb2b2b"]
+    return (
+        alt.Chart(rate_map, width=250)
         .mark_bar()
         .encode(
             x=alt.X(
@@ -411,7 +335,7 @@ async def plot_model_evaluation_hist_altair(
                 scale=alt.Scale(type="sqrt"),
             ),
             color=alt.Color(
-                f"{column}:Q",
+                "rate:Q",
                 sort="ascending",
                 scale=alt.Scale(
                     type="threshold", domain=bins, range=color_list
@@ -420,36 +344,39 @@ async def plot_model_evaluation_hist_altair(
             ),
         )
     )
-    return hist
 
 
-async def top_n_cities(q: Q, n: int):
-    wmap = q.client.weeks_map
-    wmap["transmissao"] = wmap.transmissao.astype(int)
-    df = wmap.sort_values("transmissao", ascending=False)[
+def top_cities(weeks_map: gpd.GeoDataFrame) -> pd.DataFrame:
+    weeks_map["transmissao"] = weeks_map.transmissao.astype(int)
+    return weeks_map.sort_values("transmissao", ascending=False)[
         ["name_muni", "transmissao", "code_muni"]
-    ].head(n)
-    return make_markdown_table(
-        fields=["Names", "Epi Weeks"], rows=df[["name_muni", "transmissao"]].values.tolist()
-    ), df['code_muni'].values[0]
+    ]
 
-async def top_n_R0(q: Q, year: int, n: int):
+
+def top_n_cities_md(df: pd.DataFrame) -> str:
+    return markdown_table(
+        fields=["Names", "Epi Weeks"],
+        rows=df[["name_muni", "transmissao"]].values.tolist(),
+    )
+
+
+@lru_cache(maxsize=None)
+def top_n_R0_md(q: Q, year: int, n: int) -> str:
     pars = q.client.parameters
-    table = (
+    df = (
         pars[pars.year == year]
         .sort_values("R0", ascending=False)[["geocode", "R0"]]
         .head(n)
     )
-    table["name"] = [q.client.cities[gc] for gc in table.geocode]
-    return make_markdown_table(
+    df["name"] = [q.client.cities[gc] for gc in df.geocode]
+    return markdown_table(
         fields=["Names", "R0"],
-        rows=table[["name", "R0"]].round(decimals=2).values.tolist(),
+        rows=df[["name", "R0"]].round(decimals=2).values.tolist(),
     )
 
 
-async def table_model_evaluation(
-    q: Q, year: int, bins=[0, 0.5, 0.95, 1.05, 2, np.inf]
-):
+def table_model_evaluation_md(q: Q, year: int) -> str:
+    bins = [0, 0.5, 0.95, 1.05, 2, np.inf]
     df = q.client.data_table[
         q.client.data_table["SE"].isin(
             range((year - 1) * 100 + 45, year * 100 + 45)
@@ -491,19 +418,13 @@ async def table_model_evaluation(
         + "%)"
     )
 
-    table = make_markdown_table(
+    return markdown_table(
         fields=["Range", "Range Counts(%)"],
         rows=groupby_rate[["rate", "text"]].values.tolist(),
     )
 
-    return table
 
-
-def make_markdown_row(values):
-    return f"| {' | '.join([str(x) for x in values])} |"
-
-
-def make_markdown_table(fields, rows):
+def markdown_table(fields: list[str], rows: list) -> str:
     """
     Create markdown table
     Args:
@@ -512,40 +433,17 @@ def make_markdown_table(fields, rows):
 
     Returns: Markdown table
     """
+
+    def row(values):
+        return f"| {' | '.join([str(x) for x in values])} |"
+
     return "\n".join(
         [
-            make_markdown_row(fields),
-            make_markdown_row("-" * len(fields)),
-            "\n".join([make_markdown_row(row) for row in rows]),
+            row(fields),
+            row("-" * len(fields)),
+            "\n".join([row(r) for r in rows]),
         ]
     )
-
-
-async def plot_series(q: Q, gc: int, start_date: str, end_date: str):
-    """
-    Plot timeseries between two dates of city
-    Args:
-        q:
-        gc: geocode of the city
-        start_date:
-        end_date:
-
-    Returns:
-    image path
-    """
-    df = q.client.data_table
-    dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
-    dfcity.sort_index(inplace=True)
-    dfcity["casos_cum"] = dfcity.casos.cumsum()
-    fig, [ax1, ax2] = plt.subplots(2, 1)
-    dfcity.casos.plot.area(ax=ax1, label="Cases", grid=True, alpha=0.4)
-    ax1.legend()
-    dfcity.casos_cum.plot.area(
-        ax=ax2, label="Cumulative cases", grid=True, alpha=0.4
-    )
-    ax2.legend()
-    image_path = await get_mpl_img(q)
-    return image_path
 
 
 @np.vectorize
@@ -691,108 +589,3 @@ async def plot_series_altair(q: Q, gc: int, start_date: str, end_date: str):
     else:
         spec = alt.vconcat(ch1, ch2)
     return spec
-
-async def plot_epidemic_calc_altair(q: Q, gc: int, pw:int, R0:float, total_cases:int ):
-
-    SCALE = alt.Scale(domain=["Data", "Model", "Peak week"],  # Adjust categories
-                                range=["#1f77b4", "#ff7f0e","red"])
-
-    eyear = datetime.date.today().year
-
-    start_date, end_date = get_ini_end_week(year=eyear)
-
-    title = (
-            f"{q.client.disease.capitalize()} weekly cases "
-            f"in {eyear} for {q.client.cities[int(q.client.city)]}"
-        )
-
-    df = q.client.data_table
-    dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
-    dfcity.sort_index(inplace=True)
-    dfcity["casos_cum"] = dfcity.casos.cumsum()
-    dfcity = dfcity.reset_index().loc[:, ['data_iniSE', 'casos_cum']]
-
-    R = 1 - 1/R0
-    gamma = 0.3
-    b = R*gamma/(1-R)
-    a = b/(gamma + b)
-
-    dfcity2 = pd.DataFrame()
-    dfcity2['data_iniSE'] = pd.date_range(start=dfcity.data_iniSE.values[0], periods=52, freq='W-SUN')
-    dfcity2["model"] = richards( total_cases, a, b, np.arange(52), pw )
-
-    dfcity_end = dfcity.merge(dfcity2, left_on = 'data_iniSE', right_on = 'data_iniSE',
-                              how = 'outer')
-
-    df1 = dfcity_end.copy()
-    df1["legend"] = "Data"
-
-    df2 = dfcity_end.copy()
-    df2["legend"] = "Model"
-
-    # Create the first chart (Area for Cumulative Cases)
-    ch1 = alt.Chart(df1, width=650, height=350).mark_area(
-    opacity=0.3,
-    interpolate="step-after",
-    color = '#1f77b4', 
-    ).encode(
-    x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date", titleFontSize=12)),
-    y=alt.Y("casos_cum:Q", axis=alt.Axis(title="Cumulative Cases", titleFontSize=12)),
-    color=alt.Color("legend:N", title=" ", scale = SCALE
-                                ),  
-    tooltip=["data_iniSE:T", "casos_cum:Q", "model:Q"],
-    )
-
-    # Create the second chart (Line for Model Prediction)
-    ch2 = alt.Chart(df2, width=650, height=350).mark_line(color = 'red').encode(
-    x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date", titleFontSize=12)),
-    y=alt.Y("model:Q", axis=alt.Axis(title="Cumulative Cases", titleFontSize=12)),
-    color=alt.Color("legend:N", title=" ", scale = SCALE
-                    ),  
-    tooltip=["data_iniSE:T", "casos_cum:Q", "model:Q"])
-
-    ch2_points = alt.Chart(df2, width=650, height=350).mark_point(size = 60, filled = True, color = 'red').encode(
-    x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date", titleFontSize=12)),
-    y=alt.Y("model:Q", axis=alt.Axis(title="Cumulative Cases", titleFontSize=12)),
-    color=alt.Color("legend:N", title=" ", scale = SCALE
-                    ),  # Assign color based on legend, 
-    tooltip=["data_iniSE:T", "casos_cum:Q", "model:Q"]).properties(title = title)
-
-    vertical_line = alt.Chart(
-                pd.DataFrame(
-                    {
-                        "data_iniSE": [df2.data_iniSE[int(round(pw, 0))]],
-                        "label": ["Peak week"],
-                    }
-                )
-            ).mark_rule(size=2, color = 'orange').encode(
-                x=alt.X("data_iniSE:T", axis=alt.Axis(title="Date", titleFontSize=12)),
-                color=alt.Color(
-                    "label:N", scale = SCALE, 
-                    legend=alt.Legend(title=" ", orient="left", offset=-130)
-                )
-            )
-    
-    spec =   ch1 + ch2 + ch2_points + vertical_line
-
-    return spec
-
-async def plot_series_px(q: Q, gc: int, start_date: str, end_date: str):
-    """
-    Plot timeseries between two dates of city with Plotly
-    Args:
-        q:
-        gc:
-        start_date:
-        end_date:
-    """
-    df = q.client.data_table
-    dfcity = df[df.municipio_geocodigo == gc].loc[start_date:end_date]
-    dfcity.sort_index(inplace=True)
-    dfcity["casos_cum"] = dfcity.casos.cumsum()
-    spl = make_subplots(rows=2, cols=1)
-    spl.add_trace(go.Bar(x=dfcity.index, y=dfcity.casos), row=1, col=1)
-    spl.add_trace(go.Bar(x=dfcity.index, y=dfcity.casos_cum), row=2, col=1)
-    html = pio.to_html(spl, validate=False, include_plotlyjs=True)
-    q.page["ts_plot_px"].content = html
-    await q.page.save()
