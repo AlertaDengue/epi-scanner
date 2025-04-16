@@ -56,9 +56,15 @@ def weeks_map_df(
     data_table: pd.DataFrame,
     statemap: gpd.GeoDataFrame
 ) -> gpd.GeoDataFrame:
-    weeks = data_table.groupby(by="municipio_geocodigo").sum(
-        numeric_only=True
-    )[["transmissao"]]
+    data_table["municipio_geocodigo"] = (
+        data_table["municipio_geocodigo"].astype(int)
+    )
+    statemap["code_muni"] = statemap["code_muni"].astype(int)
+    weeks = (
+        data_table
+        .groupby(by="municipio_geocodigo")
+        .sum(numeric_only=True)[["transmissao"]]
+    )
     return statemap.merge(weeks, left_on="code_muni", right_index=True)
 
 
@@ -178,7 +184,13 @@ def pars_map_chart(
         left_on="code_muni",
         right_on="geocode",
         how="outer",
-    ).fillna(0)[["geometry", "year", "name_muni", "R0"]]
+    )
+
+    map_pars = (
+        map_pars[map_pars['code_muni'].notna()]
+        .assign(code_muni=lambda x: x['code_muni'].astype(int))
+        .fillna(0)[["geometry", "year", "name_muni", "R0"]]
+    )
 
     return alt.Chart(
         data=map_pars,
