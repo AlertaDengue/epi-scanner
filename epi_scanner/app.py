@@ -868,8 +868,6 @@ async def client_data_table(q: Q, disease: Literal["dengue", "chik"], uf: str):
 
 
 async def client_parameters(q: Q, disease: Literal["dengue", "chik"], uf: str):
-    if disease == "chik":
-        disease = "chikungunya"
     df = await q.run(read_duckdb, disease, uf)
     q.client.parameters = df
 
