@@ -10,32 +10,29 @@ homepage = "https://github.com/AlertaDengue/epi-scanner"
 packages = [{include='epi_scanner'}]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.11"
+python = ">=3.11,<3.12"
 h2o-wave = "0.23.0"
-pandas = "^1.5.0"
+numpy = ">=1.26.4,<2.0.0"
+pandas = ">=2.1,<2.2"
+pyarrow = ">=11,<16"
 psutil = "^5.9.2"
 loguru = "^0.6.0"
 typing-extensions = "^4.4.0"
 lmfit = "^1.1.0"
-pyarrow = "^11.0.0"
 geopandas = "^0.12.2"
 matplotlib = "^3.7.1"
 mapclassify = "^2.5.0"
 plotly = "^5.13.1"
-SQLAlchemy = "<2.0"
 python-dotenv = "^1.0.0"
-psycopg2-binary = "^2.9.6"
+psycopg2-binary = "^2.9.9"
 altair = "^5.0.0"
 gpdvega = "^0.1.1rc1"
 scipy = "^1.7.1"
-compose-go = "^2.20.2"
 duckdb = "^0.10.1"
-virtualenv = "^20.26.3"
 epiweeks = "^2.3.0"
-datetime = "^5.5"
 pydantic = "^2.11.2"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pytest = "*"
 coverage = "^6.5.0"
 nox = "^2022.8.7"
@@ -45,11 +42,10 @@ black = "^22.10.0"
 pre-commit = "^2.20.0"
 isort = "^5.10.1"
 flake8 = "^5.0.4"
-containers-sugar = { version = "^1.9.1", python = ">=3.8.1,<3.12" }
-makim = "^1.8.3"
-
-[tool.poetry.group.dev.dependencies]
-virtualenv = "^20.25.1"
+compose-go = "^2.20.2"
+containers-sugar = "^1.19.2"
+makim = "^1.29.0"
+virtualenv = "^20.26.3"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
