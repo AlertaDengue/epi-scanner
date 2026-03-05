@@ -7,21 +7,36 @@ Brazil using up-to-date incidence data from Infodengue.
 
 ## Getting Started
 
-## Run with Miniforge environment
+You can set up your development environment using either **Python venv** (simplest) or **Conda/Mamba** (best for handling system dependencies like GEOS or libpq).
 
-### Pre-requisites
+### Option 1: Standard Python venv (Recommended)
 
-- [Miniforge](https://github.com/conda-forge/miniforge) installed
-- [Poetry](https://python-poetry.org/) installed
+This approach is best if you already have the necessary system libraries (or if your OS handles them automatically via wheels).
 
 ```bash
-# Install dependencies and activate the conda environment
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate
+
+# Install Poetry and dependencies
+pip install poetry
+poetry install --with dev
+```
+
+### Option 2: Conda / Mamba (Best for Complex System Deps)
+
+Use this if you encounter issues with libraries like `geopandas` or `psycopg2`.
+
+- [Miniforge](https://github.com/conda-forge/miniforge) or Anaconda installed
+
+```bash
+# Install base environment (Python + system libs + poetry)
 mamba env create -f conda/env-base.yaml
 conda activate episcanner
 
-# Install project dependencies (including dev tools such as makim)
+# Install project dependencies via Poetry
 poetry install --with dev
-````
+```
 
 ## Populate the `data/` directory
 

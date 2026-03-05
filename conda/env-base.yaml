@@ -7,4 +7,5 @@ dependencies:
   - psycopg2
   - pip
   - pip:
+    - compose-go >=2.20.2,<2.31.0
     - poetry

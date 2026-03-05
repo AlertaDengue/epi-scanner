@@ -4,8 +4,8 @@ services:
     volumes:
       - ${HOST_EPISCANNER_ROOT}:${PROJECT_ROOT}
     networks:
-      - infodengue-dev_infodengue
+      - infodengue-prod_infodengue
 
 networks:
-  infodengue-dev_infodengue:
+  infodengue-prod_infodengue:
     external: True
