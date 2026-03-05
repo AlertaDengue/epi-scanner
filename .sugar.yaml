@@ -8,7 +8,7 @@ profiles:
   prod:
     project-name: episcanner-prod
     config-path:
-      - containers/compose.yaml
+      - containers/compose-base.yaml
       - containers/compose-prod.yaml
     env-file: .env
     services:
@@ -20,7 +20,7 @@ profiles:
   dev:
     project-name: episcanner-dev
     config-path:
-      - containers/compose.yaml
+      - containers/compose-base.yaml
       - containers/compose-dev.yaml
     env-file: .env
     services:
@@ -32,7 +32,7 @@ profiles:
   ci:
     project-name: episcanner-dev
     config-path:
-      - containers/compose.yaml
+      - containers/compose-base.yaml
     env-file: .env
     services:
       default:

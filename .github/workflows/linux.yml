@@ -62,8 +62,8 @@ jobs:
 
     - name: Docker start web
       run: |
-        makim episcanner.deploy --group ci --service wave
+        makim episcanner.deploy --profile ci --service wave
 
     - name: Docker waiting services
       run: |
-        makim episcanner.container-wait --group ci --service wave
+        makim episcanner.container-wait --profile ci --service wave
