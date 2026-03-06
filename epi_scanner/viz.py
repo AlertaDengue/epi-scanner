@@ -6,6 +6,7 @@ from pathlib import Path
 from functools import lru_cache
 
 import altair as alt
+from toolz import curry, pipe
 import geopandas as gpd
 import gpdvega  # NOQA
 import matplotlib.pyplot as plt
@@ -18,6 +19,9 @@ from epiweeks import Week
 from h2o_wave import Q
 from plotly import io as pio
 from plotly.subplots import make_subplots
+
+# Monkeypatch alt.pipe to use toolz.pipe
+alt.pipe = curry(pipe)
 
 
 def get_ini_end_week(year: int, eyear=None):
