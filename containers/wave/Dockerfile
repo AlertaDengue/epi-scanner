@@ -1,78 +1,70 @@
-# ref: https://github.com/mamba-org/micromamba-docker/blob/main/Dockerfile
-
 FROM condaforge/mambaforge:latest
 
 LABEL maintainer="Sandro Loch <es.loch@gmail.com>"
-LABEL org.opencontainers.image.title="EpiGraphHub"
-LABEL org.opencontainers.image.authors="EpiGraphHub Team"
-LABEL org.opencontainers.image.source="https://github.com/thegraphnetwork/wave-docker-template"
-LABEL org.opencontainers.image.version="latest"
-LABEL org.opencontainers.image.description="EpiGraphHub"
-LABEL org.thegraphnetwork.epigraphhub.version="latest"
 
-# it is the default, but using it here to have it explicitly
+SHELL ["/bin/bash", "-c"]
 USER root
 
-SHELL ["/bin/bash", "-c"]
-# Use bash in Dockerfile RUN commands and make sure bashrc is sourced when
-# executing commands with /bin/bash -c
-# Needed to have the micromamba activate command configured etc.
+ARG HOST_UID=1000
+ARG HOST_GID=1000
+ARG ENV=dev
+ARG PROJECT_ROOT=/opt/services/epi-scanner
 
-ARG HOST_UID
-ARG HOST_GID
-ARG SERVICES
-ARG ENV
-ARG PROJECT_ROOT
-ENV ENV_NAME=episcanner
 ENV DEBIAN_FRONTEND=noninteractive
-
-# Change shell to bash
-SHELL ["/bin/bash", "-c"]
+ENV ENV_NAME=episcanner
+ENV ENV_PREFIX=/opt/conda/envs/${ENV_NAME}
+ENV ENV=${ENV}
+ENV PROJECT_ROOT=${PROJECT_ROOT}
+ENV PYTHONPATH=${PROJECT_ROOT}
 
 RUN apt-get -qq update --yes \
   && apt-get -qq install --yes --no-install-recommends \
-  build-essential \
-  ca-certificates sudo curl\
+  build-essential ca-certificates curl sudo tini \
   && rm -rf /var/lib/apt/lists/*
 
 RUN addgroup --gid ${HOST_GID} epiuser \
   && useradd --uid ${HOST_UID} --gid ${HOST_GID} -ms /bin/bash epiuser \
   && echo "epiuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/epiuser \
   && chmod 0440 /etc/sudoers.d/epiuser \
-  && mkdir -p /opt/conda /opt/services/logs ${PROJECT_ROOT} \
-  && chmod -R a+rwx /opt/conda /opt/services/ /tmp \
-  && export ENV_NAME="$ENV_NAME" \
-  && chown  ${HOST_UID}:${HOST_GID} /opt/services/ /tmp
+  && mkdir -p /opt/services/logs ${PROJECT_ROOT} /tmp/conda \
+  && chown -R ${HOST_UID}:${HOST_GID} /opt/services ${PROJECT_ROOT} /tmp
 
-ENV PATH "$PATH:/home/epiuser/.local/bin"
-ENV PYTHONPATH='${PROJECT_ROOT}'
-ENV PATH /opt/conda/envs/$ENV_NAME/bin:$PATH
+# Ensure the target prefix is writable while creating the env
+RUN mkdir -p /opt/conda/envs \
+  && chown -R ${HOST_UID}:${HOST_GID} /opt/conda/envs
 
+COPY --chown=${HOST_UID}:${HOST_GID} ./conda/ /tmp/conda/
+
+# Create conda env at a fixed prefix (as root or with ensured permissions)
+RUN conda env create -p "${ENV_PREFIX}" --file /tmp/conda/env-base.yaml \
+  && conda clean --all -y \
+  && rm -rf /opt/conda/pkgs /tmp/conda
+
+RUN "${ENV_PREFIX}/bin/python" -V
+
+# Now switch to epiuser for Poetry/venv work
 USER epiuser
+WORKDIR ${PROJECT_ROOT}
 
-WORKDIR ${PROJECT_ROOT}/
+ENV POETRY_HOME=/home/epiuser/.local/share/pypoetry
+ENV PATH=/home/epiuser/.local/bin:${POETRY_HOME}/bin:${ENV_PREFIX}/bin:${PATH}
 
-COPY --chown=${HOST_UID}:${HOST_GID} ./conda/ /tmp/conda
+COPY --chown=${HOST_UID}:${HOST_GID} pyproject.toml poetry.lock README.md ${PROJECT_ROOT}/
+COPY --chown=${HOST_UID}:${HOST_GID} ./containers/scripts/poetry-install.sh \
+  ${PROJECT_ROOT}/poetry-install.sh
 
-# Use environment to update the env episcanner
-RUN conda env create -n $ENV_NAME --file /tmp/conda/env-base.yaml \
-  && conda clean --all \
-  && find /opt/conda/ -type f,l -name '*.a' -delete \
-  && find /opt/conda/ -type f,l -name '*.pyc' -delete \
-  && find /opt/conda/ -type f,l -name '*.js.map' -delete \
-  && rm -rf /opt/conda/pkgs
-
-COPY --chown=${HOST_UID}:${HOST_GID} ./epi_scanner ${PROJECT_ROOT}/epi_scanner
-
-COPY --chown=${HOST_UID}:${HOST_GID} poetry.lock pyproject.toml README.md ${PROJECT_ROOT}/
-
-COPY --chown=${HOST_UID}:${HOST_GID} ./containers/scripts/poetry-install.sh ${PROJECT_ROOT}/poetry-install.sh
-
+# deps (no-root)
 RUN bash ${PROJECT_ROOT}/poetry-install.sh
 
-COPY --chown=${HOST_UID}:${HOST_GID} ./containers/scripts/tests.sh ${PROJECT_ROOT}/tests.sh
-COPY --chown=${HOST_UID}:${HOST_GID} ./containers/scripts/entrypoint.sh /opt/entrypoint.sh
+ENV PATH="${PROJECT_ROOT}/.venv/bin:${PATH}"
 
+# now copy code
+COPY --chown=${HOST_UID}:${HOST_GID} ./epi_scanner ${PROJECT_ROOT}/epi_scanner
+
+# install the project itself into the same .venv
+RUN /home/epiuser/.local/share/pypoetry/bin/poetry install --no-interaction --no-ansi
+
+COPY --chown=${HOST_UID}:${HOST_GID} ./containers/scripts/entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/entrypoint.sh \
   && echo "source /opt/entrypoint.sh" > ~/.bashrc
 

@@ -16,5 +16,5 @@ source activate episcanner
 if [ $# -ne 0 ]
   then
     echo "Running: ${@}"
-    $(${@})
+    exec "$@"
 fi
