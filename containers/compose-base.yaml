@@ -35,6 +35,7 @@ services:
     networks:
       - infodengue
 
+
 networks:
   infodengue:
     driver: bridge

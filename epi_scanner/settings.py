@@ -8,17 +8,13 @@ load_dotenv()
 env_path = Path(".") / ".env"
 load_dotenv(dotenv_path=env_path)
 
-# This variable is used by container application modules
 ROOT_DIR = Path(__file__).resolve(strict=True).parent.parent
 
-# Episcanner/
 APPS_DIR = ROOT_DIR / "epi_scanner"
 
-# Stores the file path to the data directory.
 # epi_scanner/data
 EPISCANNER_DATA_DIR = os.getenv("CTNR_EPISCANNER_DATA_DIR")
 EPISCANNER_DUCKDB_DIR = os.getenv("CTNR_EPISCANNER_DUCKDB_DIR")
-
 
 def make_connection():
     """
