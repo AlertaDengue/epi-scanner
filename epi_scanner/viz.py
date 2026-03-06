@@ -23,6 +23,42 @@ from plotly.subplots import make_subplots
 # Monkeypatch alt.pipe to use toolz.pipe
 alt.pipe = curry(pipe)
 
+# Restore sanitize_dataframe for gpdvega compatibility
+if not hasattr(alt, "utils"):
+    import altair.utils
+
+def _patched_sanitize_dataframe(df, *args, **kwargs):
+    # Try Altair 5's internal core module
+    try:
+        from altair.utils.core import sanitize_dataframe as sd
+        return sd(df, *args, **kwargs)
+    except ImportError:
+        pass
+    # Try alternative data module
+    try:
+        from altair.utils.data import sanitize_dataframe as sd
+        return sd(df, *args, **kwargs)
+    except ImportError:
+        pass
+    # Fallback: return the dataframe directly, as Altair 5 uses other mechanisms
+    return df
+
+alt.utils.sanitize_dataframe = _patched_sanitize_dataframe
+
+# gpdvega uses deprecated pd.DataFrame.to_dict('row'), which was removed in Pandas 2.
+# We monkeypatch to_dict to seamlessly convert 'row' to 'records'.
+import pandas as pd
+_original_to_dict = pd.DataFrame.to_dict
+
+def _patched_to_dict(self, orient='dict', *args, **kwargs):
+    if orient == 'row':
+        orient = 'records'
+    return _original_to_dict(self, orient=orient, *args, **kwargs)
+
+pd.DataFrame.to_dict = _patched_to_dict
+
+import geopandas as gpd
+import gpdvega  # NOQA
 
 def get_ini_end_week(year: int, eyear=None):
     """
