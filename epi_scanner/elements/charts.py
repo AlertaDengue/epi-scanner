@@ -61,6 +61,16 @@ class EpidemicCalculator(Chart):
                 start=df.data_iniSE.values[0], periods=52, freq="W-SUN"
             )
             dfcity2["model"] = richards(total_cases, a, b, np.arange(52), pw)
+
+            # Fix: Ensure both dataframes have the same datetime precision (nanoseconds)
+            # to avoid TypeError during merge in newer Pandas/NumPy versions.
+            df["data_iniSE"] = pd.to_datetime(df["data_iniSE"]).astype(
+                "datetime64[ns]"
+            )
+            dfcity2["data_iniSE"] = pd.to_datetime(dfcity2["data_iniSE"]).astype(
+                "datetime64[ns]"
+            )
+
             df = df.merge(
                 dfcity2,
                 left_on="data_iniSE",

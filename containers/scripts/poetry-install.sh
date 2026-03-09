@@ -1,11 +1,24 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-set -ex
+POETRY_HOME="/home/epiuser/.local/share/pypoetry"
+export PATH="/home/epiuser/.local/bin:${POETRY_HOME}/bin:${PATH}"
 
-if [[ $ENV == "prod" ]]; then
-  export POETRY_INSTALL_ARGS="--only main"
+curl -sSL https://install.python-poetry.org | python -
+
+cd "${PROJECT_ROOT}"
+
+poetry config virtualenvs.create true --local
+poetry config virtualenvs.in-project true --local
+
+poetry env use "${ENV_PREFIX}/bin/python"
+poetry check --lock
+
+if [[ "${ENV:-}" == "prod" ]]; then
+  poetry install --only main --no-interaction --no-ansi --no-root
+else
+  poetry install --with dev --no-interaction --no-ansi --no-root
 fi
 
-poetry config virtualenvs.create false
-poetry config installer.max-workers 10
-poetry install $POETRY_INSTALL_ARGS --no-interaction --no-ansi
+test -x "${PROJECT_ROOT}/.venv/bin/python"
+test -x "${PROJECT_ROOT}/.venv/bin/pip"

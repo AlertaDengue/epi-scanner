@@ -1,50 +1,44 @@
-version: 1.0.0
-shell: bash
 groups:
   episcanner:
-    targets:
+    tasks:
       deploy:
+        help: Start the stack (compose up) for a profile/service.
         args:
-          group:
-            help: Specify the sugar group
+          profile:
             type: string
-            required: True
+            help: Sugar profile (dev/prod/ci).
           service:
-            help: Specify the service name
             type: string
-            required: True
-        help: Run script inside the container
+            help: Service name (e.g. wave).
         run: |
-          sugar ext start --group {{ args.group }} --services {{ args.service }} --options -d --build
+          sugar --profile "${{ args.profile }}" compose-ext start \
+            --services "${{ args.service }}" \
+            --options "-d --build"
 
       down:
+        help: Stop and remove the stack for a profile/service.
         args:
-          group:
-            help: Specify the sugar group
+          profile:
             type: string
-            required: True
+            help: Sugar profile (dev/prod/ci).
           service:
-            help: Specify the service name
             type: string
-            required: True
-        help: Run script inside the container
+            help: Service name (e.g. wave).
         run: |
-          sugar down --group {{ args.group }} --services {{ args.service }} --options -v --remove-orphans
+          sugar --profile "${{ args.profile }}" down \
+            --services "${{ args.service }}" \
+            --options "-v"
 
       container-wait:
         help: Wait for a specific service to become available.
         args:
           timeout:
-            help: Define the timeout in seconds for the health check.
             type: integer
             default: 120
-          group:
-            help: Specify the sugar group
-            type: string
-            required: True
+            help: Timeout (seconds) for the health check.
           service:
-            help: Specify the name of the service to wait for.
             type: string
-            required: true
+            help: Service name to wait for.
         run: |
-          timeout {{ args.timeout }} ./containers/scripts/healthcheck.sh {{ args.service }}
+          timeout "${{ args.timeout }}" \
+            ./containers/scripts/healthcheck.sh "${{ args.service }}"

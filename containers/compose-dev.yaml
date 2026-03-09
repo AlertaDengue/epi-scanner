@@ -1,11 +1,12 @@
 services:
   wave:
-    entrypoint: ["wave", "run", "--no-autostart", "epi_scanner.app"]
+    command: ["wave", "run", "--no-autostart", "epi_scanner.app"]
     volumes:
       - ${HOST_EPISCANNER_ROOT}:${PROJECT_ROOT}
+      - /opt/services/epi-scanner/.venv
     networks:
-      - infodengue-dev_infodengue
+      - infodengue-prod_infodengue
 
 networks:
-  infodengue-dev_infodengue:
+  infodengue-prod_infodengue:
     external: True

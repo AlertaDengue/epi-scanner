@@ -1,37 +1,41 @@
-version: 1.0.0
-compose-app: docker-compose
+backend: compose
 env-file: .env
+
 defaults:
-  group: {{ env.ENV }}
-groups:
-  - name: prod
+  profile: "${{ env.ENV }}"
+
+profiles:
+  prod:
     project-name: episcanner-prod
-    compose-path:
-      - containers/compose.yaml
+    config-path:
+      - containers/compose-base.yaml
       - containers/compose-prod.yaml
     env-file: .env
     services:
-      default: wave
+      default:
+        - wave
       available:
         - name: wave
 
-  - name: dev
+  dev:
     project-name: episcanner-dev
-    compose-path: 
-      - containers/compose.yaml
+    config-path:
+      - containers/compose-base.yaml
       - containers/compose-dev.yaml
     env-file: .env
     services:
-      default: wave
+      default:
+        - wave
       available:
         - name: wave
 
-  - name: ci
+  ci:
     project-name: episcanner-dev
-    compose-path: 
-      - containers/compose.yaml
+    config-path:
+      - containers/compose-base.yaml
     env-file: .env
     services:
-      default: wave
+      default:
+        - wave
       available:
         - name: wave
