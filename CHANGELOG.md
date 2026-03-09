@@ -1,6 +1,20 @@
 Release Notes
 ---
 
+## [1.5.0](https://github.com/AlertaDengue/epi-scanner/compare/1.4.0...1.5.0) (2026-03-09)
+
+### Features
+
+* **app:** Add epidemic calculator ([b69c108](https://github.com/AlertaDengue/epi-scanner/commit/b69c10801c0663b4d6d83fc8362a58c1f40b8ddb))
+
+### Bug Fixes
+
+* Add CE as default state when opening the dashboard ([5388221](https://github.com/AlertaDengue/epi-scanner/commit/538822196f12aeed66fc745aca61e86062be04c5))
+* **episcanner:**  remove unecessary lines ([44d0cfc](https://github.com/AlertaDengue/epi-scanner/commit/44d0cfc4a37e21fc297de52ac727025db588ebb0))
+* **episcanner:** solve error to fetch chik parameters ([a59ae0e](https://github.com/AlertaDengue/epi-scanner/commit/a59ae0e9a7f61f932ee10f781a598eb7f9db1c09))
+* **pars_map:** parse geocode column from float to int ([1fad2f4](https://github.com/AlertaDengue/epi-scanner/commit/1fad2f46c3b22a7426f8a471e95b4a72c54ec050))
+* **settings:** update EPISCANNER_DATA_DIR so the export script syncs with internal data dir ([6f4971d](https://github.com/AlertaDengue/epi-scanner/commit/6f4971db835ae37d72ba6055e8aa0cdf9692d7ef))
+
 ## [1.4.0](https://github.com/AlertaDengue/epi-scanner/compare/1.3.0...1.4.0) (2024-11-21)
 
 ### Features
