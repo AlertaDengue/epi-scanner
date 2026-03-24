@@ -3,10 +3,9 @@ services:
     command: ["wave", "run", "--no-autostart", "epi_scanner.app"]
     volumes:
       - ${HOST_EPISCANNER_ROOT}:${PROJECT_ROOT}
-      - /opt/services/epi-scanner/.venv
     networks:
-      - infodengue-prod_infodengue
+      - infodengue-dev_infodengue
 
 networks:
-  infodengue-prod_infodengue:
+  infodengue-dev_infodengue:
     external: True

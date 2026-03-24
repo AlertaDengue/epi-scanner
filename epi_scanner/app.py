@@ -25,10 +25,12 @@ from typing import Optional, Literal
 from functools import lru_cache
 from threading import Event
 
+import toolz
 import duckdb
 import numpy as np
 import pandas as pd
 import geopandas as gpd
+import altair as alt
 from epi_scanner.elements import cards, charts
 from epi_scanner.settings import EPISCANNER_DATA_DIR, EPISCANNER_DUCKDB_DIR
 from epi_scanner.viz import (
@@ -51,6 +53,24 @@ from epi_scanner.viz import (
 from h2o_wave import Q, app, copy_expando, data, main, ui  # Noqa F401
 
 warnings.filterwarnings("ignore")
+
+if not hasattr(alt, 'pipe'):
+    alt.pipe = toolz.pipe
+
+if hasattr(alt, 'utils') and not hasattr(alt.utils, 'sanitize_dataframe'):
+    from altair.utils import data
+    alt.utils.sanitize_dataframe = data.sanitize_pandas_dataframe
+
+original_to_dict = pd.DataFrame.to_dict
+
+
+def patched_to_dict(self, orient='dict', *args, **kwargs):
+    if orient == 'row':
+        orient = 'records'
+    return original_to_dict(self, orient=orient, *args, **kwargs)
+
+
+pd.DataFrame.to_dict = patched_to_dict
 
 DUCKDB_FILE = Path(
     os.path.join(str(EPISCANNER_DUCKDB_DIR), "episcanner.duckdb")
