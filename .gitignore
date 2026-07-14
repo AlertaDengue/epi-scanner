@@ -5,3 +5,16 @@
 
 notebooks_tmp
 epi_scanner/data/*
+
+# Next.js
+.next/
+out/
+.vercel
+
+# Node
+node_modules/
+
+# Data files
+data/*.parquet
+data/*.gpkg
+db/*.duckdb
