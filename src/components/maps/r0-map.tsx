@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapContainer } from "react-leaflet";
-import { StyledGeoJSON } from "./styled-geojson";
+import { MapContainer, GeoJSON } from "react-leaflet";
 import { FitBounds } from "./fit-bounds";
 import { RecenterButton } from "./recenter-button";
+import { filterBoundsGeo } from "./geo-utils";
 import L from "leaflet";
 import { Spinner } from "@/components/ui/spinner";
 import "leaflet/dist/leaflet.css";
@@ -43,6 +43,10 @@ export function R0Map({ data, year, uf }: R0MapProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setGeojson(null);
+    setBounds(null);
+    setError(null);
+
     fetch(`/states/${uf}.json`)
       .then((r) => {
         if (!r.ok) throw new Error(`Failed to load GeoJSON for ${uf}`);
@@ -51,7 +55,7 @@ export function R0Map({ data, year, uf }: R0MapProps) {
       .then((geo) => {
         setGeojson(geo);
         try {
-          const layer = L.geoJSON(geo);
+          const layer = L.geoJSON(filterBoundsGeo(geo, uf));
           const b = layer.getBounds();
           if (b.isValid()) setBounds(b);
           else setBounds(new L.LatLngBounds([-33.75, -73.99], [5.27, -32.38]));
@@ -126,12 +130,11 @@ export function R0Map({ data, year, uf }: R0MapProps) {
         >
           <FitBounds bounds={bounds} />
           <RecenterButton bounds={bounds} />
-          <StyledGeoJSON
+          <GeoJSON
             key={`${uf}-${year}-${data.map((d) => d.geocode).slice(0, 3).join(",")}`}
             data={geojson}
             style={style}
             onEachFeature={onEachFeature}
-            dataDeps={[data]}
           />
         </MapContainer>
         <div

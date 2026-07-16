@@ -1,71 +1,29 @@
-name: EpiScanner Build
+name: EpiScanner CI
 
 on: [pull_request]
-
-env:
-  HOST_GID: 1000
-  HOST_UID: 1000
-  ENV: dev
-  PROJECT_ROOT: /opt/services/epi_scanner
-  CTNR_EPISCANNER_DATA_DIR: /opt/services/epi_scanner/data
-  HOST_EPISCANNER_DATA_DIR: /home/runner/work/epi-scanner/epi-scanner/data
-  HOST_EPISCANNER_DUCKDB_DIR: /home/runner
-  CTNR_EPISCANNER_DUCKDB_DIR: /opt/services/duckdb
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    strategy:
-      matrix:
-        python-version: ["3.11"]
+    timeout-minutes: 15
 
     concurrency:
       group: ci-${{ github.ref }}
       cancel-in-progress: true
-
-    defaults:
-      run:
-        shell: bash -l {0}
 
     steps:
     - uses: actions/checkout@v4
 
     - uses: actions/setup-node@v4
       with:
-        node-version: "22.14.0"
-
-    - uses: conda-incubator/setup-miniconda@v3
-      with:
-        miniforge-version: latest
-        environment-file: conda/env-base.yaml
-        channels: conda-forge,nodefaults
-        activate-environment: episcanner
-        auto-update-conda: true
-        conda-solver: libmamba
-
-    - name: Create env file
-      run: envsubst < env.tpl > .env
-
-    - name: Prepare volume for episcanner data
-      run: |
-        mkdir -p /home/runner/work/epi-scanner/epi-scanner/data
-        chmod 777 -R /home/runner/work/epi-scanner/epi-scanner/data
+        node-version: "22"
+        cache: npm
 
     - name: Install dependencies
-      run: |
-        poetry install
+      run: npm ci
 
-    # - name: Linting
-    #   run: |
-    #     pre-commit install
-    #     pre-commit run --all-files
+    - name: Type check
+      run: npx tsc --noEmit
 
-    - name: Docker start web
-      run: |
-        makim episcanner.deploy --profile ci --service wave
-
-    - name: Docker waiting services
-      run: |
-        makim episcanner.container-wait --service wave
+    - name: Build
+      run: npm run build

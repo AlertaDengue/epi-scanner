@@ -50,7 +50,7 @@ export function SIRParamsTable({ params }: SIRParamsTableProps) {
               <TableCell className="text-right">{row.beta.toFixed(2)}</TableCell>
               <TableCell className="text-right">{row.gamma.toFixed(2)}</TableCell>
               <TableCell className="text-right">{row.R0.toFixed(2)}</TableCell>
-              <TableCell className="text-right">{row.peak_week}</TableCell>
+              <TableCell className="text-right">{row.peak_week.toFixed(2)}</TableCell>
               <TableCell className="text-right">{row.ep_ini}</TableCell>
               <TableCell className="text-right">{row.ep_end}</TableCell>
               <TableCell className="text-right">{row.ep_dur}</TableCell>
