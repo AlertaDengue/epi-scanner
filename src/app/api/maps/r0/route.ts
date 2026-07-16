@@ -1,5 +1,29 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSIRParameters, getWeeksMap, getTopR0 } from "@/lib/queries";
+import { NextRequest } from "next/server";
+import { cachedJson } from "@/lib/cache";
+import { episcannerFetch } from "@/lib/api-client";
+import { readFileSync } from "fs";
+import { join } from "path";
+
+interface DjangoR0Response {
+  r0Data: { geocode: string; R0: number }[];
+  topR0: { geocode: string; R0: number }[];
+}
+
+function getMuniNames(uf: string): Map<number, string> {
+  const names = new Map<number, string>();
+  try {
+    const path = join(process.cwd(), "public", "states", `${uf}.json`);
+    const raw = readFileSync(path, "utf-8");
+    const geojson = JSON.parse(raw);
+    for (const f of geojson.features || []) {
+      const props = f.properties;
+      if (props?.code_muni && props?.name_muni) {
+        names.set(Number(props.code_muni), props.name_muni);
+      }
+    }
+  } catch { /* fallback to numeric code */ }
+  return names;
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -7,30 +31,21 @@ export async function GET(request: NextRequest) {
   const uf = searchParams.get("uf") || "CE";
   const year = Number(searchParams.get("year")) || new Date().getFullYear();
 
-  const [params, weeksMap] = await Promise.all([
-    getSIRParameters(disease, uf),
-    getWeeksMap(disease, uf),
-  ]);
+  const r0Res = await episcannerFetch<DjangoR0Response>("maps/r0", { disease, uf, year });
+  const names = getMuniNames(uf);
 
-  // Merge R0 into weeks map features
-  const yearParams = params.filter((p) => Number(p.year) === year);
-  const r0Map = new Map<number, number>();
-  for (const p of yearParams) {
-    r0Map.set(Number(p.geocode), Number(p.R0));
-  }
-
-  const features = weeksMap.features.map((f) => ({
-    ...f,
-    properties: {
-      ...f.properties,
-      R0: r0Map.get(f.properties?.code_muni ?? 0) || 0,
-    },
-  }));
-
-  const topR0 = getTopR0(params, year, new Map(), 10);
-
-  return NextResponse.json({
-    geojson: { type: "FeatureCollection", features },
-    topR0,
+  return cachedJson({
+    r0Data: (r0Res.r0Data || []).map((r) => ({
+      geocode: Number(r.geocode),
+      R0: r.R0,
+    })),
+    topR0: (r0Res.topR0 || []).map((r) => {
+      const code = Number(r.geocode);
+      return {
+        name: names.get(code) ?? String(code),
+        geocode: code,
+        R0: r.R0,
+      };
+    }),
   });
 }

@@ -16,9 +16,9 @@ interface SIRParamsTableProps {
     gamma: number;
     R0: number;
     peak_week: number;
-    ep_ini: number;
-    ep_end: number;
-    ep_dur: number;
+    ep_ini: string | null;
+    ep_end: string | null;
+    ep_dur: number | null;
     total_cases: number;
     reported_cases?: number;
   }[];

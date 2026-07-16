@@ -1,31 +1,32 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
+  variable: "--font-jakarta",
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
   subsets: ["latin"],
+  variable: "--font-mono-geist",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Real-time Epidemic Scanner",
-  description: "Real-time epidemiology dashboard for dengue and chikungunya",
+  title: "Epi Scanner — Real-time Epidemic Scanner",
+  description:
+    "Real-time epidemiology dashboard for dengue and arbovirus surveillance across Brazilian states.",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`bg-background ${jakarta.variable} ${geistMono.variable}`}
     >
       <head>
         <link
@@ -33,7 +34,7 @@ export default function RootLayout({
           href="https://info.dengue.mat.br/static/img/favicon.ico"
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="font-sans antialiased">{children}</body>
     </html>
   );
 }

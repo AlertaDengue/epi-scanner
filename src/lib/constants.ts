@@ -38,18 +38,6 @@ export const DISEASES = [
   { value: "chikungunya", label: "Chikungunya" },
 ];
 
-export const DISEASE_SUFFIX: Record<string, string> = {
-  dengue: "",
-  chikungunya: "_chik",
-  zika: "_zika",
-};
-
-export const DUCKDB_FILE = process.env.CTNR_EPISCANNER_DUCKDB_DIR
-  ? `${process.env.CTNR_EPISCANNER_DUCKDB_DIR}/episcanner.duckdb`
-  : null;
-
-export const DATA_DIR = process.env.CTNR_EPISCANNER_DATA_DIR || "./data";
-
 export const MODEL_EVAL_COLORS = [
   "#006aea",
   "#00b4ca",

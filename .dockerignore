@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+*.md
+.env
+.env.local
+.DS_Store
+*.pyc
+__pycache__
+.vscode
+notebooks_tmp
+data/*.parquet
+db/*.duckdb
+benchmark
+*.backup

@@ -1,7 +1,12 @@
-import { NextResponse } from "next/server";
-import { getStatesList } from "@/lib/queries";
+import { cachedJson } from "@/lib/cache";
+import { episcannerFetch } from "@/lib/api-client";
+
+interface DjangoState {
+  code: string;
+  name: string;
+}
 
 export async function GET() {
-  const states = await getStatesList();
-  return NextResponse.json(states);
+  const states = await episcannerFetch<DjangoState[]>("states");
+  return cachedJson(states);
 }

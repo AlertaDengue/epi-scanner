@@ -1,5 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getRateMap, getModelEvalTable, getAlertData, getSIRParameters } from "@/lib/queries";
+import { NextRequest } from "next/server";
+import { cachedJson } from "@/lib/cache";
+import { episcannerFetch } from "@/lib/api-client";
+
+interface DjangoModelEvalResponse {
+  rateMap: { geocode: string; rate: number | null }[];
+  table: { range: string; count: number; percentage: number }[];
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -7,13 +13,17 @@ export async function GET(request: NextRequest) {
   const uf = searchParams.get("uf") || "CE";
   const year = Number(searchParams.get("year")) || new Date().getFullYear();
 
-  const [rateMap, alertData, params] = await Promise.all([
-    getRateMap(disease, uf, year),
-    getAlertData(disease, uf),
-    getSIRParameters(disease, uf),
-  ]);
+  const data = await episcannerFetch<DjangoModelEvalResponse>("maps/model-eval", {
+    disease,
+    uf,
+    year,
+  });
 
-  const table = getModelEvalTable(alertData, params, year);
-
-  return NextResponse.json({ rateMap, table });
+  return cachedJson({
+    rateMap: (data.rateMap || []).map((r) => ({
+      geocode: Number(r.geocode),
+      rate: r.rate,
+    })),
+    table: data.table || [],
+  });
 }

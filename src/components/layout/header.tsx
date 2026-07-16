@@ -1,50 +1,33 @@
+import { Radio } from "lucide-react";
 import Image from "next/image";
 
-interface HeaderProps {
-  disease: string;
-  state: string;
-  cases: number;
-  year: number;
-}
-
-const STATES: Record<string, string> = {
-  AC: "Acre", AL: "Alagoas", AM: "Amazonas", AP: "Amapá",
-  BA: "Bahia", CE: "Ceará", DF: "Distrito Federal", ES: "Espírito Santo",
-  GO: "Goiás", MA: "Maranhão", MG: "Minas Gerais", MS: "Mato Grosso do Sul",
-  MT: "Mato Grosso", PA: "Pará", PB: "Paraíba", PE: "Pernambuco",
-  PI: "Piauí", PR: "Paraná", RJ: "Rio de Janeiro", RN: "Rio Grande do Norte",
-  RO: "Rondônia", RR: "Roraima", RS: "Rio Grande do Sul",
-  SC: "Santa Catarina", SE: "Sergipe", SP: "São Paulo", TO: "Tocantins",
-};
-
-export function Header({ disease, state, cases, year }: HeaderProps) {
-  const diseaseName = disease === "chikungunya" ? "Chikungunya" : disease;
-  const stateName = STATES[state] || state;
-
+export function DashboardHeader() {
   return (
-    <div className="flex items-center justify-between border-b bg-white p-4">
-      <div className="flex items-center gap-3">
-        <Image
-          src="https://info.dengue.mat.br/static/img/info-dengue-logo-multicidades.png"
-          alt="InfoDengue"
-          width={40}
-          height={40}
-        />
-        <div>
-          <h1 className="text-lg font-bold">Real-time Epidemic Scanner</h1>
-          <p className="text-sm text-muted-foreground">Real-time epidemiology</p>
+    <header className="sticky top-0 z-[1100] border-b border-border bg-primary text-primary-foreground">
+      <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3 md:px-6">
+        <div className="flex items-center gap-3">
+          <Image
+            src="/logo-infodengue.png"
+            alt="Infodengue"
+            width={40}
+            height={40}
+            className="size-10 rounded-lg"
+            priority
+          />
+          <div className="flex flex-col leading-tight">
+            <h1 className="text-lg font-bold tracking-tight text-balance md:text-xl">
+              Real-time Epidemic Scanner
+            </h1>
+            <p className="text-xs text-primary-foreground/70">
+              Real-time epidemiology · Infodengue
+            </p>
+          </div>
+        </div>
+        <div className="hidden items-center gap-2 rounded-full bg-primary-foreground/15 px-3 py-1.5 text-xs font-medium sm:flex">
+          <Radio className="size-3.5 animate-pulse" aria-hidden="true" />
+          <span>Live surveillance</span>
         </div>
       </div>
-      <div className="text-right">
-        <h2 className="text-base font-semibold">
-          Epidemiological Report for {diseaseName}
-        </h2>
-        <p className="text-sm text-muted-foreground">{stateName}</p>
-        <p className="text-sm">
-          Cumulative notified cases since Jan {year}:{" "}
-          <span className="font-bold">{cases.toLocaleString()}</span>
-        </p>
-      </div>
-    </div>
+    </header>
   );
 }
