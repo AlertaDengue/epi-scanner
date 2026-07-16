@@ -8,31 +8,9 @@
         {
           "replacements": [
             {
-              "files": ["epi_scanner/__init__.py"],
-              "from": "return \".*\"  # changed by semantic-release",
-              "to": "return \"${nextRelease.version}\"  # changed by semantic-release",
-              "results": [
-                {
-                  "file": "epi_scanner/__init__.py",
-                  "hasChanged": true,
-                  "numMatches": 1,
-                  "numReplacements": 1
-                }
-              ],
-              "countMatches": true
-            },
-            {
-              "files": ["pyproject.toml"],
-              "from": "version = \".*\"  # changed by semantic-release",
-              "to": "version = \"${nextRelease.version}\"  # changed by semantic-release",
-              "results": [
-                {
-                  "file": "pyproject.toml",
-                  "hasChanged": true,
-                  "numMatches": 1,
-                  "numReplacements": 1
-                }
-              ],
+              "files": ["package.json"],
+              "from": "\"version\": \".*\"",
+              "to": "\"version\": \"${nextRelease.version}\"",
               "countMatches": true
             }
           ]
@@ -50,18 +28,12 @@
         }
       ],
       [
-        "@semantic-release/exec",
-        {
-          "prepareCmd": "poetry build"
-        }
-      ],
-      [
         "@semantic-release/git",
         {
           "assets": [
-            "pyproject.toml",
-            "CHANGELOG.md",
-            "epi_scanner/__init__.py"
+            "package.json",
+            "package-lock.json",
+            "CHANGELOG.md"
           ],
           "message": "chore(release): ${nextRelease.version}"
         }
