@@ -1,0 +1,20 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        FRONTEND_PORT: ${FRONTEND_PORT:-3000}
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    container_name: epi-scanner
+    ports:
+      - "${FRONTEND_PORT:-3000}:${FRONTEND_PORT:-3000}"
+    environment:
+      - NODE_ENV=production
+      - EPISCANNER_API_URL=http://host.docker.internal:8042/api/datastore/episcanner
+      - EPISCANNER_API_KEY=${EPISCANNER_API_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./data:/app/data:ro
+    restart: unless-stopped

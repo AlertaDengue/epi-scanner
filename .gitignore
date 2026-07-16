@@ -1,7 +1,12 @@
-*.pyc
-*.env
-*__pycache__*
-*.vscode/*
+.env
+.vscode/*
 
-notebooks_tmp
-epi_scanner/data/*
+# Next.js
+.next/
+out/
+
+# Node
+node_modules/
+
+# Data
+data/
