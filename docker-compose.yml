@@ -3,6 +3,7 @@ services:
     build:
       context: .
       args:
+        NEXT_PUBLIC_URL_PREFIX: ${NEXT_PUBLIC_URL_PREFIX:-}
         FRONTEND_PORT: ${FRONTEND_PORT:-3000}
         UID: ${UID:-1000}
         GID: ${GID:-1000}
@@ -11,7 +12,8 @@ services:
       - "${FRONTEND_PORT:-3000}:${FRONTEND_PORT:-3000}"
     environment:
       - NODE_ENV=production
-      - EPISCANNER_API_URL=http://host.docker.internal:8042/api/datastore/episcanner
+      - NEXT_PUBLIC_URL_PREFIX=${NEXT_PUBLIC_URL_PREFIX:-}
+      - EPISCANNER_API_URL=${EPISCANNER_API_URL:-http://host.docker.internal:8042/api/datastore/episcanner}
       - EPISCANNER_API_KEY=${EPISCANNER_API_KEY}
     extra_hosts:
       - "host.docker.internal:host-gateway"

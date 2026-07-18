@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, type ReactNode } from "react";
+import { basePath } from "@/lib/base-path";
 import { DashboardHeader } from "@/components/layout/header";
 import { DashboardSidebar } from "@/components/layout/sidebar";
 import { StatCards } from "@/components/charts/stat-cards";
@@ -85,7 +86,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/geolocation")
+    fetch(basePath("/api/geolocation"))
       .then((r) => r.json())
       .then((d) => { if (d?.uf) setState(d.uf); })
       .catch(() => {});
@@ -93,11 +94,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchCities = async () => {
-      const res = await fetch(`/api/cities?disease=${disease}&uf=${state}`);
+      const res = await fetch(basePath(`/api/cities?disease=${disease}&uf=${state}`));
       const data = await res.json();
       setCities(data);
       if (data.length > 0 && !city) {
-        const topRes = await fetch(`/api/top-cities?disease=${disease}&uf=${state}&limit=1`);
+        const topRes = await fetch(basePath(`/api/top-cities?disease=${disease}&uf=${state}&limit=1`));
         const topData = await topRes.json();
         if (topData.length > 0) {
           setCity(String(topData[0].geocode));
@@ -112,9 +113,9 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchWeeksMap = async () => {
       const [weeksRes, top10Res, top20Res] = await Promise.all([
-        fetch(`/api/maps/weeks?disease=${disease}&uf=${state}`),
-        fetch(`/api/top-cities?disease=${disease}&uf=${state}&limit=10`),
-        fetch(`/api/top-cities?disease=${disease}&uf=${state}&limit=20`),
+        fetch(basePath(`/api/maps/weeks?disease=${disease}&uf=${state}`)),
+        fetch(basePath(`/api/top-cities?disease=${disease}&uf=${state}&limit=10`)),
+        fetch(basePath(`/api/top-cities?disease=${disease}&uf=${state}&limit=20`)),
       ]);
       setWeeksData(await weeksRes.json());
       setTop10Cities(await top10Res.json());
@@ -125,7 +126,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchR0 = async () => {
-      const res = await fetch(`/api/maps/r0?disease=${disease}&uf=${state}&year=${r0year}`);
+      const res = await fetch(basePath(`/api/maps/r0?disease=${disease}&uf=${state}&year=${r0year}`));
       const data = await res.json();
       setR0MapData(data.r0Data);
       setTopR0(data.topR0);
@@ -135,7 +136,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchModelEval = async () => {
-      const res = await fetch(`/api/maps/model-eval?disease=${disease}&uf=${state}&year=${modelEvalYear}`);
+      const res = await fetch(basePath(`/api/maps/model-eval?disease=${disease}&uf=${state}&year=${modelEvalYear}`));
       setModelEval(await res.json());
     };
     fetchModelEval();
@@ -143,7 +144,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchParams = async () => {
-      const res = await fetch(`/api/parameters?disease=${disease}&uf=${state}`);
+      const res = await fetch(basePath(`/api/parameters?disease=${disease}&uf=${state}`));
       setSirParams(await res.json());
     };
     fetchParams();
@@ -152,7 +153,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!city) return;
     const fetchTimeSeries = async () => {
-      const res = await fetch(`/api/timeseries?disease=${disease}&uf=${state}&geocode=${city}&year=${epiYear}`);
+      const res = await fetch(basePath(`/api/timeseries?disease=${disease}&uf=${state}&geocode=${city}&year=${epiYear}`));
       const data = await res.json();
       setTimeSeries(data);
       const totalCases = data.reduce((sum: number, d: { casos: number }) => sum + (d.casos || 0), 0);

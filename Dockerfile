@@ -10,6 +10,9 @@ RUN npm install
 FROM deps AS builder
 COPY . .
 
+ARG NEXT_PUBLIC_URL_PREFIX
+ENV NEXT_PUBLIC_URL_PREFIX=${NEXT_PUBLIC_URL_PREFIX}
+
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN npm run build
@@ -25,10 +28,10 @@ ARG GID=1000
 ARG FRONTEND_PORT=3000
 
 RUN if ! getent group ${GID} >/dev/null; then \
-      addgroup --gid ${GID} nodejs; \
+      addgroup -g ${GID} nodejs; \
     fi && \
     if ! getent passwd ${UID} >/dev/null; then \
-      adduser --uid ${UID} --gid ${GID} --disabled-password nextjs; \
+      adduser -u ${UID} -G nodejs -D -H -s /sbin/nologin nextjs; \
     fi
 
 COPY --from=builder /app/public ./public
