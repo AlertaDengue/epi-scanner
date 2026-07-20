@@ -57,7 +57,7 @@ export function StatCards({
                 aria-hidden="true"
               />
             </div>
-            <span className="text-2xl font-bold tracking-tight tabular-nums">
+            <span className="flex min-h-[2rem] items-center text-2xl font-bold tracking-tight tabular-nums">
               {loading ? (
                 <Loader2 className="size-5 animate-spin text-muted-foreground" />
               ) : (

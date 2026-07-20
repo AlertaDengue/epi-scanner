@@ -33,17 +33,19 @@ function PanelHeader({
   title,
   description,
   action,
+  loading = false,
 }: {
   icon: ReactNode;
   title: string;
   description?: string;
   action?: ReactNode;
+  loading?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2.5">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          {icon}
+          {loading ? <Spinner className="size-4" /> : icon}
         </div>
         <h3 className="text-base font-medium">{title}</h3>
         {action && <div className="ml-auto">{action}</div>}
@@ -254,10 +256,20 @@ export default function Dashboard() {
   const calculatorDates = useMemo(() => timeSeries.map((d) => d.date), [timeSeries]);
   const calculatorCumulative = useMemo(() => timeSeries.map((d) => d.casos_cum), [timeSeries]);
 
+  const initialLoad = timeSeries.length === 0 && loadingTimeSeries;
+
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader />
 
+      {initialLoad ? (
+        <div className="flex min-h-[calc(100vh-60px)] items-center justify-center bg-background">
+          <div className="text-center">
+            <Spinner className="size-8" />
+            <p className="mt-3 text-sm text-muted-foreground">Loading dashboard...</p>
+          </div>
+        </div>
+      ) : (
       <main className="mx-auto grid max-w-[1600px] grid-cols-1 gap-4 px-4 py-4 md:px-6 lg:grid-cols-[340px_minmax(0,1fr)]">
         <DashboardSidebar
           disease={disease}
@@ -295,8 +307,9 @@ export default function Dashboard() {
           <Card>
             <CardHeader>
               <PanelHeader
-                icon={loadingWeeks ? <Spinner className="size-4" /> : <span className="text-xs font-mono text-balance">Rt</span>}
+                icon={<span className="text-xs font-mono">Rt</span>}
                 title="Epidemic weeks — Number of weeks of Rt &gt; 1 since 2010"
+                loading={loadingWeeks}
               />
             </CardHeader>
             <CardContent>
@@ -328,8 +341,9 @@ export default function Dashboard() {
           <Card>
             <CardHeader>
               <PanelHeader
-                icon={loadingR0 ? <Spinner className="size-4" /> : <span className="text-xs font-mono text-balance">R₀</span>}
+                icon={<span className="text-xs font-mono">R₀</span>}
                 title="Basic reproduction number (R₀) by city"
+                loading={loadingR0}
               />
               <CardAction>
                 <div className="flex items-center gap-2">
@@ -373,9 +387,10 @@ export default function Dashboard() {
             <Card>
               <CardHeader>
                 <PanelHeader
-                  icon={loadingModelEval ? <Spinner className="size-4" /> : <span className="text-xs font-mono text-balance">Ev</span>}
+                  icon={<span className="text-xs font-mono">Ev</span>}
                   title="Model evaluation"
                   description={`Observed vs estimated cases ratio · ${modelEvalYearSlider}`}
+                  loading={loadingModelEval}
                 />
                 <CardAction>
                   <div className="flex items-center gap-2">
@@ -414,9 +429,10 @@ export default function Dashboard() {
             <Card>
               <CardHeader>
                 <PanelHeader
-                  icon={loadingTimeSeries ? <Spinner className="size-4" /> : <span className="text-xs font-mono text-balance">TS</span>}
+                  icon={<span className="text-xs font-mono">TS</span>}
                   title="Time Series & Epidemic Calculator"
                   description={`${disease} weekly cases in ${topCityName}`}
+                  loading={loadingTimeSeries}
                 />
               </CardHeader>
               <CardContent>
@@ -503,6 +519,7 @@ export default function Dashboard() {
           </footer>
         </div>
       </main>
+      )}
     </div>
   );
 }
