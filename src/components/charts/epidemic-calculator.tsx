@@ -16,7 +16,8 @@ import {
 } from "recharts";
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { richards } from "@/lib/richards";
+import { richards, getWeekNumber } from "@/lib/richards";
+import { Lock, LockOpen } from "lucide-react";
 
 interface EpidemicCalculatorProps {
   disease: string;
@@ -51,14 +52,22 @@ export function EpidemicCalculator({
   const [r0, setR0] = useState(initialR0);
   const [totalCases, setTotalCases] = useState(initialTotalCases);
 
+  const [lockPeak, setLockPeak] = useState(true);
+  const [lockR0, setLockR0] = useState(true);
+  const [lockCases, setLockCases] = useState(true);
+
+  const effectivePeakWeek = lockPeak ? initialPeakWeek : peakWeek;
+  const effectiveR0 = lockR0 ? initialR0 : r0;
+  const effectiveTotalCases = lockCases ? initialTotalCases : totalCases;
+
   const calculateModel = useCallback(() => {
-    const r = 1 - 1 / r0;
+    const r = 1 - 1 / effectiveR0;
     const gamma = 0.3;
     const b = (r * gamma) / (1 - r);
     const a = b / (gamma + b);
 
-    return Array.from({ length: dates.length }, (_, i) => richards(totalCases, a, b, i, peakWeek));
-  }, [peakWeek, r0, totalCases, dates]);
+    return Array.from({ length: dates.length }, (_, i) => richards(effectiveTotalCases, a, b, i, effectivePeakWeek));
+  }, [effectivePeakWeek, effectiveR0, effectiveTotalCases, dates]);
 
   const modelValues = calculateModel();
 
@@ -68,7 +77,7 @@ export function EpidemicCalculator({
     model: modelValues[i] || 0,
   }));
 
-  const peakDate = dates[Math.round(peakWeek)] || dates[0];
+  const peakDate = dates[Math.round(effectivePeakWeek)] || dates[0];
 
   const title = `${disease.charAt(0).toUpperCase() + disease.slice(1)} weekly cases in ${new Date().getFullYear()} for ${city}`;
 
@@ -77,10 +86,10 @@ export function EpidemicCalculator({
       <Card>
         <CardContent className="pt-4">
           <p className="text-xs text-muted-foreground mb-4">
-            The section below displays the cumulative cases for the selected
-            city in blue, the Richards model in orange, and the peak week in
-            red. The sliders allow you to adjust the peak week, reproduction
-            number (R0), and total number of cases.
+            The chart displays observed cumulative cases in blue, the Richards
+            model in orange, and the peak week in red. Each parameter defaults
+            to its data-optimized value when locked (🔒). Unlock to adjust
+            manually.
           </p>
           <ResponsiveContainer width="100%" height={350}>
             <ComposedChart data={chartData}>
@@ -89,13 +98,18 @@ export function EpidemicCalculator({
                 dataKey="date"
                 tick={{ fontSize: 11 }}
                 tickFormatter={(v) => {
-                  const d = new Date(v);
+                  const d = new Date(String(v));
                   return `${d.getMonth() + 1}/${d.getFullYear()}`;
                 }}
               />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip
-                labelFormatter={(v) => new Date(v).toLocaleDateString()}
+                labelFormatter={(v) => {
+                  if (typeof v !== "string") return String(v);
+                  const wk = getWeekNumber(v);
+                  const dateStr = new Date(v).toLocaleDateString();
+                  return `${dateStr} · Epiweek ${wk}`;
+                }}
                 formatter={(value, name) => [
                   Math.round(Number(value)).toLocaleString(),
                   String(name),
@@ -152,54 +166,96 @@ export function EpidemicCalculator({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Peak week</CardTitle>
+            <CardTitle className="flex items-center justify-between text-sm">
+              <span>Peak week</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setLockPeak(!lockPeak);
+                  if (lockPeak) setPeakWeek(initialPeakWeek);
+                }}
+                className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                title={lockPeak ? "Unlock to set manually" : "Lock to optimal value"}
+              >
+                {lockPeak ? <Lock className="size-3.5" /> : <LockOpen className="size-3.5" />}
+              </button>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <Slider
-              value={[peakWeek]}
-              onValueChange={(v) => setPeakWeek(Array.isArray(v) ? v[0] : v)}
-              min={5}
-              max={45}
+              value={[effectivePeakWeek]}
+              onValueChange={(v) => !lockPeak && setPeakWeek(Array.isArray(v) ? v[0] : v)}
+              min={1}
+              max={dates.length - 1}
               step={1}
+              disabled={lockPeak}
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Current: {peakWeek}
+              {lockPeak ? `Optimal: ${effectivePeakWeek.toFixed(2)}` : `Current: ${peakWeek.toFixed(2)}`}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">R0</CardTitle>
+            <CardTitle className="flex items-center justify-between text-sm">
+              <span>R0</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setLockR0(!lockR0);
+                  if (lockR0) setR0(initialR0);
+                }}
+                className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                title={lockR0 ? "Unlock to set manually" : "Lock to optimal value"}
+              >
+                {lockR0 ? <Lock className="size-3.5" /> : <LockOpen className="size-3.5" />}
+              </button>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <Slider
-              value={[r0]}
-              onValueChange={(v) => setR0(Array.isArray(v) ? v[0] : v)}
+              value={[effectiveR0]}
+              onValueChange={(v) => !lockR0 && setR0(Array.isArray(v) ? v[0] : v)}
               min={0.1}
               max={5}
               step={0.05}
+              disabled={lockR0}
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Current: {r0.toFixed(2)}
+              {lockR0 ? `Optimal: ${effectiveR0.toFixed(2)}` : `Current: ${r0.toFixed(2)}`}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Total cases</CardTitle>
+            <CardTitle className="flex items-center justify-between text-sm">
+              <span>Total cases</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setLockCases(!lockCases);
+                  if (lockCases) setTotalCases(initialTotalCases);
+                }}
+                className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                title={lockCases ? "Unlock to set manually" : "Lock to optimal value"}
+              >
+                {lockCases ? <Lock className="size-3.5" /> : <LockOpen className="size-3.5" />}
+              </button>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <Slider
-              value={[totalCases]}
-              onValueChange={(v) => setTotalCases(Array.isArray(v) ? v[0] : v)}
+              value={[effectiveTotalCases]}
+              onValueChange={(v) => !lockCases && setTotalCases(Array.isArray(v) ? v[0] : v)}
               min={minCases}
               max={maxCases}
               step={step}
+              disabled={lockCases}
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Current: {totalCases.toLocaleString()}
+              {lockCases ? `Optimal: ${effectiveTotalCases.toLocaleString()}` : `Current: ${totalCases.toLocaleString()}`}
             </p>
           </CardContent>
         </Card>

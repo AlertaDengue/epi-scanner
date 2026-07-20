@@ -8,6 +8,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { CURRENT_YEAR } from "@/lib/constants";
 
 interface SIRParamsTableProps {
   params: {
@@ -44,24 +46,37 @@ export function SIRParamsTable({ params }: SIRParamsTableProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {params.map((row, i) => (
-            <TableRow key={i}>
-              <TableCell className="font-medium">{row.year}</TableCell>
-              <TableCell className="text-right">{row.beta.toFixed(2)}</TableCell>
-              <TableCell className="text-right">{row.gamma.toFixed(2)}</TableCell>
-              <TableCell className="text-right">{row.R0.toFixed(2)}</TableCell>
-              <TableCell className="text-right">{row.peak_week.toFixed(2)}</TableCell>
-              <TableCell className="text-right">{row.ep_ini}</TableCell>
-              <TableCell className="text-right">{row.ep_end}</TableCell>
-              <TableCell className="text-right">{row.ep_dur}</TableCell>
-              <TableCell className="text-right">{row.total_cases.toLocaleString()}</TableCell>
-              <TableCell className="text-right">
-                {row.reported_cases?.toLocaleString() ?? "—"}
-              </TableCell>
-            </TableRow>
-          ))}
+          {params.map((row, i) => {
+            const isCurrentYear = row.year === CURRENT_YEAR;
+            return (
+              <TableRow key={i}>
+                <TableCell className="font-medium">
+                  {row.year}
+                  {isCurrentYear && (
+                    <Badge variant="outline" className="ml-1.5 border-amber-300 bg-amber-50 text-amber-700">
+                      Provisional
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">{row.beta.toFixed(2)}</TableCell>
+                <TableCell className="text-right">{row.gamma.toFixed(2)}</TableCell>
+                <TableCell className="text-right">{row.R0.toFixed(2)}</TableCell>
+                <TableCell className="text-right">{row.peak_week.toFixed(2)}</TableCell>
+                <TableCell className="text-right">{row.ep_ini}</TableCell>
+                <TableCell className="text-right">{row.ep_end}</TableCell>
+                <TableCell className="text-right">{row.ep_dur}</TableCell>
+                <TableCell className="text-right">{row.total_cases.toLocaleString()}</TableCell>
+                <TableCell className="text-right">
+                  {row.reported_cases?.toLocaleString() ?? "—"}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Parameters for the current year ({CURRENT_YEAR}) are based on partial data and may change as the season progresses.
+      </p>
     </div>
   );
 }

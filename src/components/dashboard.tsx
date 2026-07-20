@@ -81,12 +81,14 @@ export default function Dashboard() {
   const [medianParams, setMedianParams] = useState({
     medianR0: 2,
     medianPeak: 10,
-    medianCases: 0,
-    minCases: 0,
-    maxCases: 1000,
+    medianCases: 1000,
+    minCases: 1,
+    maxCases: 10000,
     step: 50,
   });
+  const [loadingCities, setLoadingCities] = useState(true);
   const [loadingWeeks, setLoadingWeeks] = useState(true);
+  const [loadingTopCities, setLoadingTopCities] = useState(true);
   const [loadingR0, setLoadingR0] = useState(true);
   const [loadingModelEval, setLoadingModelEval] = useState(true);
   const [loadingTimeSeries, setLoadingTimeSeries] = useState(true);
@@ -110,6 +112,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchCities = async () => {
+      setLoadingCities(true);
       const res = await fetch(basePath(`/api/cities?disease=${disease}&uf=${state}`));
       const data = await res.json();
       setCities(data);
@@ -122,27 +125,38 @@ export default function Dashboard() {
           setCity(String(data[0].geocode));
         }
       }
+      setLoadingCities(false);
     };
     fetchCities();
   }, [disease, state]);
 
   useEffect(() => {
     const fetchWeeksMap = async () => {
-      const [weeksRes, top10Res, top20Res] = await Promise.all([
-        fetch(basePath(`/api/maps/weeks?disease=${disease}&uf=${state}`)),
-        fetch(basePath(`/api/top-cities?disease=${disease}&uf=${state}&limit=10`)),
-        fetch(basePath(`/api/top-cities?disease=${disease}&uf=${state}&limit=20`)),
-      ]);
-      setWeeksData(await weeksRes.json());
-      setTop10Cities(await top10Res.json());
-      setTopCities(await top20Res.json());
+      setLoadingWeeks(true);
+      const res = await fetch(basePath(`/api/maps/weeks?disease=${disease}&uf=${state}`));
+      setWeeksData(await res.json());
       setLoadingWeeks(false);
     };
     fetchWeeksMap();
   }, [disease, state]);
 
   useEffect(() => {
+    const fetchTopCities = async () => {
+      setLoadingTopCities(true);
+      const [top10Res, top20Res] = await Promise.all([
+        fetch(basePath(`/api/top-cities?disease=${disease}&uf=${state}&limit=10`)),
+        fetch(basePath(`/api/top-cities?disease=${disease}&uf=${state}&limit=20`)),
+      ]);
+      setTop10Cities(await top10Res.json());
+      setTopCities(await top20Res.json());
+      setLoadingTopCities(false);
+    };
+    fetchTopCities();
+  }, [disease, state]);
+
+  useEffect(() => {
     const fetchR0 = async () => {
+      setLoadingR0(true);
       const res = await fetch(basePath(`/api/maps/r0?disease=${disease}&uf=${state}&year=${r0year}`));
       const data = await res.json();
       setR0MapData(data.r0Data);
@@ -154,6 +168,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchModelEval = async () => {
+      setLoadingModelEval(true);
       const res = await fetch(basePath(`/api/maps/model-eval?disease=${disease}&uf=${state}&year=${modelEvalYear}`));
       setModelEval(await res.json());
       setLoadingModelEval(false);
@@ -172,6 +187,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!city) return;
     const fetchTimeSeries = async () => {
+      setLoadingTimeSeries(true);
       const res = await fetch(basePath(`/api/timeseries?disease=${disease}&uf=${state}&geocode=${city}&year=${epiYear}`));
       const data = await res.json();
       setTimeSeries(data);
@@ -193,13 +209,13 @@ export default function Dashboard() {
             medianCases = casesVals[Math.floor(casesVals.length / 2)];
           }
           const minCases = 0.85 * totalCases;
-          const maxCases = Math.max(1.25 * totalCases, 1.25 * medianCases, yearParam.total_cases || 0);
+          const maxCases = Math.max(2 * totalCases, 2 * medianCases, yearParam.total_cases || 0);
           const step = Math.max(1, Math.floor((maxCases - minCases) / 20));
           setMedianParams({ medianR0, medianPeak: yearParam.peak_week || medianPeak, medianCases: yearParam.total_cases || medianCases, minCases, maxCases, step });
         }
       } else if (totalCases > 0) {
         const minC = 0.85 * totalCases;
-        const maxC = Math.max(1.25 * totalCases, totalCases + 1000);
+        const maxC = Math.max(2 * totalCases, totalCases + 5000);
         const stp = Math.max(1, Math.floor((maxC - minC) / 20));
         setMedianParams({ medianR0: 2, medianPeak: 10, medianCases: totalCases, minCases: minC, maxCases: maxC, step: stp });
       }
@@ -235,6 +251,9 @@ export default function Dashboard() {
     }));
   }, [selectedYearParam, timeSeries]);
 
+  const calculatorDates = useMemo(() => timeSeries.map((d) => d.date), [timeSeries]);
+  const calculatorCumulative = useMemo(() => timeSeries.map((d) => d.casos_cum), [timeSeries]);
+
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader />
@@ -249,6 +268,7 @@ export default function Dashboard() {
           onDiseaseChange={setDisease}
           onStateChange={setState}
           onCityChange={setCity}
+          loading={loadingTopCities}
         />
 
         <div className="flex min-w-0 flex-col gap-4">
@@ -291,7 +311,10 @@ export default function Dashboard() {
                   )}
                 </div>
                 <div>
-                  <h4 className="mb-3 text-sm font-semibold">Top 10 cities</h4>
+                  <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                    Top 10 cities
+                    {loadingTopCities && <Spinner className="size-3.5" />}
+                  </h4>
                   <RankTable
                     rows={top10Cities.map((c) => ({ name: c.name_muni, value: c.transmissao }))}
                     valueLabel="Weeks"
@@ -331,7 +354,10 @@ export default function Dashboard() {
                   )}
                 </div>
                 <div>
-                  <h4 className="mb-3 text-sm font-semibold">Top 10 R₀</h4>
+                  <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                    Top 10 R₀
+                    {loadingR0 && <Spinner className="size-3.5" />}
+                  </h4>
                   <RankTable
                     rows={topR0.map((c) => ({ name: c.name, value: c.R0 }))}
                     valueLabel="R₀"
@@ -433,10 +459,11 @@ export default function Dashboard() {
                       <span>Adjust the sliders to explore different scenarios.</span>
                     </div>
                     <EpidemicCalculator
+                      key={`${city}-${epiYear}`}
                       disease={disease}
                       city={topCityName}
-                      dataCumulative={timeSeries.map((d) => d.casos_cum)}
-                      dates={timeSeries.map((d) => d.date)}
+                      dataCumulative={calculatorCumulative}
+                      dates={calculatorDates}
                       initialPeakWeek={medianParams.medianPeak}
                       initialR0={medianParams.medianR0}
                       initialTotalCases={medianParams.medianCases}
@@ -462,6 +489,15 @@ export default function Dashboard() {
                 className="underline underline-offset-4 hover:text-foreground"
               >
                 Mosqlimate API
+              </a>
+              {' · '}
+              <a
+                href="https://royalsocietypublishing.org/rsos/article/12/5/241261/235685/Large-scale-epidemiological-modelling-scanning-for"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-4 hover:text-foreground"
+              >
+                EpiScanner Article
               </a>
             </p>
           </footer>

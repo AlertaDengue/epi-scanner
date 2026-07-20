@@ -29,6 +29,15 @@ export function Footer() {
       >
         EpiGraphHub
       </a>
+      .{' '}
+      <a
+        href="https://royalsocietypublishing.org/rsos/article/12/5/241261/235685/Large-scale-epidemiological-modelling-scanning-for"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline"
+      >
+        EpiScanner Article
+      </a>
     </div>
   );
 }
