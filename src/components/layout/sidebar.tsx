@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -20,6 +21,7 @@ type SidebarProps = {
   onDiseaseChange: (v: string) => void;
   onStateChange: (v: string) => void;
   onCityChange: (v: string) => void;
+  loading?: boolean;
 };
 
 const STATE_OPTIONS = [
@@ -65,6 +67,7 @@ export function DashboardSidebar({
   onDiseaseChange,
   onStateChange,
   onCityChange,
+  loading = false,
 }: SidebarProps) {
   return (
     <aside className="flex flex-col gap-4">
@@ -115,8 +118,9 @@ export function DashboardSidebar({
 
       <Card className="flex-1">
         <CardHeader>
-          <CardTitle className="text-sm font-semibold">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
             Top 20 most active cities
+            {loading && <Spinner className="size-3.5" />}
           </CardTitle>
           <p className="text-xs text-muted-foreground">
             Ranked by weeks of Rt &gt; 1

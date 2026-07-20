@@ -155,13 +155,13 @@ export function EpidemicCalculator({
             <CardTitle className="text-sm">Peak week</CardTitle>
           </CardHeader>
           <CardContent>
-            <Slider
-              value={[peakWeek]}
-              onValueChange={(v) => setPeakWeek(Array.isArray(v) ? v[0] : v)}
-              min={5}
-              max={45}
-              step={1}
-            />
+              <Slider
+                value={[peakWeek]}
+                onValueChange={(v) => setPeakWeek(Array.isArray(v) ? v[0] : v)}
+                min={1}
+                max={dates.length - 1}
+                step={1}
+              />
             <p className="mt-1 text-xs text-muted-foreground">
               Current: {peakWeek}
             </p>
