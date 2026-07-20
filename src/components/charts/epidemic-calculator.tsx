@@ -48,9 +48,9 @@ export function EpidemicCalculator({
   startDate,
   endDate,
 }: EpidemicCalculatorProps) {
-  const [peakWeek, setPeakWeek] = useState(initialPeakWeek);
+  const [peakWeek, setPeakWeek] = useState(Math.round(initialPeakWeek));
   const [r0, setR0] = useState(initialR0);
-  const [totalCases, setTotalCases] = useState(initialTotalCases);
+  const [totalCases, setTotalCases] = useState(Math.round(initialTotalCases));
 
   const [lockPeak, setLockPeak] = useState(true);
   const [lockR0, setLockR0] = useState(true);
@@ -172,7 +172,7 @@ export function EpidemicCalculator({
                 type="button"
                 onClick={() => {
                   setLockPeak(!lockPeak);
-                  if (lockPeak) setPeakWeek(initialPeakWeek);
+                  if (lockPeak) setPeakWeek(Math.round(initialPeakWeek));
                 }}
                 className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                 title={lockPeak ? "Unlock to set manually" : "Lock to optimal value"}
@@ -184,14 +184,14 @@ export function EpidemicCalculator({
           <CardContent>
             <Slider
               value={[effectivePeakWeek]}
-              onValueChange={(v) => !lockPeak && setPeakWeek(Array.isArray(v) ? v[0] : v)}
+              onValueChange={(v) => !lockPeak && setPeakWeek(Math.round(Array.isArray(v) ? v[0] : v))}
               min={1}
               max={dates.length - 1}
               step={1}
               disabled={lockPeak}
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              {lockPeak ? `Optimal: ${effectivePeakWeek.toFixed(2)}` : `Current: ${peakWeek.toFixed(2)}`}
+              {lockPeak ? `Optimal: ${Math.round(effectivePeakWeek)}` : `Current: ${peakWeek}`}
             </p>
           </CardContent>
         </Card>
@@ -236,7 +236,7 @@ export function EpidemicCalculator({
                 type="button"
                 onClick={() => {
                   setLockCases(!lockCases);
-                  if (lockCases) setTotalCases(initialTotalCases);
+                  if (lockCases) setTotalCases(Math.round(initialTotalCases));
                 }}
                 className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                 title={lockCases ? "Unlock to set manually" : "Lock to optimal value"}
@@ -248,7 +248,7 @@ export function EpidemicCalculator({
           <CardContent>
             <Slider
               value={[effectiveTotalCases]}
-              onValueChange={(v) => !lockCases && setTotalCases(Array.isArray(v) ? v[0] : v)}
+              onValueChange={(v) => !lockCases && setTotalCases(Math.round(Array.isArray(v) ? v[0] : v))}
               min={minCases}
               max={maxCases}
               step={step}
