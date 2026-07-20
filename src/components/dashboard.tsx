@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CURRENT_YEAR, MIN_YEAR } from "@/lib/constants";
+import { richards } from "@/lib/richards";
 
 function PanelHeader({
   icon,
@@ -178,6 +179,11 @@ export default function Dashboard() {
           const step = Math.max(1, Math.floor((maxCases - minCases) / 20));
           setMedianParams({ medianR0, medianPeak: yearParam.peak_week || medianPeak, medianCases: yearParam.total_cases || medianCases, minCases, maxCases, step });
         }
+      } else if (totalCases > 0) {
+        const minC = 0.85 * totalCases;
+        const maxC = Math.max(1.25 * totalCases, totalCases + 1000);
+        const stp = Math.max(1, Math.floor((maxC - minC) / 20));
+        setMedianParams({ medianR0: 2, medianPeak: 10, medianCases: totalCases, minCases: minC, maxCases: maxC, step: stp });
       }
       setLoading(false);
     };
@@ -191,6 +197,25 @@ export default function Dashboard() {
     const peak = cityParams.find((p) => p.R0 === maxR0);
     return peak?.year ?? CURRENT_YEAR;
   }, [cityParams]);
+
+  const selectedYearParam = useMemo(() => {
+    if (epiYear === "all") return null;
+    return cityParams.find((p) => p.year === Number(epiYear)) ?? null;
+  }, [cityParams, epiYear]);
+
+  const modelDataForChart = useMemo(() => {
+    if (!selectedYearParam || timeSeries.length === 0) return undefined;
+    const { R0: r0, peak_week, total_cases } = selectedYearParam;
+    if (!r0 || r0 <= 1) return undefined;
+    const r = 1 - 1 / r0;
+    const gamma = 0.3;
+    const b = (r * gamma) / (1 - r);
+    const a = b / (gamma + b);
+    return timeSeries.map((d, i) => ({
+      date: d.date,
+      model: richards(total_cases, a, b, i, peak_week),
+    }));
+  }, [selectedYearParam, timeSeries]);
 
   if (loading) {
     return (
@@ -363,6 +388,10 @@ export default function Dashboard() {
               <CardContent>
                 <TimeSeriesChart
                   data={timeSeries}
+                  modelData={modelDataForChart}
+                  peakWeekDate={selectedYearParam?.ep_pw ?? null}
+                  startDate={selectedYearParam?.ep_ini ?? null}
+                  endDate={selectedYearParam?.ep_end ?? null}
                   title=""
                 />
                 <div className="mt-4">
@@ -388,9 +417,13 @@ export default function Dashboard() {
                     <SIRParamsTable params={cityParams} />
                   )}
                   <div className="mt-4">
-                    <p className="mb-3 text-xs text-muted-foreground">
-                      Interactive epidemic calculator. Adjust the sliders to explore different scenarios.
-                    </p>
+                    <h4 className="mb-3 text-base font-semibold">
+                      Interactive epidemic calculator
+                    </h4>
+                    <div className="mb-3 flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                      <svg className="mt-0.5 size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+                      <span>Adjust the sliders to explore different scenarios.</span>
+                    </div>
                     <EpidemicCalculator
                       disease={disease}
                       city={topCityName}
@@ -402,6 +435,8 @@ export default function Dashboard() {
                       minCases={medianParams.minCases}
                       maxCases={medianParams.maxCases}
                       step={medianParams.step}
+                      startDate={selectedYearParam?.ep_ini ?? null}
+                      endDate={selectedYearParam?.ep_end ?? null}
                     />
                   </div>
                 </div>
@@ -411,7 +446,7 @@ export default function Dashboard() {
 
           <footer className="border-t pt-4 text-xs text-muted-foreground">
             <p>
-              Epi Scanner · Infodengue · FGV/EMA ·{' '}
+              Epi Scanner · Infodengue · FGV/EMAp ·{' '}
               <a
                 href="https://api.mosqlimate.org/docs/datastore/GET/episcanner/"
                 target="_blank"

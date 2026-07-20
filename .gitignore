@@ -5,6 +5,9 @@
 .next/
 out/
 
+# TypeScript
+*.tsbuildinfo
+
 # Node
 node_modules/
 

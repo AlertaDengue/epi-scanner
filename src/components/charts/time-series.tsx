@@ -16,6 +16,8 @@ interface TimeSeriesChartProps {
   data: { date: string; casos: number; casos_cum: number }[];
   modelData?: { date: string; model: number }[];
   peakWeekDate?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
   title: string;
 }
 
@@ -23,6 +25,8 @@ export function TimeSeriesChart({
   data,
   modelData,
   peakWeekDate,
+  startDate,
+  endDate,
   title,
 }: TimeSeriesChartProps) {
   // Merge data for the chart
@@ -81,12 +85,30 @@ export function TimeSeriesChart({
               dot={false}
             />
           )}
+          {startDate && (
+            <ReferenceLine
+              x={startDate}
+              stroke="#22c55e"
+              strokeWidth={2}
+              strokeDasharray="5 5"
+              label={{ value: "Start", position: "top", fontSize: 10 }}
+            />
+          )}
           {peakWeekDate && (
             <ReferenceLine
               x={peakWeekDate}
               stroke="orange"
               strokeWidth={2}
               label={{ value: "Peak", position: "top", fontSize: 10 }}
+            />
+          )}
+          {endDate && (
+            <ReferenceLine
+              x={endDate}
+              stroke="#a855f7"
+              strokeWidth={2}
+              strokeDasharray="5 5"
+              label={{ value: "End", position: "top", fontSize: 10 }}
             />
           )}
         </AreaChart>

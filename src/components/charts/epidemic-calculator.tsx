@@ -29,6 +29,8 @@ interface EpidemicCalculatorProps {
   minCases: number;
   maxCases: number;
   step: number;
+  startDate?: string | null;
+  endDate?: string | null;
 }
 
 export function EpidemicCalculator({
@@ -42,6 +44,8 @@ export function EpidemicCalculator({
   minCases,
   maxCases,
   step,
+  startDate,
+  endDate,
 }: EpidemicCalculatorProps) {
   const [peakWeek, setPeakWeek] = useState(initialPeakWeek);
   const [r0, setR0] = useState(initialR0);
@@ -114,12 +118,30 @@ export function EpidemicCalculator({
                 strokeWidth={2}
                 dot={false}
               />
+              {startDate && (
+                <ReferenceLine
+                  x={startDate}
+                  stroke="#22c55e"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  label={{ value: "Start", position: "top", fontSize: 10 }}
+                />
+              )}
               {peakDate && (
                 <ReferenceLine
                   x={peakDate}
                   stroke="red"
                   strokeWidth={2}
                   label={{ value: "Peak week", position: "top", fontSize: 10 }}
+                />
+              )}
+              {endDate && (
+                <ReferenceLine
+                  x={endDate}
+                  stroke="#a855f7"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  label={{ value: "End", position: "top", fontSize: 10 }}
                 />
               )}
             </ComposedChart>

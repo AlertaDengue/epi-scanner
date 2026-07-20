@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "info.dengue.mat.br",
       },
+      {
+        protocol: "https",
+        hostname: "github.com",
+      },
     ],
   },
 };
