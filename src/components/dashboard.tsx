@@ -81,9 +81,9 @@ export default function Dashboard() {
   const [medianParams, setMedianParams] = useState({
     medianR0: 2,
     medianPeak: 10,
-    medianCases: 0,
-    minCases: 0,
-    maxCases: 1000,
+    medianCases: 1000,
+    minCases: 1,
+    maxCases: 10000,
     step: 50,
   });
   const [loadingCities, setLoadingCities] = useState(true);
@@ -209,13 +209,13 @@ export default function Dashboard() {
             medianCases = casesVals[Math.floor(casesVals.length / 2)];
           }
           const minCases = 0.85 * totalCases;
-          const maxCases = Math.max(1.25 * totalCases, 1.25 * medianCases, yearParam.total_cases || 0);
+          const maxCases = Math.max(2 * totalCases, 2 * medianCases, yearParam.total_cases || 0);
           const step = Math.max(1, Math.floor((maxCases - minCases) / 20));
           setMedianParams({ medianR0, medianPeak: yearParam.peak_week || medianPeak, medianCases: yearParam.total_cases || medianCases, minCases, maxCases, step });
         }
       } else if (totalCases > 0) {
         const minC = 0.85 * totalCases;
-        const maxC = Math.max(1.25 * totalCases, totalCases + 1000);
+        const maxC = Math.max(2 * totalCases, totalCases + 5000);
         const stp = Math.max(1, Math.floor((maxC - minC) / 20));
         setMedianParams({ medianR0: 2, medianPeak: 10, medianCases: totalCases, minCases: minC, maxCases: maxC, step: stp });
       }
@@ -250,6 +250,9 @@ export default function Dashboard() {
       model: richards(total_cases, a, b, i, peak_week),
     }));
   }, [selectedYearParam, timeSeries]);
+
+  const calculatorDates = useMemo(() => timeSeries.map((d) => d.date), [timeSeries]);
+  const calculatorCumulative = useMemo(() => timeSeries.map((d) => d.casos_cum), [timeSeries]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -459,8 +462,8 @@ export default function Dashboard() {
                       key={`${city}-${epiYear}`}
                       disease={disease}
                       city={topCityName}
-                      dataCumulative={timeSeries.map((d) => d.casos_cum)}
-                      dates={timeSeries.map((d) => d.date)}
+                      dataCumulative={calculatorCumulative}
+                      dates={calculatorDates}
                       initialPeakWeek={medianParams.medianPeak}
                       initialR0={medianParams.medianR0}
                       initialTotalCases={medianParams.medianCases}
@@ -486,6 +489,15 @@ export default function Dashboard() {
                 className="underline underline-offset-4 hover:text-foreground"
               >
                 Mosqlimate API
+              </a>
+              {' · '}
+              <a
+                href="https://royalsocietypublishing.org/rsos/article/12/5/241261/235685/Large-scale-epidemiological-modelling-scanning-for"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-4 hover:text-foreground"
+              >
+                EpiScanner Article
               </a>
             </p>
           </footer>

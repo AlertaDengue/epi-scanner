@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
+import { getWeekNumber } from "@/lib/richards";
 
 interface TimeSeriesChartProps {
   data: { date: string; casos: number; casos_cum: number }[];
@@ -45,13 +46,18 @@ export function TimeSeriesChart({
             dataKey="date"
             tick={{ fontSize: 11 }}
             tickFormatter={(v) => {
-              const d = new Date(v);
+              const d = new Date(String(v));
               return `${d.getMonth() + 1}/${d.getFullYear()}`;
             }}
           />
           <YAxis tick={{ fontSize: 11 }} />
           <Tooltip
-            labelFormatter={(v) => new Date(v).toLocaleDateString()}
+            labelFormatter={(v) => {
+              if (typeof v !== "string") return String(v);
+              const wk = getWeekNumber(v);
+              const dateStr = new Date(v).toLocaleDateString();
+              return `${dateStr} · Epiweek ${wk}`;
+            }}
             formatter={(value, name) => [
               Math.round(Number(value)).toLocaleString(),
               String(name),

@@ -25,5 +25,18 @@ jobs:
     - name: Type check
       run: npx tsc --noEmit
 
+    - name: Lint
+      run: npm run lint
+
+    - name: Test with coverage
+      run: npm run test:coverage
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage/lcov.info
+        fail_ci_if_error: false
+
     - name: Build
       run: npm run build
