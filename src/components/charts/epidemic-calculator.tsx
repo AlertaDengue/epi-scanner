@@ -57,8 +57,8 @@ export function EpidemicCalculator({
     const b = (r * gamma) / (1 - r);
     const a = b / (gamma + b);
 
-    return Array.from({ length: 52 }, (_, i) => richards(totalCases, a, b, i, peakWeek));
-  }, [peakWeek, r0, totalCases]);
+    return Array.from({ length: dates.length }, (_, i) => richards(totalCases, a, b, i, peakWeek));
+  }, [peakWeek, r0, totalCases, dates]);
 
   const modelValues = calculateModel();
 

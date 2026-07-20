@@ -1,4 +1,4 @@
-import { Activity, CalendarClock, Layers, TrendingUp } from "lucide-react";
+import { Activity, CalendarClock, Layers, TrendingUp, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 type StatCardsProps = {
@@ -6,6 +6,7 @@ type StatCardsProps = {
   topR0: number;
   peakYear: number;
   state: string;
+  loading?: boolean;
 };
 
 export function StatCards({
@@ -13,6 +14,7 @@ export function StatCards({
   topR0,
   peakYear,
   state,
+  loading = false,
 }: StatCardsProps) {
   const stats = [
     {
@@ -56,7 +58,11 @@ export function StatCards({
               />
             </div>
             <span className="text-2xl font-bold tracking-tight tabular-nums">
-              {stat.value}
+              {loading ? (
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              ) : (
+                stat.value
+              )}
             </span>
             <span className="text-xs text-muted-foreground">{stat.hint}</span>
           </CardContent>

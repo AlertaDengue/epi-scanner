@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
   const tc = totalCases || 1000;
 
   const modelCumulative: number[] = [];
-  for (let i = 0; i < 52; i++) {
+  for (let i = 0; i < dates.length; i++) {
     modelCumulative.push(richards(tc, a, b, i, pw));
   }
 

@@ -86,11 +86,10 @@ export default function Dashboard() {
     maxCases: 1000,
     step: 50,
   });
-  const [loading, setLoading] = useState(true);
-  const [loadingWeeks, setLoadingWeeks] = useState(false);
-  const [loadingR0, setLoadingR0] = useState(false);
-  const [loadingModelEval, setLoadingModelEval] = useState(false);
-  const [loadingTimeSeries, setLoadingTimeSeries] = useState(false);
+  const [loadingWeeks, setLoadingWeeks] = useState(true);
+  const [loadingR0, setLoadingR0] = useState(true);
+  const [loadingModelEval, setLoadingModelEval] = useState(true);
+  const [loadingTimeSeries, setLoadingTimeSeries] = useState(true);
 
   useEffect(() => {
     fetch(basePath("/api/geolocation"))
@@ -129,7 +128,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchWeeksMap = async () => {
-      if (weeksData.length > 0) setLoadingWeeks(true);
       const [weeksRes, top10Res, top20Res] = await Promise.all([
         fetch(basePath(`/api/maps/weeks?disease=${disease}&uf=${state}`)),
         fetch(basePath(`/api/top-cities?disease=${disease}&uf=${state}&limit=10`)),
@@ -145,7 +143,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchR0 = async () => {
-      if (r0MapData.length > 0) setLoadingR0(true);
       const res = await fetch(basePath(`/api/maps/r0?disease=${disease}&uf=${state}&year=${r0year}`));
       const data = await res.json();
       setR0MapData(data.r0Data);
@@ -157,7 +154,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchModelEval = async () => {
-      if (modelEval) setLoadingModelEval(true);
       const res = await fetch(basePath(`/api/maps/model-eval?disease=${disease}&uf=${state}&year=${modelEvalYear}`));
       setModelEval(await res.json());
       setLoadingModelEval(false);
@@ -176,7 +172,6 @@ export default function Dashboard() {
   useEffect(() => {
     if (!city) return;
     const fetchTimeSeries = async () => {
-      if (timeSeries.length > 0) setLoadingTimeSeries(true);
       const res = await fetch(basePath(`/api/timeseries?disease=${disease}&uf=${state}&geocode=${city}&year=${epiYear}`));
       const data = await res.json();
       setTimeSeries(data);
@@ -208,7 +203,6 @@ export default function Dashboard() {
         const stp = Math.max(1, Math.floor((maxC - minC) / 20));
         setMedianParams({ medianR0: 2, medianPeak: 10, medianCases: totalCases, minCases: minC, maxCases: maxC, step: stp });
       }
-      setLoading(false);
       setLoadingTimeSeries(false);
     };
     fetchTimeSeries();
@@ -240,17 +234,6 @@ export default function Dashboard() {
       model: richards(total_cases, a, b, i, peak_week),
     }));
   }, [selectedYearParam, timeSeries]);
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-center">
-          <Spinner className="size-8" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -286,6 +269,7 @@ export default function Dashboard() {
             topR0={topR0[0]?.R0 ?? 0}
             peakYear={peakYear}
             state={state}
+            loading={loadingTimeSeries || loadingR0}
           />
 
           <Card>
