@@ -7,7 +7,7 @@ export function DashboardHeader() {
       <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3 md:px-6">
         <div className="flex items-center gap-3">
           <Image
-            src="/logo-infodengue.png"
+            src="https://github.com/AlertaDengue/AlertaDengue/blob/main/AlertaDengue/static/img/logo-infodengue.png?raw=true"
             alt="Infodengue"
             width={40}
             height={40}

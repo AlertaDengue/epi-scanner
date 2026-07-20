@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { basePath } from "@/lib/base-path";
 import { MapContainer, GeoJSON } from "react-leaflet";
 import { FitBounds } from "./fit-bounds";
 import { RecenterButton } from "./recenter-button";
@@ -43,11 +44,12 @@ export function R0Map({ data, year, uf }: R0MapProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setGeojson(null);
     setBounds(null);
     setError(null);
 
-    fetch(`/states/${uf}.json`)
+    fetch(basePath(`/states/${uf}.json`))
       .then((r) => {
         if (!r.ok) throw new Error(`Failed to load GeoJSON for ${uf}`);
         return r.json();
