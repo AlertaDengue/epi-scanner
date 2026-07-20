@@ -63,7 +63,9 @@ export default function Dashboard() {
   const [city, setCity] = useState("");
   const [cities, setCities] = useState<{ geocode: number; name: string }[]>([]);
   const [r0year, setR0Year] = useState(CURRENT_YEAR);
+  const [r0yearSlider, setR0YearSlider] = useState(CURRENT_YEAR);
   const [modelEvalYear, setModelEvalYear] = useState(CURRENT_YEAR);
+  const [modelEvalYearSlider, setModelEvalYearSlider] = useState(CURRENT_YEAR);
   const [epiYear, setEpiYear] = useState("all");
 
   const [weeksData, setWeeksData] = useState<{ geocode: number; transmissao: number }[]>([]);
@@ -85,6 +87,10 @@ export default function Dashboard() {
     step: 50,
   });
   const [loading, setLoading] = useState(true);
+  const [loadingWeeks, setLoadingWeeks] = useState(false);
+  const [loadingR0, setLoadingR0] = useState(false);
+  const [loadingModelEval, setLoadingModelEval] = useState(false);
+  const [loadingTimeSeries, setLoadingTimeSeries] = useState(false);
 
   useEffect(() => {
     fetch(basePath("/api/geolocation"))
@@ -92,6 +98,16 @@ export default function Dashboard() {
       .then((d) => { if (d?.uf) setState(d.uf); })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setR0Year(r0yearSlider), 300);
+    return () => clearTimeout(timer);
+  }, [r0yearSlider]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setModelEvalYear(modelEvalYearSlider), 300);
+    return () => clearTimeout(timer);
+  }, [modelEvalYearSlider]);
 
   useEffect(() => {
     const fetchCities = async () => {
@@ -113,6 +129,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchWeeksMap = async () => {
+      if (weeksData.length > 0) setLoadingWeeks(true);
       const [weeksRes, top10Res, top20Res] = await Promise.all([
         fetch(basePath(`/api/maps/weeks?disease=${disease}&uf=${state}`)),
         fetch(basePath(`/api/top-cities?disease=${disease}&uf=${state}&limit=10`)),
@@ -121,24 +138,29 @@ export default function Dashboard() {
       setWeeksData(await weeksRes.json());
       setTop10Cities(await top10Res.json());
       setTopCities(await top20Res.json());
+      setLoadingWeeks(false);
     };
     fetchWeeksMap();
   }, [disease, state]);
 
   useEffect(() => {
     const fetchR0 = async () => {
+      if (r0MapData.length > 0) setLoadingR0(true);
       const res = await fetch(basePath(`/api/maps/r0?disease=${disease}&uf=${state}&year=${r0year}`));
       const data = await res.json();
       setR0MapData(data.r0Data);
       setTopR0(data.topR0);
+      setLoadingR0(false);
     };
     fetchR0();
   }, [disease, state, r0year]);
 
   useEffect(() => {
     const fetchModelEval = async () => {
+      if (modelEval) setLoadingModelEval(true);
       const res = await fetch(basePath(`/api/maps/model-eval?disease=${disease}&uf=${state}&year=${modelEvalYear}`));
       setModelEval(await res.json());
+      setLoadingModelEval(false);
     };
     fetchModelEval();
   }, [disease, state, modelEvalYear]);
@@ -154,6 +176,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!city) return;
     const fetchTimeSeries = async () => {
+      if (timeSeries.length > 0) setLoadingTimeSeries(true);
       const res = await fetch(basePath(`/api/timeseries?disease=${disease}&uf=${state}&geocode=${city}&year=${epiYear}`));
       const data = await res.json();
       setTimeSeries(data);
@@ -186,6 +209,7 @@ export default function Dashboard() {
         setMedianParams({ medianR0: 2, medianPeak: 10, medianCases: totalCases, minCases: minC, maxCases: maxC, step: stp });
       }
       setLoading(false);
+      setLoadingTimeSeries(false);
     };
     fetchTimeSeries();
   }, [city, disease, state, epiYear, sirParams]);
@@ -267,7 +291,7 @@ export default function Dashboard() {
           <Card>
             <CardHeader>
               <PanelHeader
-                icon={<span className="text-xs font-mono text-balance">Rt</span>}
+                icon={loadingWeeks ? <Spinner className="size-4" /> : <span className="text-xs font-mono text-balance">Rt</span>}
                 title="Epidemic weeks — Number of weeks of Rt &gt; 1 since 2010"
               />
             </CardHeader>
@@ -297,20 +321,20 @@ export default function Dashboard() {
           <Card>
             <CardHeader>
               <PanelHeader
-                icon={<span className="text-xs font-mono text-balance">R₀</span>}
+                icon={loadingR0 ? <Spinner className="size-4" /> : <span className="text-xs font-mono text-balance">R₀</span>}
                 title="Basic reproduction number (R₀) by city"
               />
               <CardAction>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium tabular-nums">{r0year}</span>
+                  <span className="text-xs font-medium tabular-nums">{r0yearSlider}</span>
                 </div>
               </CardAction>
             </CardHeader>
             <CardContent>
               <div className="mb-4">
                 <Slider
-                  value={[r0year]}
-                  onValueChange={(v) => setR0Year(Array.isArray(v) ? v[0] : v)}
+                  value={[r0yearSlider]}
+                  onValueChange={(v) => setR0YearSlider(Array.isArray(v) ? v[0] : v)}
                   min={MIN_YEAR}
                   max={CURRENT_YEAR}
                   step={1}
@@ -339,21 +363,21 @@ export default function Dashboard() {
             <Card>
               <CardHeader>
                 <PanelHeader
-                  icon={<span className="text-xs font-mono text-balance">Ev</span>}
+                  icon={loadingModelEval ? <Spinner className="size-4" /> : <span className="text-xs font-mono text-balance">Ev</span>}
                   title="Model evaluation"
-                  description={`Observed vs estimated cases ratio · ${modelEvalYear}`}
+                  description={`Observed vs estimated cases ratio · ${modelEvalYearSlider}`}
                 />
                 <CardAction>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium tabular-nums">{modelEvalYear}</span>
+                    <span className="text-xs font-medium tabular-nums">{modelEvalYearSlider}</span>
                   </div>
                 </CardAction>
               </CardHeader>
               <CardContent>
                 <div className="mb-4">
                   <Slider
-                    value={[modelEvalYear]}
-                    onValueChange={(v) => setModelEvalYear(Array.isArray(v) ? v[0] : v)}
+                    value={[modelEvalYearSlider]}
+                    onValueChange={(v) => setModelEvalYearSlider(Array.isArray(v) ? v[0] : v)}
                     min={MIN_YEAR}
                     max={CURRENT_YEAR}
                     step={1}
@@ -364,7 +388,7 @@ export default function Dashboard() {
                     <ModelEvalMap data={modelEval.rateMap} year={modelEvalYear} uf={state} />
                   ) : (
                     <div className="flex h-[400px] items-center justify-center text-sm text-muted-foreground">
-                      No evaluation data available for {modelEvalYear}
+                      No evaluation data available for {modelEvalYearSlider}
                     </div>
                   )}
                 </div>
@@ -380,7 +404,7 @@ export default function Dashboard() {
             <Card>
               <CardHeader>
                 <PanelHeader
-                  icon={<span className="text-xs font-mono text-balance">TS</span>}
+                  icon={loadingTimeSeries ? <Spinner className="size-4" /> : <span className="text-xs font-mono text-balance">TS</span>}
                   title="Time Series & Epidemic Calculator"
                   description={`${disease} weekly cases in ${topCityName}`}
                 />
