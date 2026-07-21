@@ -1,6 +1,8 @@
 Release Notes
 ---
 
+## [2.1.2](https://github.com/AlertaDengue/epi-scanner/compare/2.1.1...2.1.2) (2026-07-21)
+
 ## [2.1.1](https://github.com/AlertaDengue/epi-scanner/compare/2.1.0...2.1.1) (2026-07-21)
 
 ## [2.1.0](https://github.com/AlertaDengue/epi-scanner/compare/2.0.5...2.1.0) (2026-07-21)
