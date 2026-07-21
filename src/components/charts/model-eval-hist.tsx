@@ -46,11 +46,14 @@ export function ModelEvalHist({ rates }: ModelEvalHistProps) {
   return (
     <div className="rounded-lg border bg-white p-4">
       <h3 className="mb-4 text-sm font-semibold">Rate Distribution</h3>
-      <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={data}>
+      <ResponsiveContainer width="100%" height={280}>
+        <BarChart
+          data={data}
+          margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
+        >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="range" tick={{ fontSize: 10 }} />
-          <YAxis tick={{ fontSize: 10 }} />
+          <XAxis dataKey="range" tick={{ fontSize: 11 }} />
+          <YAxis width={28} tick={{ fontSize: 11 }} />
           <Tooltip />
           <Bar dataKey="count" name="Cities">
             {data.map((_, i) => (

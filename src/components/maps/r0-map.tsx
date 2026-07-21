@@ -76,7 +76,7 @@ export function R0Map({ data, year, uf }: R0MapProps) {
     return (
       <div className="rounded-lg border bg-white p-2">
         <h3 className="mb-2 text-sm font-semibold">R0 by city in {year}</h3>
-        <div className="flex h-[400px] items-center justify-center text-sm text-red-600">
+        <div className="flex h-full min-h-[400px] items-center justify-center text-sm text-red-600">
           {error}
         </div>
       </div>
@@ -87,7 +87,7 @@ export function R0Map({ data, year, uf }: R0MapProps) {
     return (
       <div className="rounded-lg border bg-white p-2">
         <h3 className="mb-2 text-sm font-semibold">R0 by city in {year}</h3>
-        <div className="flex h-[400px] items-center justify-center">
+        <div className="flex h-full min-h-[400px] items-center justify-center">
           <Spinner className="size-8" />
         </div>
       </div>
@@ -123,7 +123,7 @@ export function R0Map({ data, year, uf }: R0MapProps) {
       <div className="relative z-0">
         <MapContainer key={uf}
           bounds={bounds}
-          className="h-[400px] w-full rounded"
+          className="h-full min-h-[400px] w-full rounded"
           scrollWheelZoom={true}
           zoomSnap={0.25}
           zoomDelta={0.5}

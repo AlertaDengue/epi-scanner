@@ -69,11 +69,11 @@ export function ModelEvalMap({ data, year, uf }: ModelEvalMapProps) {
 
   if (error) {
     return (
-      <div className="rounded-lg border bg-white p-2">
+      <div className="flex h-full flex-col rounded-lg border bg-white p-2">
         <h3 className="mb-2 text-sm font-semibold">
           Observed Cases/Estimated Cases by city in {year}
         </h3>
-        <div className="flex h-[400px] items-center justify-center text-sm text-red-600">
+        <div className="flex flex-1 items-center justify-center text-sm text-red-600">
           {error}
         </div>
       </div>
@@ -82,11 +82,11 @@ export function ModelEvalMap({ data, year, uf }: ModelEvalMapProps) {
 
   if (!geojson || !bounds) {
     return (
-      <div className="rounded-lg border bg-white p-2">
+      <div className="flex h-full flex-col rounded-lg border bg-white p-2">
         <h3 className="mb-2 text-sm font-semibold">
           Observed Cases/Estimated Cases by city in {year}
         </h3>
-        <div className="flex h-[400px] items-center justify-center">
+        <div className="flex flex-1 items-center justify-center">
           <Spinner className="size-8" />
         </div>
       </div>
@@ -126,14 +126,14 @@ export function ModelEvalMap({ data, year, uf }: ModelEvalMapProps) {
   ];
 
   return (
-    <div className="rounded-lg border bg-white p-2">
+    <div className="flex h-full flex-col rounded-lg border bg-white p-2">
       <h3 className="mb-2 text-sm font-semibold">
         Observed Cases/Estimated Cases by city in {year}
       </h3>
-      <div className="relative z-0">
+      <div className="relative flex-1">
         <MapContainer key={uf}
           bounds={bounds}
-          className="h-[400px] w-full rounded"
+          className="h-full w-full rounded"
           scrollWheelZoom={true}
           zoomSnap={0.25}
           zoomDelta={0.5}
