@@ -7,6 +7,7 @@ type StatCardsProps = {
   peakYear: number;
   state: string;
   loading?: boolean;
+  displayYear?: string;
 };
 
 export function StatCards({
@@ -15,12 +16,14 @@ export function StatCards({
   peakYear,
   state,
   loading = false,
+  displayYear,
 }: StatCardsProps) {
+  const seasonLabel = displayYear && displayYear !== "all" ? displayYear : String(peakYear);
   const stats = [
     {
       label: "Cumulative notified cases",
       value: cumulativeCases.toLocaleString("en-US"),
-      hint: `Since Jan ${peakYear}`,
+      hint: `Since Jan ${seasonLabel}`,
       icon: Activity,
     },
     {
@@ -31,7 +34,7 @@ export function StatCards({
     },
     {
       label: "Monitored season",
-      value: String(peakYear),
+      value: seasonLabel,
       hint: "Epidemiological year",
       icon: CalendarClock,
     },

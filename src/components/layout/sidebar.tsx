@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MapPin, Stethoscope, ChevronDown, Calendar } from "lucide-react";
+import { MapPin, Stethoscope, ChevronDown, Calendar, Building2 } from "lucide-react";
 
 type SidebarProps = {
   disease: string;
@@ -66,6 +66,7 @@ const DISEASE_OPTIONS = [
 export function DashboardSidebar({
   disease,
   state,
+  cities,
   city,
   topCities,
   onDiseaseChange,
@@ -78,6 +79,9 @@ export function DashboardSidebar({
 }: SidebarProps) {
   const [expanded, setExpanded] = useState(false);
   const visibleCities = expanded ? topCities : topCities.slice(0, 5);
+  const selectedCityName = cities.find((c) => String(c.geocode) === city)?.name ?? "";
+  const diseaseLabel = DISEASE_OPTIONS.find((d) => d.value === disease)?.label ?? disease;
+  const stateLabel = STATE_OPTIONS.find((s) => s.code === state)?.name ?? state;
   return (
     <aside className="flex flex-col gap-4">
       <Card>
@@ -92,7 +96,9 @@ export function DashboardSidebar({
             </span>
             <Select value={disease} onValueChange={(v) => v && onDiseaseChange(v)}>
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue>
+                  {diseaseLabel}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {DISEASE_OPTIONS.map((d) => (
@@ -111,7 +117,9 @@ export function DashboardSidebar({
             </span>
             <Select value={state} onValueChange={(v) => v && onStateChange(v)}>
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue>
+                  {stateLabel}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {STATE_OPTIONS.map((s) => (
@@ -123,27 +131,46 @@ export function DashboardSidebar({
             </Select>
           </label>
 
-          {epiYears.length > 0 && (
-            <label className="flex flex-col gap-1.5">
-              <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <Calendar className="size-3.5" aria-hidden="true" />
-                Epidemic year
-              </span>
-              <Select value={epiYear} onValueChange={(v) => v && onEpiYearChange(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  {epiYears.map((y) => (
-                    <SelectItem key={y} value={String(y)}>
-                      {y}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-          )}
+          <label className="flex flex-col gap-1.5">
+            <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Building2 className="size-3.5" aria-hidden="true" />
+              Select city
+            </span>
+            <Select value={city} onValueChange={(v) => v && onCityChange(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  {selectedCityName || "Search city..."}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {cities.map((c) => (
+                  <SelectItem key={c.geocode} value={String(c.geocode)}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Calendar className="size-3.5" aria-hidden="true" />
+              Epidemic year
+            </span>
+            <Select value={epiYear} onValueChange={(v) => v && onEpiYearChange(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {epiYears.map((y) => (
+                  <SelectItem key={y} value={String(y)}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
         </CardContent>
       </Card>
 
