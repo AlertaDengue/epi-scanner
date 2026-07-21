@@ -79,9 +79,9 @@ describe("DashboardSidebar", () => {
     expect(screen.getByText("Epidemic year")).toBeInTheDocument();
   });
 
-  it("hides epidemic year selector when no years available", () => {
+  it("shows epidemic year selector even with empty years (All option always visible)", () => {
     render(<DashboardSidebar {...baseProps} epiYears={[]} />);
-    expect(screen.queryByText("Epidemic year")).not.toBeInTheDocument();
+    expect(screen.getByText("Epidemic year")).toBeInTheDocument();
   });
 
   it("calls onCityChange when a city is clicked", async () => {
@@ -96,5 +96,30 @@ describe("DashboardSidebar", () => {
     const fewCities = makeTopCities(3);
     render(<DashboardSidebar {...baseProps} topCities={fewCities} />);
     expect(screen.queryByText(/Show all/)).not.toBeInTheDocument();
+  });
+
+  it("renders city selector label", () => {
+    render(<DashboardSidebar {...baseProps} />);
+    expect(screen.getByText("Select city")).toBeInTheDocument();
+  });
+
+  it("shows selected city name in trigger", () => {
+    render(<DashboardSidebar {...baseProps} state="SP" cities={[{ geocode: 3509502, name: "Campinas" }]} city="3509502" />);
+    expect(screen.getByText("Campinas")).toBeInTheDocument();
+  });
+
+  it("shows default text when no city selected", () => {
+    render(<DashboardSidebar {...baseProps} city="" />);
+    expect(screen.getByText("Search city...")).toBeInTheDocument();
+  });
+
+  it("shows disease label instead of value", () => {
+    render(<DashboardSidebar {...baseProps} disease="chikungunya" />);
+    expect(screen.getByText("Chikungunya")).toBeInTheDocument();
+  });
+
+  it("shows state label instead of code", () => {
+    render(<DashboardSidebar {...baseProps} state="SP" city="" />);
+    expect(screen.getByText("São Paulo")).toBeInTheDocument();
   });
 });

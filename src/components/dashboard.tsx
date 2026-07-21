@@ -256,8 +256,6 @@ export default function Dashboard() {
   const calculatorDates = useMemo(() => timeSeries.map((d) => d.date), [timeSeries]);
   const calculatorCumulative = useMemo(() => timeSeries.map((d) => d.casos_cum), [timeSeries]);
 
-  const initialLoad = timeSeries.length === 0 && loadingTimeSeries;
-
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader
@@ -297,17 +295,9 @@ export default function Dashboard() {
         }
       />
 
-      {initialLoad ? (
-        <div className="flex min-h-[calc(100vh-60px)] items-center justify-center bg-background">
-          <div className="text-center">
-            <Spinner className="size-8" />
-            <p className="mt-3 text-sm text-muted-foreground">Loading dashboard...</p>
-          </div>
-        </div>
-      ) : (
       <main className="flex">
         <aside className="hidden lg:flex w-[340px] shrink-0 flex-col border-r bg-muted/30 h-[calc(100vh-57px)]">
-          <div className="overflow-y-auto p-4">
+          <div className="overflow-y-auto overscroll-contain p-4">
             <DashboardSidebar
               disease={disease}
               state={state}
@@ -344,6 +334,7 @@ export default function Dashboard() {
             topR0={topR0[0]?.R0 ?? 0}
             peakYear={peakYear}
             state={state}
+            displayYear={epiYear}
             loading={loadingTimeSeries || loadingR0}
           />
 
@@ -441,7 +432,7 @@ export default function Dashboard() {
                   </div>
                 </CardAction>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex flex-col gap-4">
                 <div className="mb-4">
                   <Slider
                     value={[modelEvalYearSlider]}
@@ -543,7 +534,6 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
-      )}
     </div>
   );
 }
