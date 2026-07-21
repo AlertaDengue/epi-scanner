@@ -85,7 +85,7 @@ export function TimeSeriesChart({
               type="monotone"
               dataKey="model"
               name="Model"
-              stroke="#ef4444"
+              stroke="#ff7f0e"
               fill="none"
               strokeWidth={2}
               dot={false}

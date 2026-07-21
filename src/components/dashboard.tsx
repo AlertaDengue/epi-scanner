@@ -338,6 +338,13 @@ export default function Dashboard() {
             loading={loadingTimeSeries || loadingR0}
           />
 
+          <div className="flex items-center gap-3 pt-2">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              State Analysis
+            </h3>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
           <Card>
             <CardHeader>
               <PanelHeader
@@ -417,8 +424,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <Card>
+          <Card>
               <CardHeader>
                 <PanelHeader
                   icon={<span className="text-xs font-mono">Ev</span>}
@@ -442,23 +448,34 @@ export default function Dashboard() {
                     step={1}
                   />
                 </div>
-                <div className="min-h-[400px]">
-                  {modelEval?.rateMap && modelEval.rateMap.length > 0 ? (
-                    <ModelEvalMap data={modelEval.rateMap} year={modelEvalYear} uf={state} />
-                  ) : (
-                    <div className="flex h-[400px] items-center justify-center text-sm text-muted-foreground">
-                      No evaluation data available for {modelEvalYearSlider}
-                    </div>
-                  )}
+                <div className="flex flex-col gap-4 lg:flex-row items-stretch">
+                  <div className="flex min-h-[400px] flex-1 flex-col">
+                    {modelEval?.rateMap && modelEval.rateMap.length > 0 ? (
+                      <ModelEvalMap data={modelEval.rateMap} year={modelEvalYear} uf={state} />
+                    ) : (
+                      <div className="flex h-[400px] items-center justify-center text-sm text-muted-foreground">
+                        No evaluation data available for {modelEvalYearSlider}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex w-full shrink-0 flex-col gap-4 lg:w-[300px]">
+                    {(modelEval?.rateMap?.length ?? 0) > 0 && (
+                      <ModelEvalHist rates={modelEval!.rateMap.map((r) => r.rate).filter((r): r is number => r !== null)} />
+                    )}
+                    {modelEval?.table && modelEval.table.length > 0 && (
+                      <ModelEvalTable data={modelEval.table} />
+                    )}
+                  </div>
                 </div>
-                {(modelEval?.rateMap?.length ?? 0) > 0 && (
-                  <ModelEvalHist rates={modelEval!.rateMap.map((r) => r.rate).filter((r): r is number => r !== null)} />
-                )}
-                {modelEval?.table && modelEval.table.length > 0 && (
-                  <ModelEvalTable data={modelEval.table} />
-                )}
               </CardContent>
             </Card>
+
+            <div className="flex items-center gap-3 pt-2">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Municipal Analysis
+              </h3>
+              <div className="h-px flex-1 bg-border" />
+            </div>
 
             <Card>
               <CardHeader>
@@ -479,35 +496,34 @@ export default function Dashboard() {
                   title=""
                 />
                 <div className="mt-4">
-                  {cityParams.length > 0 && (
-                    <SIRParamsTable params={cityParams} />
-                  )}
-                  <div className="mt-4">
-                    <h4 className="mb-3 text-base font-semibold">
-                      Interactive epidemic calculator
-                    </h4>
-                    <div className="mb-3 flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
-                      <svg className="mt-0.5 size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
-                      <span>Adjust the sliders to explore different scenarios.</span>
-                    </div>
-                    <EpidemicCalculator
-                      key={`${city}-${epiYear}`}
-                      dataCumulative={calculatorCumulative}
-                      dates={calculatorDates}
-                      initialPeakWeek={medianParams.medianPeak}
-                      initialR0={medianParams.medianR0}
-                      initialTotalCases={medianParams.medianCases}
-                      minCases={medianParams.minCases}
-                      maxCases={medianParams.maxCases}
-                      step={medianParams.step}
-                      startDate={selectedYearParam?.ep_ini ?? null}
-                      endDate={selectedYearParam?.ep_end ?? null}
-                    />
+                  <h4 className="mb-3 text-base font-semibold">
+                    Interactive epidemic calculator
+                  </h4>
+                  <div className="mb-3 flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                    <svg className="mt-0.5 size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+                    <span>Adjust the sliders to explore different scenarios.</span>
                   </div>
+                  <EpidemicCalculator
+                    key={`${city}-${epiYear}`}
+                    dataCumulative={calculatorCumulative}
+                    dates={calculatorDates}
+                    initialPeakWeek={medianParams.medianPeak}
+                    initialR0={medianParams.medianR0}
+                    initialTotalCases={medianParams.medianCases}
+                    minCases={medianParams.minCases}
+                    maxCases={medianParams.maxCases}
+                    step={medianParams.step}
+                    startDate={selectedYearParam?.ep_ini ?? null}
+                    endDate={selectedYearParam?.ep_end ?? null}
+                  />
+                  {cityParams.length > 0 && (
+                    <div className="mt-4">
+                      <SIRParamsTable params={cityParams} />
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
-          </div>
 
           <footer className="border-t pt-4 text-xs text-muted-foreground">
             <p>
