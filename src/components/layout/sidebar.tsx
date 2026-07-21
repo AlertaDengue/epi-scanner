@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
@@ -10,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MapPin, Stethoscope } from "lucide-react";
+import { MapPin, Stethoscope, ChevronDown, Calendar } from "lucide-react";
 
 type SidebarProps = {
   disease: string;
@@ -22,6 +23,9 @@ type SidebarProps = {
   onStateChange: (v: string) => void;
   onCityChange: (v: string) => void;
   loading?: boolean;
+  epiYear: string;
+  onEpiYearChange: (v: string) => void;
+  epiYears: number[];
 };
 
 const STATE_OPTIONS = [
@@ -68,7 +72,12 @@ export function DashboardSidebar({
   onStateChange,
   onCityChange,
   loading = false,
+  epiYear,
+  onEpiYearChange,
+  epiYears,
 }: SidebarProps) {
+  const [expanded, setExpanded] = useState(false);
+  const visibleCities = expanded ? topCities : topCities.slice(0, 5);
   return (
     <aside className="flex flex-col gap-4">
       <Card>
@@ -113,6 +122,28 @@ export function DashboardSidebar({
               </SelectContent>
             </Select>
           </label>
+
+          {epiYears.length > 0 && (
+            <label className="flex flex-col gap-1.5">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Calendar className="size-3.5" aria-hidden="true" />
+                Epidemic year
+              </span>
+              <Select value={epiYear} onValueChange={(v) => v && onEpiYearChange(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {epiYears.map((y) => (
+                    <SelectItem key={y} value={String(y)}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          )}
         </CardContent>
       </Card>
 
@@ -128,7 +159,7 @@ export function DashboardSidebar({
         </CardHeader>
         <CardContent>
           <ul className="flex flex-col gap-1">
-            {topCities.map((c, i) => {
+            {visibleCities.map((c, i) => {
               const active = String(c.geocode) === city;
               return (
                 <li key={c.geocode}>
@@ -156,6 +187,16 @@ export function DashboardSidebar({
               );
             })}
           </ul>
+          {topCities.length > 5 && (
+            <button
+              type="button"
+              onClick={() => setExpanded(!expanded)}
+              className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              {expanded ? "Show less" : `Show all ${topCities.length}`}
+              <ChevronDown className={`size-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
+            </button>
+          )}
         </CardContent>
       </Card>
     </aside>

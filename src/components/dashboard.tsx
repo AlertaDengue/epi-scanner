@@ -17,16 +17,17 @@ import { ModelEvalTable } from "@/components/tables/model-eval-table";
 import { Spinner } from "@/components/ui/spinner";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardAction } from "@/components/ui/card";
 import { CURRENT_YEAR, MIN_YEAR } from "@/lib/constants";
 import { richards } from "@/lib/richards";
+import {
+  Sheet,
+  SheetTrigger,
+  SheetContent,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
 
 function PanelHeader({
   icon,
@@ -68,7 +69,7 @@ export default function Dashboard() {
   const [r0yearSlider, setR0YearSlider] = useState(CURRENT_YEAR);
   const [modelEvalYear, setModelEvalYear] = useState(CURRENT_YEAR);
   const [modelEvalYearSlider, setModelEvalYearSlider] = useState(CURRENT_YEAR);
-  const [epiYear, setEpiYear] = useState("all");
+  const [epiYear, setEpiYear] = useState(String(CURRENT_YEAR));
 
   const [weeksData, setWeeksData] = useState<{ geocode: number; transmissao: number }[]>([]);
   const [r0MapData, setR0MapData] = useState<{ geocode: number; R0: number }[]>([]);
@@ -88,12 +89,12 @@ export default function Dashboard() {
     maxCases: 10000,
     step: 50,
   });
-  const [loadingCities, setLoadingCities] = useState(true);
   const [loadingWeeks, setLoadingWeeks] = useState(true);
   const [loadingTopCities, setLoadingTopCities] = useState(true);
   const [loadingR0, setLoadingR0] = useState(true);
   const [loadingModelEval, setLoadingModelEval] = useState(true);
   const [loadingTimeSeries, setLoadingTimeSeries] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     fetch(basePath("/api/geolocation"))
@@ -114,7 +115,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchCities = async () => {
-      setLoadingCities(true);
       const res = await fetch(basePath(`/api/cities?disease=${disease}&uf=${state}`));
       const data = await res.json();
       setCities(data);
@@ -127,9 +127,9 @@ export default function Dashboard() {
           setCity(String(data[0].geocode));
         }
       }
-      setLoadingCities(false);
     };
     fetchCities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [disease, state]);
 
   useEffect(() => {
@@ -260,7 +260,42 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <DashboardHeader />
+      <DashboardHeader
+        mobileMenu={
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetTrigger
+              className="lg:hidden -ml-1 rounded-lg p-1.5 text-primary-foreground hover:bg-primary-foreground/15"
+              aria-label="Open menu"
+            >
+              <Menu className="size-5" />
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[300px] max-w-[85vw] p-0 sm:w-[340px]">
+              <div className="flex flex-col gap-1 p-4">
+                <SheetTitle className="text-sm font-semibold">Epi Scanner</SheetTitle>
+                <SheetDescription className="text-xs">
+                  {disease} surveillance in {state}
+                </SheetDescription>
+              </div>
+              <div className="overflow-y-auto px-1">
+                <DashboardSidebar
+                  disease={disease}
+                  state={state}
+                  city={city}
+                  cities={cities}
+                  topCities={topCities}
+                  onDiseaseChange={setDisease}
+                  onStateChange={setState}
+                  onCityChange={setCity}
+                  loading={loadingTopCities}
+                  epiYear={epiYear}
+                  onEpiYearChange={setEpiYear}
+                  epiYears={cityParams.map((p) => p.year)}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        }
+      />
 
       {initialLoad ? (
         <div className="flex min-h-[calc(100vh-60px)] items-center justify-center bg-background">
@@ -270,20 +305,28 @@ export default function Dashboard() {
           </div>
         </div>
       ) : (
-      <main className="mx-auto grid max-w-[1600px] grid-cols-1 gap-4 px-4 py-4 md:px-6 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <DashboardSidebar
-          disease={disease}
-          state={state}
-          city={city}
-          cities={cities}
-          topCities={topCities}
-          onDiseaseChange={setDisease}
-          onStateChange={setState}
-          onCityChange={setCity}
-          loading={loadingTopCities}
-        />
+      <main className="flex">
+        <aside className="hidden lg:flex w-[340px] shrink-0 flex-col border-r bg-muted/30 h-[calc(100vh-57px)]">
+          <div className="overflow-y-auto p-4">
+            <DashboardSidebar
+              disease={disease}
+              state={state}
+              city={city}
+              cities={cities}
+              topCities={topCities}
+              onDiseaseChange={setDisease}
+              onStateChange={setState}
+              onCityChange={setCity}
+              loading={loadingTopCities}
+              epiYear={epiYear}
+              onEpiYearChange={setEpiYear}
+              epiYears={cityParams.map((p) => p.year)}
+            />
+          </div>
+        </aside>
 
-        <div className="flex min-w-0 flex-col gap-4">
+        <div className="min-w-0 flex-1 overflow-y-auto h-[calc(100vh-57px)]">
+          <div className="flex flex-col gap-4 px-4 py-4 md:px-6">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold tracking-tight text-balance">
@@ -445,24 +488,6 @@ export default function Dashboard() {
                   title=""
                 />
                 <div className="mt-4">
-                  <p className="mb-3 text-sm font-medium text-muted-foreground">
-                    SIR Parameters for {disease} Epidemics in {topCityName}
-                  </p>
-                  <div className="mb-4">
-                    <Select value={epiYear} onValueChange={(v) => v && setEpiYear(v)}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Select Year" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All</SelectItem>
-                        {cityParams.map((p) => (
-                          <SelectItem key={p.year} value={String(p.year)}>
-                            {p.year}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
                   {cityParams.length > 0 && (
                     <SIRParamsTable params={cityParams} />
                   )}
@@ -476,8 +501,6 @@ export default function Dashboard() {
                     </div>
                     <EpidemicCalculator
                       key={`${city}-${epiYear}`}
-                      disease={disease}
-                      city={topCityName}
                       dataCumulative={calculatorCumulative}
                       dates={calculatorDates}
                       initialPeakWeek={medianParams.medianPeak}
@@ -517,6 +540,7 @@ export default function Dashboard() {
               </a>
             </p>
           </footer>
+          </div>
         </div>
       </main>
       )}

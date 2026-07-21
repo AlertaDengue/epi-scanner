@@ -11,8 +11,6 @@ function makeProps(overrides = {}) {
   const dataCumulative = Array.from({ length: 80 }, (_, i) => i * 50);
 
   return {
-    disease: "dengue",
-    city: "Rio de Janeiro",
     dataCumulative,
     dates,
     initialPeakWeek: 20,

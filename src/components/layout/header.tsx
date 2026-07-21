@@ -1,11 +1,13 @@
 import { Radio } from "lucide-react";
 import Image from "next/image";
+import type { ReactNode } from "react";
 
-export function DashboardHeader() {
+export function DashboardHeader({ mobileMenu }: { mobileMenu?: ReactNode }) {
   return (
     <header className="sticky top-0 z-[1100] border-b border-border bg-primary text-primary-foreground">
-      <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3 md:px-6">
+      <div className="flex items-center justify-between gap-4 px-4 py-3 md:px-6">
         <div className="flex items-center gap-3">
+          {mobileMenu}
           <Image
             src="https://github.com/AlertaDengue/AlertaDengue/blob/main/AlertaDengue/static/img/logo-infodengue.png?raw=true"
             alt="Infodengue"
