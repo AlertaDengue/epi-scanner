@@ -53,7 +53,7 @@ describe("Richards model", () => {
     const values = Array.from({ length: 100 }, (_, i) =>
       richards(10000, 0.3, 0.1, i, 25)
     );
-    values.forEach((v, i) => {
+    values.forEach((v) => {
       expect(v).toBeGreaterThanOrEqual(0);
     });
   });

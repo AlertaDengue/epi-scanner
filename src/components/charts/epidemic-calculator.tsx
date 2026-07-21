@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from "react";
 import {
-  AreaChart,
   Area,
   XAxis,
   YAxis,
@@ -20,8 +19,6 @@ import { richards, getWeekNumber } from "@/lib/richards";
 import { Lock, LockOpen } from "lucide-react";
 
 interface EpidemicCalculatorProps {
-  disease: string;
-  city: string;
   dataCumulative: number[];
   dates: string[];
   initialPeakWeek: number;
@@ -35,8 +32,6 @@ interface EpidemicCalculatorProps {
 }
 
 export function EpidemicCalculator({
-  disease,
-  city,
   dataCumulative,
   dates,
   initialPeakWeek,
@@ -78,8 +73,6 @@ export function EpidemicCalculator({
   }));
 
   const peakDate = dates[Math.round(effectivePeakWeek)] || dates[0];
-
-  const title = `${disease.charAt(0).toUpperCase() + disease.slice(1)} weekly cases in ${new Date().getFullYear()} for ${city}`;
 
   return (
     <div className="space-y-4">
