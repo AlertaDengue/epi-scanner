@@ -65,7 +65,7 @@ export function SIRParamsTable({ params }: SIRParamsTableProps) {
                 <TableCell className="text-right">{row.ep_ini}</TableCell>
                 <TableCell className="text-right">{row.ep_end}</TableCell>
                 <TableCell className="text-right">{row.ep_dur}</TableCell>
-                <TableCell className="text-right">{row.total_cases.toLocaleString()}</TableCell>
+                <TableCell className="text-right">{row.total_cases.toFixed(1).toLocaleString()}</TableCell>
                 <TableCell className="text-right">
                   {row.reported_cases?.toLocaleString() ?? "—"}
                 </TableCell>

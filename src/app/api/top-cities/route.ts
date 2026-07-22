@@ -13,11 +13,13 @@ export async function GET(request: NextRequest) {
   const disease = searchParams.get("disease") || "dengue";
   const uf = searchParams.get("uf") || "CE";
   const limit = Number(searchParams.get("limit")) || 20;
+  const year = searchParams.get("year");
 
   const cities = await episcannerFetch<DjangoTopCity[]>("top-cities", {
     disease,
     uf,
     limit,
+    ...(year ? { year } : {}),
   });
 
   return cachedJson(

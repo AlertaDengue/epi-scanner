@@ -17,6 +17,7 @@ interface DjangoSIRParams {
   total_cases: number;
   alpha: number;
   sum_res: number;
+  reported_cases: number;
 }
 
 interface SIRParamsOutput {
@@ -35,14 +36,16 @@ interface SIRParamsOutput {
   total_cases: number;
   alpha: number;
   sum_res: number;
+  reported_cases: number;
 }
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const disease = searchParams.get("disease") || "dengue";
   const uf = searchParams.get("uf") || "CE";
+  const year = searchParams.get("year");
 
-  const params = await episcannerFetch<DjangoSIRParams[]>("parameters", { disease, uf });
+  const params = await episcannerFetch<DjangoSIRParams[]>("parameters", { disease, uf, ...(year ? { year } : {}) });
 
   const output: SIRParamsOutput[] = params.map((p) => ({
     disease: mapCID10ToDisease(p.cid10),
@@ -60,6 +63,7 @@ export async function GET(request: NextRequest) {
     total_cases: p.total_cases,
     alpha: p.alpha,
     sum_res: p.sum_res,
+    reported_cases: p.reported_cases
   }));
 
   return cachedJson(output);

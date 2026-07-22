@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MapPin, Stethoscope, ChevronDown, Calendar, Building2 } from "lucide-react";
+import { MapPin, Stethoscope, ChevronDown, Calendar, Building2, HelpCircle } from "lucide-react";
 
 type SidebarProps = {
   disease: string;
@@ -156,13 +156,18 @@ export function DashboardSidebar({
             <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <Calendar className="size-3.5" aria-hidden="true" />
               Epidemic year
+              <span
+                title={`Epidemiological year from week 45 of ${Number(epiYear) - 1} to week 45 of ${epiYear}`}
+                className="cursor-help"
+              >
+                <HelpCircle className="size-3 text-muted-foreground" />
+              </span>
             </span>
             <Select value={epiYear} onValueChange={(v) => v && onEpiYearChange(v)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
                 {epiYears.map((y) => (
                   <SelectItem key={y} value={String(y)}>
                     {y}

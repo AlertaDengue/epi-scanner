@@ -20,7 +20,7 @@ const baseProps = {
   onDiseaseChange: () => {},
   onStateChange: () => {},
   onCityChange: () => {},
-  epiYear: "all",
+  epiYear: "2025",
   onEpiYearChange: () => {},
   epiYears: [2024, 2025],
 };
@@ -79,7 +79,7 @@ describe("DashboardSidebar", () => {
     expect(screen.getByText("Epidemic year")).toBeInTheDocument();
   });
 
-  it("shows epidemic year selector even with empty years (All option always visible)", () => {
+  it("shows epidemic year selector even with empty years", () => {
     render(<DashboardSidebar {...baseProps} epiYears={[]} />);
     expect(screen.getByText("Epidemic year")).toBeInTheDocument();
   });
