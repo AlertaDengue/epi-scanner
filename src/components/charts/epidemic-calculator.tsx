@@ -16,6 +16,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { richards, getWeekNumber } from "@/lib/richards";
+import { formatDateISO } from "@/lib/utils";
 import { Lock, LockOpen } from "lucide-react";
 
 interface EpidemicCalculatorProps {
@@ -90,17 +91,17 @@ export function EpidemicCalculator({
               <XAxis
                 dataKey="date"
                 tick={{ fontSize: 11 }}
-                tickFormatter={(v) => {
-                  const d = new Date(String(v));
-                  return `${d.getMonth() + 1}/${d.getFullYear()}`;
-                }}
-              />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip
-                labelFormatter={(v) => {
-                  if (typeof v !== "string") return String(v);
-                  const wk = getWeekNumber(v);
-                  const dateStr = new Date(v).toLocaleDateString();
+            tickFormatter={(v) => {
+              const d = new Date(String(v));
+              return formatDateISO(d);
+            }}
+          />
+          <YAxis tick={{ fontSize: 11 }} />
+          <Tooltip
+            labelFormatter={(v) => {
+              if (typeof v !== "string") return String(v);
+              const wk = getWeekNumber(v);
+              const dateStr = formatDateISO(new Date(v));
                   return `${dateStr} · Epiweek ${wk}`;
                 }}
                 formatter={(value, name) => [
@@ -112,7 +113,7 @@ export function EpidemicCalculator({
               <Area
                 type="stepAfter"
                 dataKey="data"
-                name="Data"
+                name="Cumulative Cases"
                 stroke="#1f77b4"
                 fill="#1f77b4"
                 fillOpacity={0.3}

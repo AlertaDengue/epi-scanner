@@ -1,11 +1,13 @@
-import { Activity, CalendarClock, Layers, TrendingUp, Loader2 } from "lucide-react";
+import { Activity, CalendarClock, Layers, TrendingUp, Loader2, HelpCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 type StatCardsProps = {
   cumulativeCases: number;
   topR0: number;
   peakYear: number;
-  state: string;
+  locationLabel: string;
+  locationValue: string;
+  locationHint: string;
   loading?: boolean;
   displayYear?: string;
 };
@@ -14,16 +16,19 @@ export function StatCards({
   cumulativeCases,
   topR0,
   peakYear,
-  state,
+  locationLabel,
+  locationValue,
+  locationHint,
   loading = false,
   displayYear,
 }: StatCardsProps) {
-  const seasonLabel = displayYear && displayYear !== "all" ? displayYear : String(peakYear);
+  const seasonLabel = displayYear ?? String(peakYear);
+  const epiYearStart = Number(seasonLabel) - 1;
   const stats = [
     {
       label: "Cumulative notified cases",
       value: cumulativeCases.toLocaleString("en-US"),
-      hint: `Since Jan ${seasonLabel}`,
+      hint: `Since ${epiYearStart}-45`,
       icon: Activity,
     },
     {
@@ -37,11 +42,12 @@ export function StatCards({
       value: seasonLabel,
       hint: "Epidemiological year",
       icon: CalendarClock,
+      tooltip: `Epidemiological year from week 45 of ${epiYearStart} to week 45 of ${seasonLabel}`,
     },
     {
-      label: "State under scan",
-      value: state,
-      hint: "Municipal-level resolution",
+      label: locationLabel,
+      value: locationValue,
+      hint: locationHint,
       icon: Layers,
     },
   ];
@@ -55,10 +61,20 @@ export function StatCards({
               <span className="text-xs font-medium text-muted-foreground text-pretty">
                 {stat.label}
               </span>
-              <stat.icon
-                className="size-4 shrink-0 text-primary"
-                aria-hidden="true"
-              />
+              <div className="flex items-center gap-1">
+                {stat.tooltip && (
+                  <span
+                    title={stat.tooltip}
+                    className="cursor-help"
+                  >
+                    <HelpCircle className="size-3.5 text-muted-foreground" />
+                  </span>
+                )}
+                <stat.icon
+                  className="size-4 shrink-0 text-primary"
+                  aria-hidden="true"
+                />
+              </div>
             </div>
             <span className="flex min-h-[2rem] items-center text-2xl font-bold tracking-tight tabular-nums">
               {loading ? (

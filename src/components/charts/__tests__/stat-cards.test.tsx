@@ -7,7 +7,9 @@ describe("StatCards", () => {
     cumulativeCases: 50000,
     topR0: 1.8,
     peakYear: 2024,
-    state: "RJ",
+    locationLabel: "State under scan",
+    locationValue: "RJ",
+    locationHint: "Municipal-level resolution",
   };
 
   it("renders all four stat cards", () => {

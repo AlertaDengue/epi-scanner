@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     disease,
     uf,
     geocode,
-    ...(year && year !== "all" ? { year } : {}),
+    ...(year ? { year } : {}),
   });
 
   return NextResponse.json(

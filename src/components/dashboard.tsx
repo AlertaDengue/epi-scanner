@@ -9,8 +9,10 @@ import { StateMap } from "@/components/maps/state-map";
 import { R0Map } from "@/components/maps/r0-map";
 import { ModelEvalMap } from "@/components/maps/model-eval-map";
 import { TimeSeriesChart } from "@/components/charts/time-series";
+import { ReportedCasesChart } from "@/components/charts/reported-cases-chart";
 import { ModelEvalHist } from "@/components/charts/model-eval-hist";
 import { EpidemicCalculator } from "@/components/charts/epidemic-calculator";
+import { mapDiseaseToCID10 } from "@/lib/api-client";
 import { RankTable } from "@/components/tables/rank-table";
 import { SIRParamsTable } from "@/components/tables/sir-params-table";
 import { ModelEvalTable } from "@/components/tables/model-eval-table";
@@ -64,6 +66,7 @@ export default function Dashboard() {
   const [disease, setDisease] = useState("dengue");
   const [state, setState] = useState("RJ");
   const [city, setCity] = useState("");
+  const [geoCityName, setGeoCityName] = useState<string | null>(null);
   const [cities, setCities] = useState<{ geocode: number; name: string }[]>([]);
   const [r0year, setR0Year] = useState(CURRENT_YEAR);
   const [r0yearSlider, setR0YearSlider] = useState(CURRENT_YEAR);
@@ -93,13 +96,21 @@ export default function Dashboard() {
   const [loadingTopCities, setLoadingTopCities] = useState(true);
   const [loadingR0, setLoadingR0] = useState(true);
   const [loadingModelEval, setLoadingModelEval] = useState(true);
+  const [reportedCases, setReportedCases] = useState<{ date: string; cases: number | null }[]>([]);
+  const [loadingReportedCases, setLoadingReportedCases] = useState(true);
+  const [stateCumulativeCases, setStateCumulativeCases] = useState(0);
+  const [loadingStateCases, setLoadingStateCases] = useState(true);
   const [loadingTimeSeries, setLoadingTimeSeries] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     fetch(basePath("/api/geolocation"))
       .then((r) => r.json())
-      .then((d) => { if (d?.uf) setState(d.uf); })
+      .then((d) => {
+        if (d?.uf) setState(d.uf);
+        if (d?.geocode) setCity(d.geocode);
+        if (d?.cityName) setGeoCityName(d.cityName);
+      })
       .catch(() => {});
   }, []);
 
@@ -115,11 +126,12 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchCities = async () => {
-      const res = await fetch(basePath(`/api/cities?disease=${disease}&uf=${state}`));
+      const yearParam = `&year=${epiYear}`;
+      const res = await fetch(basePath(`/api/cities?disease=${disease}&uf=${state}${yearParam}`));
       const data = await res.json();
       setCities(data);
-      if (data.length > 0 && !city) {
-        const topRes = await fetch(basePath(`/api/top-cities?disease=${disease}&uf=${state}&limit=1`));
+      if (data.length > 0) {
+        const topRes = await fetch(basePath(`/api/top-cities?disease=${disease}&uf=${state}&limit=1${yearParam}`));
         const topData = await topRes.json();
         if (topData.length > 0) {
           setCity(String(topData[0].geocode));
@@ -135,26 +147,28 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchWeeksMap = async () => {
       setLoadingWeeks(true);
-      const res = await fetch(basePath(`/api/maps/weeks?disease=${disease}&uf=${state}`));
+      const yearParam = `&year=${epiYear}`;
+      const res = await fetch(basePath(`/api/maps/weeks?disease=${disease}&uf=${state}${yearParam}`));
       setWeeksData(await res.json());
       setLoadingWeeks(false);
     };
     fetchWeeksMap();
-  }, [disease, state]);
+  }, [disease, state, epiYear]);
 
   useEffect(() => {
     const fetchTopCities = async () => {
       setLoadingTopCities(true);
+      const yearParam = `&year=${epiYear}`;
       const [top10Res, top20Res] = await Promise.all([
-        fetch(basePath(`/api/top-cities?disease=${disease}&uf=${state}&limit=10`)),
-        fetch(basePath(`/api/top-cities?disease=${disease}&uf=${state}&limit=20`)),
+        fetch(basePath(`/api/top-cities?disease=${disease}&uf=${state}&limit=10${yearParam}`)),
+        fetch(basePath(`/api/top-cities?disease=${disease}&uf=${state}&limit=20${yearParam}`)),
       ]);
       setTop10Cities(await top10Res.json());
       setTopCities(await top20Res.json());
       setLoadingTopCities(false);
     };
     fetchTopCities();
-  }, [disease, state]);
+  }, [disease, state, epiYear]);
 
   useEffect(() => {
     const fetchR0 = async () => {
@@ -180,11 +194,27 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchParams = async () => {
-      const res = await fetch(basePath(`/api/parameters?disease=${disease}&uf=${state}`));
+      const yearParam = `&year=${epiYear}`;
+      const res = await fetch(basePath(`/api/parameters?disease=${disease}&uf=${state}${yearParam}`));
       setSirParams(await res.json());
     };
     fetchParams();
-  }, [disease, state]);
+  }, [disease, state, epiYear]);
+
+  useEffect(() => {
+    const fetchStateCases = async () => {
+      setLoadingStateCases(true);
+      const cid10 = mapDiseaseToCID10(disease);
+      const yearParam = `&year=${epiYear}`;
+      const res = await fetch(
+        basePath(`/api/vis/state-cases?disease=${cid10}&adm_1=${state}${yearParam}`)
+      );
+      const data = await res.json();
+      setStateCumulativeCases(data.total ?? 0);
+      setLoadingStateCases(false);
+    };
+    fetchStateCases();
+  }, [disease, state, epiYear]);
 
   useEffect(() => {
     if (!city) return;
@@ -197,7 +227,7 @@ export default function Dashboard() {
       setCases(totalCases);
       const cityP = sirParams.filter((p) => p.geocode === Number(city));
       setCityParams(cityP);
-      if (epiYear !== "all" && cityP.length > 0) {
+      if (cityP.length > 0) {
         const yearParam = cityP.find((p) => p.year === Number(epiYear));
         if (yearParam) {
           const pastParams = cityP.filter((p) => p.year < Number(epiYear));
@@ -226,7 +256,23 @@ export default function Dashboard() {
     fetchTimeSeries();
   }, [city, disease, state, epiYear, sirParams]);
 
-  const topCityName = cities.find((c) => String(c.geocode) === city)?.name || "";
+  useEffect(() => {
+    if (!city) return;
+    const fetchReportedCases = async () => {
+      setLoadingReportedCases(true);
+      const cid10 = mapDiseaseToCID10(disease);
+      const year = epiYear;
+      const res = await fetch(
+        basePath(`/api/vis/cases?disease=${cid10}&adm_2=${city}&year=${year}`)
+      );
+      const data = await res.json();
+      setReportedCases(data);
+      setLoadingReportedCases(false);
+    };
+    fetchReportedCases();
+  }, [city, disease, epiYear]);
+
+  const topCityName = cities.find((c) => String(c.geocode) === city)?.name || geoCityName || "";
   const peakYear = useMemo(() => {
     if (cityParams.length === 0) return CURRENT_YEAR;
     const maxR0 = Math.max(...cityParams.map((p) => p.R0));
@@ -235,7 +281,6 @@ export default function Dashboard() {
   }, [cityParams]);
 
   const selectedYearParam = useMemo(() => {
-    if (epiYear === "all") return null;
     return cityParams.find((p) => p.year === Number(epiYear)) ?? null;
   }, [cityParams, epiYear]);
 
@@ -329,21 +374,23 @@ export default function Dashboard() {
             </p>
           </div>
 
-          <StatCards
-            cumulativeCases={cases}
-            topR0={topR0[0]?.R0 ?? 0}
-            peakYear={peakYear}
-            state={state}
-            displayYear={epiYear}
-            loading={loadingTimeSeries || loadingR0}
-          />
-
           <div className="flex items-center gap-3 pt-2">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               State Analysis
             </h3>
             <div className="h-px flex-1 bg-border" />
           </div>
+
+          <StatCards
+            cumulativeCases={stateCumulativeCases}
+            topR0={topR0[0]?.R0 ?? 0}
+            peakYear={peakYear}
+            locationLabel="State under scan"
+            locationValue={state}
+            locationHint="Municipal-level resolution"
+            displayYear={epiYear}
+            loading={loadingStateCases || loadingR0}
+          />
 
           <Card>
             <CardHeader>
@@ -476,6 +523,31 @@ export default function Dashboard() {
               </h3>
               <div className="h-px flex-1 bg-border" />
             </div>
+
+            <StatCards
+              cumulativeCases={cases}
+              topR0={selectedYearParam?.R0 ?? (cityParams.length > 0 ? Math.max(...cityParams.map((p) => p.R0)) : 0)}
+              peakYear={peakYear}
+              locationLabel="City under scan"
+              locationValue={topCityName || city}
+              locationHint={city}
+              displayYear={epiYear}
+              loading={loadingTimeSeries}
+            />
+
+            <Card>
+              <CardHeader>
+                <PanelHeader
+                  icon={<span className="text-xs font-mono">RC</span>}
+                  title="Reported Cases"
+                  description={`${disease} reported cases in ${topCityName}`}
+                  loading={loadingReportedCases}
+                />
+              </CardHeader>
+              <CardContent>
+                <ReportedCasesChart data={reportedCases} targetYear={Number(epiYear)} />
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader>

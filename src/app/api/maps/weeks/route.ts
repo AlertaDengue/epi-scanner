@@ -11,8 +11,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const disease = searchParams.get("disease") || "dengue";
   const uf = searchParams.get("uf") || "CE";
+  const year = searchParams.get("year");
 
-  const data = await episcannerFetch<DjangoWeeksPoint[]>("maps/weeks", { disease, uf });
+  const data = await episcannerFetch<DjangoWeeksPoint[]>("maps/weeks", { disease, uf, ...(year ? { year } : {}) });
   return cachedJson(
     data.map((d) => ({ geocode: Number(d.geocode), transmissao: d.transmissao }))
   );
