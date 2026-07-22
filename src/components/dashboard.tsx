@@ -261,16 +261,15 @@ export default function Dashboard() {
     const fetchReportedCases = async () => {
       setLoadingReportedCases(true);
       const cid10 = mapDiseaseToCID10(disease);
-      const year = epiYear;
       const res = await fetch(
-        basePath(`/api/vis/cases?disease=${cid10}&adm_2=${city}&year=${year}`)
+        basePath(`/api/vis/cases?disease=${cid10}&adm_2=${city}`)
       );
       const data = await res.json();
       setReportedCases(data);
       setLoadingReportedCases(false);
     };
     fetchReportedCases();
-  }, [city, disease, epiYear]);
+  }, [city, disease]);
 
   const topCityName = cities.find((c) => String(c.geocode) === city)?.name || geoCityName || "";
   const peakYear = useMemo(() => {

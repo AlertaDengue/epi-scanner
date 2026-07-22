@@ -28,7 +28,7 @@ export function StatCards({
     {
       label: "Cumulative notified cases",
       value: cumulativeCases.toLocaleString("en-US"),
-      hint: `Since ${epiYearStart}-45`,
+      hint: `Since ${epiYearStart}-45 → Until ${seasonLabel}-45`,
       icon: Activity,
     },
     {
