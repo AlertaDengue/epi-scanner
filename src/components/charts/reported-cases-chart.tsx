@@ -24,12 +24,14 @@ export function ReportedCasesChart({
 }: ReportedCasesChartProps) {
   const currentYear = targetYear ?? new Date().getFullYear();
 
-  const enriched = data.map((d) => {
+  const enriched = data.map((d, i) => {
     const year = new Date(d.date).getUTCFullYear();
+    const isFirstOfCurrent = year === currentYear && (i === 0 || new Date(data[i - 1].date).getUTCFullYear() !== currentYear);
+    const isLastOfPrevious = year !== currentYear && (i === data.length - 1 || new Date(data[i + 1].date).getUTCFullYear() === currentYear);
     return {
       ...d,
-      isCurrent: year === currentYear ? d.cases : null,
-      isPrevious: year !== currentYear ? d.cases : null,
+      isCurrent: year === currentYear || isLastOfPrevious ? d.cases : null,
+      isPrevious: year !== currentYear || isFirstOfCurrent ? d.cases : null,
     };
   });
 
@@ -55,13 +57,13 @@ export function ReportedCasesChart({
             }}
             formatter={(value, name) => [
               Math.round(Number(value)).toLocaleString(),
-              String(name) === "isCurrent" ? `${currentYear}` : "Previous years",
+              String(name),
             ]}
           />
           <Area
             type="monotone"
             dataKey="isPrevious"
-            name="Previous years"
+            name="Cases"
             stroke="#94a3b8"
             fill="#94a3b8"
             fillOpacity={0.1}
@@ -72,7 +74,7 @@ export function ReportedCasesChart({
           <Area
             type="monotone"
             dataKey="isCurrent"
-            name={`${currentYear}`}
+            name="Cases"
             stroke="#2563eb"
             fill="#2563eb"
             fillOpacity={0.2}
