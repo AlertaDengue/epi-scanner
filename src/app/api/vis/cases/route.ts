@@ -6,21 +6,29 @@ const EPISCANNER_URL =
 const API_BASE = EPISCANNER_URL.replace(/\/?datastore\/episcanner\/?$/, "");
 const API_KEY = process.env.EPISCANNER_API_KEY || "";
 
-function getWeekStartDate(year: number, week: number): Date {
-  const jan4 = new Date(year, 0, 4);
-  const dayOfWeek = jan4.getDay();
-  const sundayBefore = new Date(jan4);
-  sundayBefore.setDate(jan4.getDate() - ((dayOfWeek + 6) % 7));
-  const weekStart = new Date(sundayBefore);
-  weekStart.setDate(sundayBefore.getDate() + (week - 1) * 7);
-  return weekStart;
+function getEndOfWeek(): string {
+  const now = new Date();
+  const day = now.getUTCDay();
+  const sunday = new Date(now);
+  sunday.setUTCDate(now.getUTCDate() + ((7 - day) % 7 || 7));
+  sunday.setUTCHours(23, 59, 59, 999);
+  return sunday.toISOString().split("T")[0];
+}
+
+function getSecondsUntilSunday(): number {
+  const now = new Date();
+  const day = now.getUTCDay();
+  const daysUntilSunday = (7 - day) % 7 || 7;
+  const sunday = new Date(now);
+  sunday.setUTCDate(now.getUTCDate() + daysUntilSunday);
+  sunday.setUTCHours(23, 59, 59, 999);
+  return Math.max(0, Math.floor((sunday.getTime() - now.getTime()) / 1000));
 }
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const disease = searchParams.get("disease");
   const adm2 = searchParams.get("adm_2");
-  const year = searchParams.get("year");
 
   if (!disease || !adm2) {
     return NextResponse.json(
@@ -29,9 +37,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const y = year ? Number(year) : new Date().getFullYear();
-  const start = getWeekStartDate(y - 1, 45);
-  const end = getWeekStartDate(y, 45);
+  const start = "2010-01-01";
+  const end = getEndOfWeek();
 
   const params = new URLSearchParams({
     sprint: "false",
@@ -39,8 +46,8 @@ export async function GET(request: NextRequest) {
     disease,
     adm_level: "2",
     adm_2: adm2,
-    start: start.toISOString().split("T")[0],
-    end: end.toISOString().split("T")[0],
+    start,
+    end,
   });
 
   try {
@@ -62,7 +69,13 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await res.json();
-    return NextResponse.json(data);
+    const maxAge = getSecondsUntilSunday();
+
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": `public, max-age=${maxAge}, s-maxage=${maxAge}`,
+      },
+    });
   } catch {
     return NextResponse.json(
       { error: "Internal Server Error" },

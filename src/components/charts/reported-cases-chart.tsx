@@ -9,7 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { formatDateISO } from "@/lib/utils";
+import { formatDateISO, cdcEpiweekStart } from "@/lib/utils";
 
 interface ReportedCasesChartProps {
   data: { date: string; cases: number | null }[];
@@ -23,15 +23,16 @@ export function ReportedCasesChart({
   targetYear,
 }: ReportedCasesChartProps) {
   const currentYear = targetYear ?? new Date().getFullYear();
+  const epiStart = cdcEpiweekStart(currentYear - 1, 45);
+  const epiEnd = cdcEpiweekStart(currentYear, 45);
 
-  const enriched = data.map((d, i) => {
-    const year = new Date(d.date).getUTCFullYear();
-    const isFirstOfCurrent = year === currentYear && (i === 0 || new Date(data[i - 1].date).getUTCFullYear() !== currentYear);
-    const isLastOfPrevious = year !== currentYear && (i === data.length - 1 || new Date(data[i + 1].date).getUTCFullYear() === currentYear);
+  const enriched = data.map((d) => {
+    const date = new Date(d.date);
+    const inEpiYear = date >= epiStart && date < epiEnd;
     return {
       ...d,
-      isCurrent: year === currentYear || isLastOfPrevious ? d.cases : null,
-      isPrevious: year !== currentYear || isFirstOfCurrent ? d.cases : null,
+      isCurrent: inEpiYear ? d.cases : null,
+      isPrevious: !inEpiYear ? d.cases : null,
     };
   });
 
