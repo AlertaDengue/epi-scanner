@@ -70,7 +70,6 @@ export function ReportedCasesChart({
             fillOpacity={0.1}
             strokeWidth={1.5}
             dot={false}
-            connectNulls
           />
           <Area
             type="monotone"
