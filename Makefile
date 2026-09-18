@@ -1,4 +1,10 @@
-.PHONY: install dev build start lint clean docker-build docker-up docker-down
+-include .env
+
+ENV ?= prod
+
+COMPOSE_FILE = $(if $(filter dev,$(ENV)),docker-compose.dev.yaml,docker-compose.yaml)
+
+.PHONY: install dev build start lint clean image up down logs
 
 install:
 	npm install
@@ -18,14 +24,14 @@ lint:
 clean:
 	rm -rf .next out node_modules
 
-docker-build:
-	docker build -t epi-scanner .
+image:
+	docker compose -f $(COMPOSE_FILE) build
 
-docker-up:
-	docker compose up -d
+up:
+	docker compose -f $(COMPOSE_FILE) up -d
 
-docker-down:
-	docker compose down
+down:
+	docker compose -f $(COMPOSE_FILE) down
 
-docker-logs:
-	docker compose logs -f
+logs:
+	docker compose -f $(COMPOSE_FILE) logs -f
