@@ -1,6 +1,13 @@
 Release Notes
 ---
 
+## 2.3.0 (2026-09-18)
+
+* Merge pull request #98 from luabida/coolify-compose ([9ae6a0a](https://github.com/AlertaDengue/epi-scanner/commit/9ae6a0a)), closes [#98](https://github.com/AlertaDengue/epi-scanner/issues/98)
+* Merge pull request #99 from luabida/fix-releawse ([05a4ff7](https://github.com/AlertaDengue/epi-scanner/commit/05a4ff7)), closes [#99](https://github.com/AlertaDengue/epi-scanner/issues/99)
+* fix: fix release ([ecaf132](https://github.com/AlertaDengue/epi-scanner/commit/ecaf132))
+* feat: coolify the docker cluster ([d6a8f88](https://github.com/AlertaDengue/epi-scanner/commit/d6a8f88))
+
 ## [2.2.3](https://github.com/AlertaDengue/epi-scanner/compare/2.2.2...2.2.3) (2026-07-23)
 
 ## [2.2.2](https://github.com/AlertaDengue/epi-scanner/compare/2.2.1...2.2.2) (2026-07-22)
