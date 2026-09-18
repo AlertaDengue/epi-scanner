@@ -25,6 +25,7 @@ Real-time epidemiological surveillance dashboard for dengue and chikungunya in B
 ```bash
 # Install dependencies
 npm install
+cp .env.example .env  # adjust values if needed
 
 # Start dev server
 npm run dev
@@ -32,12 +33,41 @@ npm run dev
 
 The app will be available at `http://localhost:3000`.
 
+Alternatively, run the dev server inside a container with hot reload:
+
+```bash
+make up   # or set ENV=dev in .env (default in .env.example)
+```
+
+The Makefile picks the compose file from the `ENV` variable
+(`dev` → `docker-compose.dev.yaml`, otherwise → `docker-compose.yaml`). The
+same targets work for both environments:
+
+| Target | Description |
+|---|---|
+| `make up` | start the stack |
+| `make down` | stop the stack |
+| `make logs` | follow the logs |
+| `make image` | build the image |
+
+Override on the fly, e.g. `make up ENV=prod`.
+
 ### Production
 
 ```bash
 # Build and start with Docker
 docker compose up -d --build
 ```
+
+The production stack uses `docker-compose.yaml` and is compatible with
+[Coolify](https://coolify.io). Required environment variables:
+
+| Variable | Description |
+|---|---|
+| `EPISCANNER_API_URL` | Mosqlimate/EpiScanner API base URL |
+| `EPISCANNER_API_KEY` | API key for the EpiScanner datastore |
+
+Optional: `FRONTEND_PORT`, `UID`, `GID`, `NEXT_PUBLIC_URL_PREFIX`.
 
 ## GeoJSON Data
 

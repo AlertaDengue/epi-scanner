@@ -7,6 +7,11 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install
 
+FROM deps AS dev
+ENV NODE_ENV=development
+COPY . .
+CMD ["npm", "run", "dev"]
+
 FROM deps AS builder
 COPY . .
 

@@ -1,0 +1,22 @@
+services:
+  app:
+    build:
+      context: .
+      target: deps
+      args:
+        NEXT_PUBLIC_URL_PREFIX: ${NEXT_PUBLIC_URL_PREFIX:-}
+    command: ["npm", "run", "dev"]
+    ports:
+      - "${FRONTEND_PORT:-3000}:${FRONTEND_PORT:-3000}"
+    environment:
+      - NODE_ENV=development
+      - PORT=${FRONTEND_PORT:-3000}
+      - NEXT_PUBLIC_URL_PREFIX=${NEXT_PUBLIC_URL_PREFIX:-}
+      - EPISCANNER_API_URL=${EPISCANNER_API_URL:-http://host.docker.internal:8042/api/datastore/episcanner}
+      - EPISCANNER_API_KEY=${EPISCANNER_API_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
